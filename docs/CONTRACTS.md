@@ -41,15 +41,15 @@ All of them require a signed-in user.
 | --- | --- | --- | --- | --- |
 | `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 1000 m |
 | `canPop` | Tisya | `userLat`, `userLng`, `bubbleId` | `{ ok: true, bubble, author }` or `{ ok: false, reason }` | `reason`: `'too_far'` (with `distanceM`), `'not_found'`, `'expired'`. Success creates the caller's `Pop` (one per user and bubble; popping again is a no-op). `lovedBy` and `loveBubble` depend on it |
-| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop` |
-| `lovedBy` | Urvi | `bubbleId` | `User[]` | Others who loved it. Empty unless the caller has popped it; never includes the caller |
+| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`. Refused for the bubble's own author |
+| `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` |
 | `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
 | `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
 | `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |
 | `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
 | `myPopped` | Urvi | none | `PoppedItem[]` | You tab |
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
-| `sendWave` | Urvi | `toUserId`, `bubbleId` | `{ matched, chatId? }` | `matched` when the other person already waved back; the server creates the `Chat` then |
+| `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` | `{ matched, chatId? }` | Only author and lover of that bubble, either direction. Optional note, max 280 chars. `matched` when the other already waved; the server then creates the pair's `Chat` (or reuses it) |
 | `incomingWaves` | Urvi | none | `IncomingWave[]` | |
 | `myChats` | Urvi | none | `ChatSummary[]` | |
 | `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users |
@@ -69,9 +69,10 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 1. **Sealed content stays on the server.** The map only gets `BubblePreview` (id, position, place name, category, pop radius). `title`, `text`, `mediaUrl` and `audioUrl` reach the client only in a successful `canPop` result. `speak` and `translate` take a `bubbleId`, never text from the client.
 2. **The pop radius is per bubble:** 15 m by default, 60 m for the Lerner demo bubble. Use `popRadiusM` from the preview for the in-bubble banner, and `distanceM` from `app/src/bubl/lib/geo.ts` for the math.
 3. **Location comes only from `useUserLocation`.** Nothing else calls `navigator.geolocation`. The in-app toggle switches between GPS and the draggable demo dot (`setDemoLocation`); denied or missing GPS falls back to the demo dot automatically.
-4. **A chat exists only when waves go both ways** on the same bubble, and only those two users can read or write it.
-5. **Never expose a user's location.** `User` holds a neighborhood, never coordinates.
-6. **Units:** ISO date strings, meters, WGS84 decimal degrees.
+4. **Waves are author and lover only.** A wave is only between a bubble's author and someone who loved it, about that bubble, and either can wave first. Two people who loved the same bubble never see or wave at each other. Authors can't love their own bubble. On the note screen the action is **Wave** (not "Reply"), with an optional note of up to 280 characters.
+5. **One chat per pair of users,** created only when both have waved, readable and writable only by those two. It pins the *first* bubble that connected them and never updates the pin.
+6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
+7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
 ## Sign-in is P0
 

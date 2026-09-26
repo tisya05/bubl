@@ -36,12 +36,13 @@ export type CanPopResult =
   | { ok: false; reason: 'too_far'; distanceM: number }
   | { ok: false; reason: 'not_found' | 'expired' };
 
-// Sets Pop.loved. Requires an existing Pop.
+// Sets Pop.loved. Requires an existing Pop. Refused for the bubble's own author.
 export interface LoveBubbleInput {
   bubbleId: string;
 }
 
-// Other users who loved this bubble. Empty unless the caller has popped it; never includes the caller.
+// For the bubble's author: the users who loved it (so the author can wave back).
+// For anyone else: [] (lovers never see each other; they wave at the author from canPop's `author`).
 export interface LovedByInput {
   bubbleId: string;
 }
@@ -92,13 +93,15 @@ export type DropBubbleResult =
 
 // ---- Wave and chat ----
 
+// Allowed only author -> lover or lover -> author for that bubble.
 export interface SendWaveInput {
   toUserId: string;
   bubbleId: string;
+  note?: string;             // optional, max 280 chars
 }
 export interface SendWaveResult {
   matched: boolean;
-  chatId?: string;           // set when matched
+  chatId?: string;           // set when matched; reuses the pair's existing chat if there is one
 }
 
 export interface GetMessagesInput {

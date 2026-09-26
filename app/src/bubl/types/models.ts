@@ -24,6 +24,8 @@ export interface Bubble {
   createdAt: string;
   status: 'live' | 'rejected';
   moderation: 'passed' | 'unchecked';  // 'unchecked' = Grok failed, saved anyway
+  poppedCount?: number;    // optional denormalized counts, returned after canPop
+  lovedCount?: number;
 }
 
 // What the map receives: NO title, NO text, NO media.
@@ -36,7 +38,7 @@ export interface BubblePreview {
   popRadiusM: number;      // so the client shows the in-bubble banner at the right distance
 }
 
-// Created by a successful canPop, one per user and bubble.
+// Created by a successful canPop, one per user and bubble. Authors can't love their own bubble.
 export interface Pop {
   userId: string;
   bubbleId: string;
@@ -44,10 +46,13 @@ export interface Pop {
   loved: boolean;
 }
 
+// Only between a bubble's author and someone who loved it, about that bubble. Either side may
+// wave first. Two people who loved the same bubble can't see or wave at each other.
 export interface Wave {
   fromUserId: string;
   toUserId: string;
   bubbleId: string;
+  note?: string;           // optional, max 280 chars
   createdAt: string;
 }
 
@@ -55,12 +60,12 @@ export interface Wave {
 // Never add location, email or phone here.
 export type User = Pick<RoomUser, 'id' | 'name' | 'imageUrl'>;
 
-// Created by the server only when waves exist in both directions.
+// One chat per user pair, created by the server only when both have waved.
 export interface Chat {
   id: string;
-  userIds: [string, string];
-  bubbleId: string;        // the bubble that connected them, pinned in the thread
-  createdAt: string;
+  participantIds: [string, string];
+  bubbleId: string;        // the FIRST bubble that connected them, pinned; never updated
+  unlockedAt: string;
 }
 
 export interface Message {
@@ -94,6 +99,7 @@ export interface DroppedItem {
 
 export interface IncomingWave {
   from: User;
+  note?: string;
   bubbleId: string;
   placeName: string;
   category: Category;
