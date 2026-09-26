@@ -279,3 +279,63 @@ test('waves: only author and lover, note limit, mutual wave opens one chat per p
   const again = (await act('sendWave', devToken, { toUserId: maya.userId, bubbleId: second })) as { data: { matched: boolean; chatId: string } }
   expect(again.data).toEqual({ matched: true, chatId: match.data.chatId })
 })
+
+test('chats: only the pair can list, read and write; pinned to the first bubble', async ({ users, request }) => {
+  const jwt = ownerJwt()
+  test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [maya, dev, sam] = await users(['Maya', 'Dev', 'Sam'])
+  const [mayaToken, devToken, samToken] = await Promise.all([tokenFor(maya), tokenFor(dev), tokenFor(sam)])
+  const run = Date.now()
+  const first = `seed-test-chat-a-${run}`
+  const second = `seed-test-chat-b-${run}`
+
+  const act = (name: string, token: string | undefined, params: object = {}) =>
+    callAction(request, name, token, params).then((r) => r.json())
+  const bubble = (id: string) => ({ id, authorId: maya.userId, title: '__test__', text: '__test__', placeName: 'test', category: 'Cafe', ...LERNER })
+
+  // Fresh pair each run isn't possible (Maya and Dev may already share a chat), so compare against what exists.
+  const chatWithDev = async () =>
+    ((await act('myChats', mayaToken)) as { data: Record<string, any>[] }).data.find((c) => c.otherUser.id === dev.userId)
+  const existing = await chatWithDev()
+
+  expect(await act('importSeedBubbles', jwt, { bubbles: [bubble(first), bubble(second)] })).toMatchObject({ success: true })
+  for (const id of [first, second]) {
+    await act('testRecordPop', jwt, { userId: dev.userId, bubbleId: id })
+    await act('loveBubble', devToken, { bubbleId: id })
+    await act('sendWave', devToken, { toUserId: maya.userId, bubbleId: id })
+  }
+  const match = (await act('sendWave', mayaToken, { toUserId: dev.userId, bubbleId: first })) as { data: { chatId: string } }
+  await act('sendWave', mayaToken, { toUserId: dev.userId, bubbleId: second })
+  const chatId = match.data.chatId
+
+  const summary = await chatWithDev()
+  expect(summary).toMatchObject({ chat: { id: chatId, userIds: expect.arrayContaining([maya.userId, dev.userId]) }, otherUser: { id: dev.userId } })
+  expect(summary!.otherUser).not.toHaveProperty('email')
+  if (!existing) expect(summary!.chat.bubbleId).toBe(first)
+  else expect(summary!.chat.bubbleId).toBe(existing.chat.bubbleId)
+
+  // Outsiders can't see, read or write the chat.
+  const samChats = (await act('myChats', samToken)) as { data: { chat: { id: string } }[] }
+  expect(samChats.data.some((c) => c.chat.id === chatId)).toBe(false)
+  expect(await act('getMessages', samToken, { chatId })).toEqual({ success: false, error: 'Chat not found' })
+  expect(await act('sendMessage', samToken, { chatId, text: 'hi' })).toEqual({ success: false, error: 'Chat not found' })
+  expect(await act('getMessages', devToken, { chatId: 'no-such-chat' })).toEqual({ success: false, error: 'Chat not found' })
+
+  expect(await act('sendMessage', devToken, { chatId, text: '   ' })).toMatchObject({ success: false })
+  expect(await act('sendMessage', devToken, { chatId, text: 'x'.repeat(1001) })).toMatchObject({ success: false, error: expect.stringContaining('1000') })
+
+  const hi = `hi from dev ${run}`
+  const reply = `hi back ${run}`
+  expect(await act('sendMessage', devToken, { chatId, text: `  ${hi}  ` })).toMatchObject({ success: true, data: { chatId, senderId: dev.userId, text: hi } })
+  expect(await chatWithDev()).toMatchObject({ lastMessage: { text: hi }, unread: true })
+
+  const devSide = ((await act('myChats', devToken)) as { data: Record<string, any>[] }).data.find((c) => c.chat.id === chatId)
+  expect(devSide).toMatchObject({ otherUser: { id: maya.userId }, lastMessage: { text: hi }, unread: false })
+
+  await act('sendMessage', mayaToken, { chatId, text: reply })
+  expect(await chatWithDev()).toMatchObject({ lastMessage: { text: reply }, unread: false })
+
+  const thread = ((await act('getMessages', devToken, { chatId })) as { data: { text: string }[] }).data.map((m) => m.text)
+  expect(thread.slice(-2)).toEqual([hi, reply])
+})

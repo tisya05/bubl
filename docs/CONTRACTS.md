@@ -51,9 +51,9 @@ All of them require a signed-in user.
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
 | `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
-| `myChats` | Urvi | none | `ChatSummary[]` | |
-| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users |
-| `sendMessage` | Urvi | `chatId`, `text` | `Message` | Only the chat's two users |
+| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. No read receipts: `unread` means the other person sent the last message |
+| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first |
+| `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
 
 **Server-only pieces (not in `Api`, never called from the client):**
 
