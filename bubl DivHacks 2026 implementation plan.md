@@ -95,7 +95,7 @@ P0 has to work for any demo. Finish each tier before starting the next.
 | P2.2 | You tab: popped card grid and dropped list | Stephanie | UX score |
 | P2.3 | Splash and onboarding | Stephanie | UX score |
 | P2.4 | PWA install, "you drifted into a bubble" banner, vibration | Stephanie | Wow Factor |
-| P3.1 | Photon agent: joins after a mutual wave to suggest a meetup, or accepts drops by text | Tisya | Photon |
+| P3.1 | Photon agent (time-box 2 hrs, after P1.4): a text-in "local friend" that keeps the no-search rule by giving only hints (category, distance, direction from `BubblePreview`, never sealed content) until you walk close enough to pop in the app. Works over SMS fallback too. Bonus: after a mutual wave, texts both people to suggest meeting at the bubble | Tisya | Photon |
 | P3.2 | Bubble expiry as a scheduled DeepSpace job | Urvi | DeepSpace |
 | P3.3 | Report and block in chat | Urvi | Value to Community |
 
@@ -151,7 +151,7 @@ One main track, plus as many sponsor and MLH prizes as we want ([Devpost](https:
 | MLH .Tech domain | App live on a .tech domain | Good |
 | Most Popular (Nord Security) | QR code on the table, live app on judges' phones | Depends on the demo |
 | SpaceXAI | Grok moderation; they want it built with Cursor and aimed at big societal problems | Long shot |
-| Photon | Integrate Spectrum; agent joins human conversations | Stretch only |
+| Photon ($400 + interview) | Integrate Spectrum; an agent, not just notifications. Free plan: DMs only (no group chats), only texts registered users, needs a Node/Bun runtime | Stretch only |
 
 ## Judging and pitch
 
