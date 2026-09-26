@@ -1,6 +1,6 @@
 # bubl contracts
 
-Everything the three of us code against. If it's not here or in `src/types/`, it isn't agreed yet.
+Everything all four of us code against. If it's not here or in `src/types/`, it isn't agreed yet.
 
 ## What's where
 
@@ -61,7 +61,7 @@ All of them require a signed-in user.
 
 ## Sign-in is P0
 
-Every server function needs a user identity (`canPop` records a `Pop` per user), so basic DeepSpace sign-in is part of the MVP (Urvi). Keep it to the fastest method DeepSpace offers so judges scanning the QR code can get in within seconds. The mock signs everyone in as a fake `me` user, so screens don't wait on it.
+Every server function needs a user identity (`canPop` records a `Pop` per user), so basic DeepSpace sign-in is part of the MVP (Urvi builds auth, Shreya the screen). Keep it to the fastest method DeepSpace offers so judges scanning the QR code can get in within seconds. The mock signs everyone in as a fake `me` user, so screens don't wait on it.
 
 ## Known limitations
 
@@ -79,7 +79,7 @@ title,note_text,category,latitude,longitude,place_name,media_file,language,autho
 
 ## Working together
 
-- **Never commit to `main`.** Every feature gets its own branch named `<name>-<feature>`, e.g. `tisya-demo-mode`, `stephanie-map-bubbles`, `urvi-auth`. Bug fixes: `<name>-fix-<bug>`.
+- **Never commit to `main`.** Every feature gets its own branch named `<name>-<feature>`, e.g. `tisya-demo-mode`, `stephanie-map-bubbles`, `urvi-auth`, `shreya-app-shell`. Bug fixes: `<name>-fix-<bug>`.
 - Start each branch from a freshly pulled `main`.
 - **Before opening a PR,** merge `main` into your branch (`git pull origin main`, merge not rebase), fix conflicts, check the app runs.
 - **Squash-merge** PRs and delete the branch after.
