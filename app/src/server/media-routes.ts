@@ -123,6 +123,15 @@ export function registerMediaRoutes(app: Hono<AppContext>, resolveAuth: ResolveA
   })
 }
 
+/** Deletes a stored file; used by the demo reset. A missing file is not an error. */
+export async function deleteStoredMedia(env: Env, storageKey: string): Promise<void> {
+  const res = await platformWorkerFetch(env, `/internal/files/${storageKey}?scope=self`, {
+    method: 'DELETE',
+    headers: storageHeaders(env),
+  })
+  if (!res.ok && res.status !== 404) console.error(`[media] delete failed status=${res.status}`)
+}
+
 /**
  * For dropBubble: checks the caller owns an unused upload and returns the
  * fields to put on the bubble. saveBubble links it to the bubble afterwards.

@@ -83,15 +83,21 @@ Every server function needs a user identity (`canPop` records a `Pop` per user),
 
 - `canPop` trusts client coordinates, so GPS can be spoofed. The server check keeps sealed content off the client; it doesn't stop a determined spoofer.
 - No rate limiting yet.
-- GPS/EXIF metadata stripping is a TODO for after the MVP.
+- HEIC photos are only converted to JPEG in browsers that can decode them (Safari).
 
-## Seed data CSV
+## Seed data (Urvi)
+
+`seed/bubbles.csv`, with photos and videos in `seed/media/`:
 
 ```csv
 title,note_text,category,latitude,longitude,place_name,media_file,language,author
 ```
 
-`place_name` is cross streets, e.g. `Broadway & 116th St`.
+- `place_name` is cross streets, e.g. `Broadway & 116th St`. Coordinates must be in NYC.
+- `author` is `maya`, `dev` or `sam` (the demo accounts). `language` defaults to `en`. `media_file` is a file name in `seed/media/` or empty.
+- Every row becomes bubble `seed-<title-slug>`: 15 m pop radius, never expires.
+- `cd app && npm run seed:import` (add `-- --dry-run` to only check the CSV). Re-running updates in place and skips already-uploaded media.
+- `cd app && npm run demo:reset` between judges: wipes all pops, loves, waves, chats, messages and bubbles dropped during the demo. Seed bubbles stay. Owner only.
 
 ## Working together
 
