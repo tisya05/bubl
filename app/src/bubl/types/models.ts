@@ -48,6 +48,7 @@ export interface Wave {
   fromUserId: string;
   toUserId: string;
   bubbleId: string;
+  note?: string;           // optional, max 280 characters
   createdAt: string;
 }
 

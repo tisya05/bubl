@@ -95,6 +95,7 @@ export type DropBubbleResult =
 export interface SendWaveInput {
   toUserId: string;
   bubbleId: string;
+  note?: string;             // optional, max 280 characters (server rejects longer)
 }
 export interface SendWaveResult {
   matched: boolean;
