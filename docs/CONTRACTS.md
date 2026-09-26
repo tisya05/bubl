@@ -48,6 +48,13 @@ All of them require a signed-in user.
 | `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users |
 | `sendMessage` | Urvi | `chatId`, `text` | `Message` | Only the chat's two users |
 
+**Server-only pieces (not in `Api`, never called from the client):**
+
+- `saveBubble(bubble: Bubble)` (Urvi): the one DeepSpace write the seed import and `dropBubble` use.
+- Pure helpers in `src/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
+
+Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic that doesn't.
+
 **Errors:** functions throw an `ApiError` (`{ code, message }`, codes `unauthenticated`, `forbidden`, `not_found`, `invalid_input`, `rate_limited`, `internal`). **Except `canPop` and `dropBubble`,** which return their union results because the UI shows those reasons to the user.
 
 ## Rules the types don't enforce

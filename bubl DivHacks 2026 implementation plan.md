@@ -15,14 +15,38 @@ bubl is a PWA where locals pin notes (text, photos, short videos) to real spots 
 
 ## Roles
 
-Four people. Urvi stays on the backend (the critical path); Shreya takes the app shell and the social screens so Stephanie can focus on the map and pop.
+Four people. Urvi stays on the DeepSpace backend (the critical path) and hands everything that doesn't need DeepSpace to Tisya; Shreya takes the app shell and the social screens so Stephanie can focus on the map and pop.
 
 | Person | Owns | Frontend share |
 | --- | --- | --- |
-| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, chat, deploy, .tech domain, seed import | None; backend only |
+| Urvi | DeepSpace only: DeepSpace setup in the scaffold, auth, tables, storage, the wave rule, chat, deploy, connecting the domain, the one `saveBubble` call the seed import uses | None; backend only |
 | Stephanie | Map with category bubbles, pop animation, note screen | Splash, onboarding, PWA install, in-bubble banner |
 | Shreya | App shell: bottom nav (Walk, Drop, Chats, You), routing, sign-in screen | Wave screen, Chats tab, chat thread, You tab |
-| Tisya | AI functions (Grok, Gemini, ElevenLabs), canPop proximity check, demo mode, seed data trip, pitch and Devpost | Drop screen |
+| Tisya | AI functions (Grok, Gemini, ElevenLabs), canPop proximity check, demo mode, seed data trip, pitch and Devpost. Moved from Urvi: base scaffold (Vite + React + TS), seed import script, .tech domain registration and DNS, server logic that doesn't touch DeepSpace | Drop screen |
+
+## Bottlenecks
+
+The contracts and the mock stop us waiting on each other for *shapes*: every screen can be built today against `VITE_USE_MOCK=true`. They don't remove the work that only one person can do and that everything real depends on.
+
+| # | Bottleneck | Who it blocks | Fix |
+| --- | --- | --- | --- |
+| 1 | **No scaffold yet** (no `package.json`, Vite, React, DeepSpace). Nothing runs or type-checks, not even mock screens | Everyone, right now | Tisya pushes a plain Vite + React + TS scaffold (`tisya-scaffold`, about 10 minutes). Urvi adds DeepSpace on top |
+| 2 | **Urvi's backend.** Tables, storage, sign-in (now P0), `nearbyBubbles`, deploy, domain, seed import, and 11 of the 15 functions all run through Urvi. Tisya's server functions also can't go real until the DeepSpace pattern exists. Nobody has used DeepSpace before | The real demo; Tisya's server functions | Move everything that doesn't need DeepSpace to Tisya (below). Urvi's first DeepSpace goal: one working server function + one table, so everyone can copy the pattern |
+| 3 | **No HTTPS deploy.** Phones only give GPS to HTTPS pages, so real GPS can't be tested on a phone until there's a deployed link | Real-GPS testing, the Lerner demo bubble | Urvi deploys a hello-world as soon as the scaffold exists, before building features |
+| 4 | **Seed data.** Real coordinates only exist after Tisya's 4 to 6 PM walk, and then have to be imported | The 6 PM checkpoint | Tisya writes the import script before the walk; Urvi only provides `saveBubble` |
+
+### Moved from Urvi to Tisya (no DeepSpace needed)
+
+Urvi to confirm. The rule: Urvi owns anything that calls DeepSpace; Tisya owns the rest.
+
+- **Base scaffold:** Vite + React + TypeScript, folder layout, `.env.example`, `.gitignore` for `.env`. Urvi adds the DeepSpace SDK and deploy config.
+- **Seed import script:** reads the CSV, validates each row (category, coordinates, place name), builds `Bubble` objects, runs media through metadata stripping, then calls Urvi's `saveBubble` for each one.
+- **Metadata stripping helper:** one function that removes GPS/EXIF from photos (and video if time allows). Used by the seed import and later by Urvi's `uploadMedia`. Post-MVP for user uploads, but the seed media gets stripped from the start.
+- **.tech domain:** claim it through MLH and set up DNS. Urvi does the one step that points it at the DeepSpace deploy.
+- **Pure server logic in `src/lib/`:** the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap) and the expiry check, so Urvi's version is just "load bubbles, call the helper".
+- **Cut P3.2 (expiry scheduled job):** `nearbyBubbles` and `canPop` already skip expired bubbles, so the job isn't needed.
+
+**Tisya's load after this:** the scaffold and seed script come first (they unblock others), then `canPop` + demo mode, then the walk. If Tisya falls behind on P1, Shreya can take the Drop screen UI once her P0 is done.
 
 ## Git and branching
 
@@ -38,12 +62,12 @@ Four people push to one repo overnight, so `main` must always build and demo. No
 
 | Feature | Branch |
 | --- | --- |
-| P0.1 Contracts + scaffold | `tisya-contracts`, `urvi-scaffold` |
+| P0.1 Contracts + scaffold | `tisya-contracts`, `tisya-scaffold`, `urvi-deepspace-setup` |
 | P0.2 Map with bubbles | `stephanie-map-bubbles` |
 | P0.3 GPS + demo mode | `tisya-demo-mode` |
 | P0.4 Pop flow | `tisya-can-pop`, `stephanie-pop-animation`, `stephanie-note-screen` |
-| P0.5 Seed data | `tisya-seed-data`, `urvi-seed-import` |
-| P0.6 Deploy + domain | `urvi-deploy` |
+| P0.5 Seed data | `tisya-seed-data`, `tisya-seed-import`, `urvi-save-bubble` |
+| P0.6 Deploy + domain | `urvi-deploy`, `tisya-domain` |
 | P0.7 Basic sign-in | `urvi-auth`, `shreya-sign-in-screen` |
 | P0.8 App shell + bottom nav | `shreya-app-shell` |
 | P1.2 Drop flow | `tisya-drop-screen`, `tisya-check-bubble` |
@@ -53,7 +77,7 @@ Four people push to one repo overnight, so `main` must always build and demo. No
 | P2.1 Translation | `tisya-translate` |
 | P2.2 to P2.4 | `shreya-you-tab`, `stephanie-onboarding`, `stephanie-pwa` |
 | P3.1 Photon agent | `tisya-photon` |
-| P3.2, P3.3 | `urvi-expiry`, `urvi-report-block` |
+| P3.3 Report and block | `urvi-report-block` |
 
 **Workflow for every feature**
 
@@ -83,12 +107,12 @@ P0 has to work for any demo. Finish each tier before starting the next.
 
 | # | Feature | Owner | Prize it counts toward |
 | --- | --- | --- | --- |
-| P0.1 | Data shape and repo: fields for bubble, pop, wave, message; function inputs and outputs | All | DeepSpace |
+| P0.1 | Contracts (done: `src/types`, `docs/CONTRACTS.md`) and scaffold: Vite + React + TS (Tisya), DeepSpace setup (Urvi) | Tisya, Urvi | DeepSpace |
 | P0.2 | Map with color-coded bubbles: far = soft dot, close = solid with icon, legend row | Stephanie | Know Your City |
 | P0.3 | Real GPS plus demo mode (draggable "you" dot) | Tisya | Functionality score |
 | P0.4 | Pop flow: server-side 15 m check, pop animation, note screen with text, photo or video | Tisya, Stephanie, Urvi | Know Your City, DeepSpace, Wow Factor |
-| P0.5 | Seed data collected and imported | Tisya, Urvi | Functionality score |
-| P0.6 | Deploy to app.space early, connect .tech domain | Urvi | DeepSpace, .Tech |
+| P0.5 | Seed data collected and imported: walk, import script, metadata stripping (Tisya); `saveBubble` (Urvi) | Tisya, Urvi | Functionality score |
+| P0.6 | Deploy to app.space early (Urvi); claim .tech domain and DNS (Tisya), connect it to the deploy (Urvi) | Urvi, Tisya | DeepSpace, .Tech |
 | P0.7 | Basic sign-in with DeepSpace auth (the fastest method it offers). Every server function needs a user; `canPop` records a Pop per user | Urvi (auth), Shreya (screen) | DeepSpace |
 | P0.8 | App shell: bottom nav (Walk, Drop, Chats, You) and routing between screens | Shreya | UX score |
 | P1.2 | Drop flow: compose screen, category picker, media upload, Grok moderation and suggested category | Tisya, Urvi | SpaceXAI (long shot), DeepSpace |
@@ -100,7 +124,6 @@ P0 has to work for any demo. Finish each tier before starting the next.
 | P2.3 | Splash and onboarding | Stephanie | UX score |
 | P2.4 | PWA install, "you drifted into a bubble" banner, vibration | Stephanie | Wow Factor |
 | P3.1 | Photon agent (time-box 2 hrs, after P1.4): a text-in "local friend" that keeps the no-search rule by giving only hints (category, distance, direction from `BubblePreview`, never sealed content) until you walk close enough to pop in the app. Works over SMS fallback too. Bonus: after a mutual wave, texts both people to suggest meeting at the bubble | Tisya | Photon |
-| P3.2 | Bubble expiry as a scheduled DeepSpace job | Urvi | DeepSpace |
 | P3.3 | Report and block in chat | Urvi | Value to Community |
 
 Strip GPS metadata from every uploaded photo and video on the server. Media carries coordinates that could reveal where a user lives.
@@ -111,8 +134,8 @@ Submit by 10 AM Sunday; the hard deadline is 10:30 AM.
 
 | When | Goal |
 | --- | --- |
-| Sat 12 to 1 PM | Agree on the data shape; Urvi deploys a hello-world page; Shreya gets set up on the repo and reads `docs/CONTRACTS.md` |
-| Sat 1 to 4 PM | P0 build. Tisya attends the 2:30 Photon workshop only if ahead |
+| Sat 12 to 1 PM | Contracts done. Tisya pushes the Vite scaffold; Urvi adds DeepSpace and deploys a hello-world page over HTTPS; Shreya gets set up and reads `docs/CONTRACTS.md` |
+| Sat 1 to 4 PM | P0 build. Tisya: seed import script, `canPop`, demo mode, domain. Urvi: first working DeepSpace function + table, sign-in. Tisya attends the 2:30 Photon workshop only if ahead |
 | Sat 4 to 6 PM | Tisya collects seed data; Stephanie builds map and pop; Urvi builds auth and storage; Shreya builds the app shell and sign-in screen |
 | Sat 6 PM (dinner) | Checkpoint: import seed data and pop one bubble end to end |
 | Sat 7 PM to 2 AM | P1 |
@@ -135,7 +158,7 @@ Tisya collects 20 to 30 bubbles within a 10 to 15 minute walk of Lerner, Sat 4 t
 - **Coordinates:** turn on camera location so every photo and video stores its coordinates.
 - **Rules:** no faces without asking, no filming anyone's home.
 
-Log each spot in a shared sheet so Urvi can import it in one go:
+Log each spot in a shared sheet so the import script can load it in one go:
 
 ```csv
 title,note_text,category,latitude,longitude,place_name,media_file,language,author
