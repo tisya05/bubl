@@ -23,6 +23,57 @@ Three people, and everyone pitches in on frontend.
 | Stephanie | Map with category bubbles, pop animation, note screen | Splash, onboarding, You tab, PWA install |
 | Tisya | AI functions (Grok, Gemini, ElevenLabs), canPop proximity check, demo mode, seed data trip, pitch and Devpost | Drop screen |
 
+## Git and branching
+
+Three people push to one repo overnight, so `main` must always build and demo. Nobody commits straight to `main`; every feature gets its own branch and lands through a pull request.
+
+**Branch names: `<name>-<feature>`.** First name, lowercase, then the feature in kebab-case. One branch per feature, not per person.
+
+- `tisya-demo-mode`, `tisya-can-pop`, `tisya-drop-screen`
+- `stephanie-map-bubbles`, `stephanie-pop-animation`
+- `urvi-auth`, `urvi-wave-rule`
+- Bug fixes: `<name>-fix-<bug>`, e.g. `stephanie-fix-map-blank-on-ios`
+
+| Feature | Branch |
+| --- | --- |
+| P0.1 Contracts + scaffold | `tisya-contracts`, `urvi-scaffold` |
+| P0.2 Map with bubbles | `stephanie-map-bubbles` |
+| P0.3 GPS + demo mode | `tisya-demo-mode` |
+| P0.4 Pop flow | `tisya-can-pop`, `stephanie-pop-animation`, `stephanie-note-screen` |
+| P0.5 Seed data | `tisya-seed-data`, `urvi-seed-import` |
+| P0.6 Deploy + domain | `urvi-deploy` |
+| P0.7 Basic sign-in | `urvi-auth` |
+| P1.2 Drop flow | `tisya-drop-screen`, `tisya-check-bubble` |
+| P1.3 Read-aloud | `tisya-speak` |
+| P1.4 Loves, waves, chat unlock | `urvi-wave-rule` |
+| P1.5 Chats | `urvi-chats` |
+| P2.1 Translation | `tisya-translate` |
+| P2.2 to P2.4 | `stephanie-you-tab`, `stephanie-onboarding`, `stephanie-pwa` |
+| P3.1 Photon agent | `tisya-photon` |
+| P3.2, P3.3 | `urvi-expiry`, `urvi-report-block` |
+
+**Workflow for every feature**
+
+```bash
+git checkout main && git pull            # start from the latest main
+git checkout -b tisya-demo-mode          # <name>-<feature>
+# ...work, commit small and often...
+git push -u origin tisya-demo-mode       # first push; later just `git push`
+# open a PR into main on GitHub
+```
+
+**Rules**
+
+1. **Keep branches short.** Merge within a few hours. A branch that lives all night will conflict with everything.
+2. **Sync before you open a PR.** Run `git pull origin main` inside your branch (merge, not rebase, so nobody has to force-push), fix conflicts, check the app still runs, then open the PR.
+3. **Merging.** Post the PR link in the group chat. Anyone can merge once the app builds and the PR only touches the author's area. Use "Squash and merge" and delete the branch after.
+4. **Stay in your lane.** Only edit files in your own area (see Roles). If you need a change in a teammate's file, ask them or put it in a separate small PR and tag them.
+5. **Shared contracts (`src/types/`) change in their own PR,** announced in the group chat before merging, because all three people code against them.
+6. **Dependencies.** Say so in the chat when you add a package. For `package-lock.json` conflicts, take `main`'s version and run `npm install` again; do not hand-merge the lockfile.
+7. **No secrets in git.** API keys go in `.env` (gitignored) and in the deploy environment, never in a commit.
+8. **Never force-push `main`,** and never commit to it directly.
+9. **After the 7 AM feature freeze,** only `<name>-fix-<bug>` branches get merged.
+
 ## Features by priority
 
 P0 has to work for any demo. Finish each tier before starting the next.
@@ -44,7 +95,7 @@ P0 has to work for any demo. Finish each tier before starting the next.
 | P2.2 | You tab: popped card grid and dropped list | Stephanie | UX score |
 | P2.3 | Splash and onboarding | Stephanie | UX score |
 | P2.4 | PWA install, "you drifted into a bubble" banner, vibration | Stephanie | Wow Factor |
-| P3.1 | Photon agent: joins after a mutual wave to suggest a meetup, or accepts drops by text | Tisya | Photon |
+| P3.1 | Photon agent (time-box 2 hrs, after P1.4): a text-in "local friend" that keeps the no-search rule by giving only hints (category, distance, direction from `BubblePreview`, never sealed content) until you walk close enough to pop in the app. Works over SMS fallback too. Bonus: after a mutual wave, texts both people to suggest meeting at the bubble | Tisya | Photon |
 | P3.2 | Bubble expiry as a scheduled DeepSpace job | Urvi | DeepSpace |
 | P3.3 | Report and block in chat | Urvi | Value to Community |
 
@@ -100,7 +151,7 @@ One main track, plus as many sponsor and MLH prizes as we want ([Devpost](https:
 | MLH .Tech domain | App live on a .tech domain | Good |
 | Most Popular (Nord Security) | QR code on the table, live app on judges' phones | Depends on the demo |
 | SpaceXAI | Grok moderation; they want it built with Cursor and aimed at big societal problems | Long shot |
-| Photon | Integrate Spectrum; agent joins human conversations | Stretch only |
+| Photon ($400 + interview) | Integrate Spectrum; an agent, not just notifications. Free plan: DMs only (no group chats), only texts registered users, needs a Node/Bun runtime | Stretch only |
 
 ## Judging and pitch
 
