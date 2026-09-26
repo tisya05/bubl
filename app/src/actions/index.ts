@@ -8,6 +8,7 @@ import { incomingWaves, sendWave } from './waves'
 import { getMessages, myChats, sendMessage } from './chats'
 import { myDropped, myPopped } from './you'
 import { resetDemo } from './demo'
+import { speak } from './speak'
 
 export const actions: Record<string, ActionHandler<Env>> = {
   importSeedBubbles,
@@ -24,4 +25,5 @@ export const actions: Record<string, ActionHandler<Env>> = {
   myPopped,
   myDropped,
   resetDemo,
+  speak,
 }

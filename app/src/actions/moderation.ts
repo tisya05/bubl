@@ -13,12 +13,20 @@
  */
 
 import type { Env } from '../../worker'
-import { MODERATION_INSTRUCTIONS, MODERATION_SCHEMA, parseVerdict, type ModerationVerdict } from '../bubl/lib/moderation'
+import {
+  MODERATION_INSTRUCTIONS,
+  MODERATION_SCHEMA,
+  mediaContentBlock,
+  parseVerdict,
+  type ModerationMedia,
+  type ModerationVerdict,
+} from '../bubl/lib/moderation'
 
 const GEMINI_INTERACTIONS_URL = 'https://generativelanguage.googleapis.com/v1beta/interactions'
 // Flash-Lite: all live checks pass at ~1 s each, and it hits free-tier limits less than 3.8 Flash.
 const DEFAULT_MODEL = 'gemini-3.5-flash-lite'
 const TIMEOUT_MS = 10_000
+const VIDEO_TIMEOUT_MS = 25_000 // Gemini watches and listens to the whole clip
 const RETRY_DELAYS_MS = [700, 1500]
 const isRetryable = (status: number) => status === 429 || status >= 500
 
@@ -57,21 +65,18 @@ function parseOutput(text: string | undefined): ModerationVerdict | null {
 
 export async function checkBubble(
   env: Env,
-  input: { title?: string; text: string; imagesBase64?: string[] },
+  input: { title?: string; text: string; media?: ModerationMedia[] },
   retryDelaysMs: number[] = RETRY_DELAYS_MS,
 ): Promise<ModerationVerdict | null> {
   if (!env.GEMINI_API_KEY) return null
 
   const note = input.text || '(no note, media only)'
   const noteText = input.title ? `Title: ${input.title}\n\nNote: ${note}` : `Note: ${note}`
-  const content = [
-    { type: 'text', text: noteText },
-    ...(input.imagesBase64 ?? []).map((b64) => ({
-      type: 'image',
-      data: b64.replace(/^data:image\/[a-z]+;base64,/, ''),
-      mime_type: b64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg',
-    })),
-  ]
+  const mediaBlocks = (input.media ?? []).map(mediaContentBlock)
+  // A photo or video Gemini can't take can't be checked, so it can't go live.
+  if (mediaBlocks.some((b) => b === null)) return UNVERIFIABLE
+  const content = [{ type: 'text', text: noteText }, ...mediaBlocks]
+  const hasVideo = mediaBlocks.some((b) => b?.type === 'video')
 
   const request = JSON.stringify({
     model: env.GEMINI_MODEL || DEFAULT_MODEL,
@@ -80,7 +85,7 @@ export async function checkBubble(
     response_format: { type: 'text', mime_type: 'application/json', schema: MODERATION_SCHEMA },
     store: false,
   })
-  const deadline = AbortSignal.timeout(TIMEOUT_MS)
+  const deadline = AbortSignal.timeout(hasVideo ? VIDEO_TIMEOUT_MS : TIMEOUT_MS)
 
   let res: Response | undefined
   for (let attempt = 0; attempt <= retryDelaysMs.length; attempt++) {

@@ -28,7 +28,14 @@ describe('checkBubble (Gemini)', () => {
 
   it('sends the key, schema and images in the Interactions API shape', async () => {
     const fetch = mockFetch(async () => Response.json(interaction(JSON.stringify(verdict))))
-    await checkBubble(env, { title: 'Steps', text: 'warm in the sun', imagesBase64: ['data:image/png;base64,AAAA'] })
+    await checkBubble(env, {
+      title: 'Steps',
+      text: 'warm in the sun',
+      media: [
+        { mimeType: 'image/png', base64: 'data:image/png;base64,AAAA' },
+        { mimeType: 'video/quicktime', base64: 'BBBB' },
+      ],
+    })
 
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/interactions')
@@ -41,9 +48,17 @@ describe('checkBubble (Gemini)', () => {
       input: [
         { type: 'text', text: 'Title: Steps\n\nNote: warm in the sun' },
         { type: 'image', data: 'AAAA', mime_type: 'image/png' },
+        { type: 'video', data: 'BBBB', mime_type: 'video/mov' },
       ],
     })
     expect(body.system_instruction).toContain('hate speech')
+    expect(body.system_instruction).toContain('Faces and people in public are fine')
+  })
+
+  it('rejects media Gemini cannot take, without calling it', async () => {
+    const fetch = mockFetch(async () => Response.json({}))
+    expect(await checkBubble(env, { text: 'x', media: [{ mimeType: 'application/pdf', base64: 'AAAA' }] })).toMatchObject({ allowed: false })
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('parses an allowed verdict', async () => {
