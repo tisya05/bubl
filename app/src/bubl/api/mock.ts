@@ -10,6 +10,7 @@ import {
   MAX_NEARBY_RADIUS_M,
 } from '../config';
 import { distanceM } from '../lib/geo';
+import { checkPop, isExpired } from '../lib/pop';
 import type { Api, Bubble, BubblePreview, User } from '../types';
 
 const ME: User = { id: 'me', name: 'You' };
@@ -112,8 +113,6 @@ const pops = new Set<string>(); // `${userId}:${bubbleId}`
 const ok = <T>(data: T, ms = 300) =>
   new Promise<ActionResult<T>>((resolve) => setTimeout(() => resolve({ success: true, data }), ms));
 
-const isExpired = (b: Bubble) => b.expiresAt !== undefined && Date.parse(b.expiresAt) < Date.now();
-
 const toPreview = ({ id, lat, lng, placeName, category, popRadiusM }: Bubble): BubblePreview => ({
   id, lat, lng, placeName, category, popRadiusM,
 });
@@ -122,20 +121,16 @@ export const mockApi: Api = {
   async nearbyBubbles({ lat, lng, radiusM }) {
     const radius = Math.min(radiusM, MAX_NEARBY_RADIUS_M);
     const nearby = bubbles.filter(
-      (b) => b.status === 'live' && !isExpired(b) && distanceM({ lat, lng }, b) <= radius,
+      (b) => b.status === 'live' && !isExpired(b.expiresAt) && distanceM({ lat, lng }, b) <= radius,
     );
     return ok(nearby.map(toPreview));
   },
 
   async canPop({ userLat, userLng, bubbleId }) {
-    const b = bubbles.find((x) => x.id === bubbleId && x.status === 'live');
+    const b = bubbles.find((x) => x.id === bubbleId);
     if (!b) return ok({ ok: false as const, reason: 'not_found' as const });
-    if (isExpired(b)) return ok({ ok: false as const, reason: 'expired' as const });
-
-    const d = distanceM({ lat: userLat, lng: userLng }, b);
-    if (d > b.popRadiusM) {
-      return ok({ ok: false as const, reason: 'too_far' as const, distanceM: Math.round(d) });
-    }
+    const check = checkPop(b, { lat: userLat, lng: userLng });
+    if (!check.ok) return ok(check);
     pops.add(`${ME.id}:${b.id}`);
     return ok({ ok: true as const, bubble: b, author: AUTHORS[b.authorId] });
   },
