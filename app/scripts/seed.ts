@@ -7,15 +7,19 @@
  *   npm run demo:reset                  # wipe pops, waves, chats, demo drops
  *   add `-- --target http://localhost:5173` to either to hit a local server
  *
+ * HEIC and photos over 4 MB are converted to JPEG first (macOS `sips`).
+ *
  * CSV columns: title,note_text,category,latitude,longitude,place_name,media_file,language,author
  * Each row becomes bubble `seed-<title-slug>`, so re-running updates instead of
  * duplicating. Photos/videos in ../seed/media go through /api/media/upload
  * (metadata stripped); uploads are remembered per target so re-runs skip them.
  */
 
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -34,8 +38,26 @@ const MEDIA_TYPES: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
   '.mp4': 'video/mp4',
   '.mov': 'video/quicktime',
+}
+const CONVERT_OVER_BYTES = 4 * 1024 * 1024
+const extOf = (file: string) => file.slice(file.lastIndexOf('.')).toLowerCase()
+const isHeic = (file: string) => ['.heic', '.heif'].includes(extOf(file))
+
+/**
+ * Like the app's client-side preparePhoto: HEIC/HEIF and photos over 4 MB
+ * become a JPEG at most 2048 px on the long side. Uses macOS's built-in `sips`.
+ * Returns the path to upload (the original if nothing needed converting).
+ */
+export function prepareMedia(path: string, workDir: string): string {
+  const isPhoto = MEDIA_TYPES[extOf(path)]?.startsWith('image/')
+  if (!isPhoto || (!isHeic(path) && statSync(path).size <= CONVERT_OVER_BYTES)) return path
+  const out = join(workDir, `${basename(path, extname(path))}.jpg`)
+  execFileSync('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '85', '-Z', '2048', path, '--out', out], { stdio: 'ignore' })
+  return out
 }
 
 type Row = Record<string, string>
@@ -141,9 +163,9 @@ export function toSeedBubbles(csv: string, mediaDir: string): { bubbles: SeedBub
     }
     if (!authorId) rowErrors.push(`author must be one of ${Object.keys(AUTHORS).join(', ')}`)
     if (row.media_file) {
-      const ext = row.media_file.slice(row.media_file.lastIndexOf('.')).toLowerCase()
-      if (!MEDIA_TYPES[ext]) rowErrors.push(`media_file must be .jpg, .png, .webp, .mp4 or .mov (HEIC: export as JPEG first)`)
+      if (!MEDIA_TYPES[extOf(row.media_file)]) rowErrors.push('media_file must be .jpg, .png, .webp, .heic, .mp4 or .mov')
       else if (!existsSync(join(mediaDir, row.media_file))) rowErrors.push(`media_file ${row.media_file} is not in seed/media/`)
+      else if (isHeic(row.media_file) && process.platform !== 'darwin') rowErrors.push('HEIC files can only be converted on a Mac')
     }
     if (rowErrors.length) {
       errors.push(`${at}: ${rowErrors.join('; ')}`)
@@ -181,9 +203,8 @@ async function post(target: string, token: string, path: string, body: object) {
 
 async function uploadMedia(target: string, token: string, file: string) {
   const bytes = readFileSync(file)
-  const ext = file.slice(file.lastIndexOf('.')).toLowerCase()
   const form = new FormData()
-  form.append('file', new Blob([bytes], { type: MEDIA_TYPES[ext] }), basename(file))
+  form.append('file', new Blob([bytes], { type: MEDIA_TYPES[extOf(file)] }), basename(file))
   const res = await fetch(`${target}/api/media/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form })
   const body = (await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))) as {
     success: boolean
@@ -213,6 +234,7 @@ async function importSeeds(target: string, dryRun: boolean) {
     ? JSON.parse(readFileSync(cacheFile, 'utf8'))
     : {}
 
+  const workDir = mkdtempSync(join(tmpdir(), 'bubl-seed-'))
   const rows = []
   for (const b of bubbles) {
     const { mediaFile, ...bubble } = b
@@ -221,8 +243,9 @@ async function importSeeds(target: string, dryRun: boolean) {
       const path = join(mediaDir, mediaFile)
       const hash = createHash('sha256').update(readFileSync(path)).digest('hex')
       if (!cache[hash]) {
-        console.log(`  uploading ${mediaFile}...`)
-        cache[hash] = await uploadMedia(target, token, path)
+        const upload = prepareMedia(path, workDir)
+        console.log(`  uploading ${mediaFile}${upload !== path ? ' (converted to JPEG)' : ''}...`)
+        cache[hash] = await uploadMedia(target, token, upload)
         writeFileSync(cacheFile, JSON.stringify(cache, null, 2))
       }
       media = { mediaUrl: `/api/media/${cache[hash].uploadId}`, mediaType: cache[hash].mediaType }

@@ -94,7 +94,7 @@ title,note_text,category,latitude,longitude,place_name,media_file,language,autho
 ```
 
 - `place_name` is cross streets, e.g. `Broadway & 116th St`. Coordinates must be in NYC.
-- `author` is `maya`, `dev` or `sam` (the demo accounts). `language` defaults to `en`. `media_file` is a file name in `seed/media/` or empty.
+- `author` is `maya`, `dev` or `sam` (the demo accounts). `language` defaults to `en`. `media_file` is a file name in `seed/media/` or empty. HEIC and photos over 4 MB are converted to JPEG automatically (macOS).
 - Every row becomes bubble `seed-<title-slug>`: 15 m pop radius, never expires.
 - `cd app && npm run seed:import` (add `-- --dry-run` to only check the CSV). Re-running updates in place and skips already-uploaded media.
 - `cd app && npm run demo:reset` between judges: wipes all pops, loves, waves, chats, messages and bubbles dropped during the demo. Seed bubbles stay. Owner only.

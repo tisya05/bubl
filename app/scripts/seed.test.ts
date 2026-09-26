@@ -1,8 +1,9 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { parseCsv, toSeedBubbles } from './seed'
+import { parseCsv, prepareMedia, toSeedBubbles } from './seed'
 
 const HEADER = 'title,note_text,category,latitude,longitude,place_name,media_file,language,author'
 
@@ -11,6 +12,24 @@ function mediaDir(...files: string[]) {
   for (const f of files) writeFileSync(join(dir, f), 'x')
   return dir
 }
+
+describe.runIf(process.platform === 'darwin')('prepareMedia (macOS sips)', () => {
+  // 1x1 red PNG
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==', 'base64')
+
+  it('converts HEIC to JPEG and leaves small JPEG/PNG alone', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bubl-prep-'))
+    const png = join(dir, 'dot.png')
+    writeFileSync(png, PNG)
+    const heic = join(dir, 'IMG_0001.HEIC')
+    execFileSync('sips', ['-s', 'format', 'heic', png, '--out', heic], { stdio: 'ignore' })
+
+    const out = prepareMedia(heic, dir)
+    expect(out).toBe(join(dir, 'IMG_0001.jpg'))
+    expect([...readFileSync(out).subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff])
+    expect(prepareMedia(png, dir)).toBe(png)
+  })
+})
 
 describe('parseCsv', () => {
   it('handles quotes, escaped quotes, commas and newlines in fields, CRLF and a BOM', () => {
@@ -55,7 +74,7 @@ describe('toSeedBubbles', () => {
       'Bad category,x,Nightlife,40.8,-73.96,Somewhere,,,maya',
       'Unknown author,x,Food,40.8,-73.96,Somewhere,,,bob',
       'Missing file,x,Food,40.8,-73.96,Somewhere,gone.jpg,,maya',
-      'HEIC,x,Food,40.8,-73.96,Somewhere,photo.heic,,maya',
+      'GIF,x,Food,40.8,-73.96,Somewhere,photo.gif,,maya',
     ].join('\n')
     const { bubbles, errors } = toSeedBubbles(csv, mediaDir())
     expect(bubbles).toEqual([])
@@ -65,7 +84,12 @@ describe('toSeedBubbles', () => {
     expect(errors[2]).toMatch(/category must be one of/)
     expect(errors[3]).toMatch(/author must be one of maya, dev, sam/)
     expect(errors[4]).toMatch(/gone.jpg is not in seed\/media/)
-    expect(errors[5]).toMatch(/export as JPEG/)
+    expect(errors[5]).toMatch(/must be .jpg, .png, .webp, .heic/)
+  })
+
+  it('accepts HEIC files', () => {
+    const csv = [HEADER, 'iPhone shot,x,Food,40.8,-73.96,Somewhere,IMG_0001.HEIC,,maya'].join('\n')
+    expect(toSeedBubbles(csv, mediaDir('IMG_0001.HEIC')).errors).toEqual([])
   })
 
   it('names missing columns', () => {
