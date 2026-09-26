@@ -4,14 +4,17 @@ Sep 26, 2026 · @tisya
 
 ## The idea and key decisions
 
-bubl is a PWA where locals pin notes (text, photos, short videos) to real spots around NYC, and you can only open them by physically walking within 15 m. There is no search bar. Bubbles are color-coded by category, and two people who loved the same spot can each wave; a chat opens only when both wave.
+bubl is a PWA where locals pin notes (text, photos, short videos) to real spots around NYC, and you can only open them by physically walking within 15 m. There is no search bar. Bubbles are color-coded by category. **Every live bubble is visible to everyone** (no "friends only" / `whoCanPop` gate). A wave is only between the **author** of a bubble and someone who **loved** it; a chat unlocks only when both have waved. Peer lovers of the same bubble cannot see or wave at each other.
 
 - **Track:** Know Your City (the anti-tourist track).
 - **Seed area:** Morningside Heights, within a 10 to 15 minute walk of Lerner Hall, not the Lower East Side from the mockups.
 - **Live demo bubble:** plant one bubble outside Lerner with a 60 m pop radius, since indoor GPS can be off by 20 to 50 m. Demo mode is the backup.
+- **Visibility:** all live bubbles are public on the map (previews only). Sealed content still requires the server distance check.
+- **Wave:** author ↔ lover only, about that bubble. Either side may wave first. After a love, author and that lover see each other's display names (not other lovers). Authors cannot love their own bubble. Note CTA is **Wave** (replaces "Reply here"), optional note ≤280 chars. Incoming waves show "X waved at you" with wave-back.
+- **Chat:** one DM per user pair; pin the **first** connecting bubble. Unlock only after mutual wave.
 - **Palette:** Navy Sherbet. Navy #243B64, sherbet #FF8A5B, pale blue #CFE0F0, paper #F4F1EA.
 - **Categories:** Food #FF8A5B, Cafe #C98B4A, Park #6BAF7A, Street #5B8FD9, Misc #B07CD8.
-- **Mockups:** [bubl canvas](https://claude.ai/artifact/MmVhwKnRz4RaVwmRoPjXkS). **Devpost:** [DivHacks 2026](https://divhacks-2026.devpost.com/).
+- **Mockups:** [bubl canvas](https://claude.ai/artifact/MmVhwKnRz4RaVwmRoPjXkS) + `mockup/` in repo. Treat mockups as vision; product rules above win when they disagree (e.g. wave is author↔lover, not lover↔lover). **Devpost:** [DivHacks 2026](https://divhacks-2026.devpost.com/).
 
 ## Roles
 
@@ -184,7 +187,7 @@ One main track, plus as many sponsor and MLH prizes as we want ([Devpost](https:
 
 Judges score Concept 30%, Functionality 30%, Wow Factor 20%, UX and Design 10%, and Value to Community 10%. Each judge gets 5 minutes: about 3 minutes of pitch and 2 of questions.
 
-- **Concept:** lead with what is new. No search, you have to walk, and chats open only when both people wave.
+- **Concept:** lead with what is new. No search, you have to walk, bubbles are for meeting new people (public discovery), and chats open only when author and lover both wave.
 - **Functionality:** show the demo bubble at Lerner live, with demo mode ready as backup.
 - **Wow Factor:** hit all three moments: the pop animation, the note read aloud, and the wave.
 - **Security story:** notes are gated on the server, GPS metadata is stripped from uploads, and profiles never show exact locations.
