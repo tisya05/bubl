@@ -14,8 +14,9 @@
  */
 
 import type { CollectionSchema } from 'deepspace/schema'
+import { CATEGORIES } from '../bubl/types'
 
-const CATEGORY_OPTIONS = ['Food', 'Cafe', 'Park', 'Street', 'Misc']
+const CATEGORY_OPTIONS = [...CATEGORIES]
 
 const serverWritten = { create: false, update: false, delete: false } as const
 const noAccess = { read: false, ...serverWritten } as const
