@@ -83,7 +83,7 @@ Tisya collects 20 to 30 bubbles within a 10 to 15 minute walk of Lerner, Sat 4 t
 Log each spot in a shared sheet so Urvi can import it in one go:
 
 ```csv
-title,note_text,category,latitude,longitude,media_file,language,author
+title,note_text,category,latitude,longitude,place_name,media_file,language,author
 ```
 
 ## Prizes we are entering

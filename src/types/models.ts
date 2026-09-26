@@ -1,5 +1,5 @@
 // Shared data shapes for bubl. Everyone codes against these.
-// Change them only in a tisya-contracts-* PR, announced in the group chat.
+// See docs/CONTRACTS.md for the rules and how to change them.
 
 export const CATEGORIES = ['Food', 'Cafe', 'Park', 'Street', 'Misc'] as const;
 export type Category = (typeof CATEGORIES)[number];
@@ -9,28 +9,32 @@ export interface Bubble {
   authorId: string;
   lat: number;
   lng: number;
+  placeName: string;       // cross streets, e.g. 'Broadway & 116th St'
   category: Category;
-  title: string;
+  title: string;           // sealed
   text: string;            // sealed: only returned after canPop passes
-  mediaUrl?: string;       // photo or video, GPS metadata stripped
+  mediaUrl?: string;       // sealed; unguessable URL, GPS metadata stripped
   mediaType?: 'photo' | 'video';
   language: string;        // e.g. 'en', 'es'
   audioUrl?: string;       // cached ElevenLabs audio
   popRadiusM: number;      // 15 by default, 60 for the Lerner demo bubble
-  whoCanPop: 'anyone' | 'met';  // 'met' = only users with a mutual wave with the author
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
+  moderation: 'passed' | 'unchecked';  // 'unchecked' = Grok failed, saved anyway
 }
 
-// What the map receives for nearby bubbles: NO title, NO text, NO media.
+// What the map receives: NO title, NO text, NO media.
 export interface BubblePreview {
   id: string;
   lat: number;
   lng: number;
+  placeName: string;
   category: Category;
+  popRadiusM: number;      // so the client shows the in-bubble banner at the right distance
 }
 
+// Created by a successful canPop, one per user and bubble.
 export interface Pop {
   userId: string;
   bubbleId: string;
@@ -66,4 +70,41 @@ export interface Message {
   senderId: string;
   text: string;
   sentAt: string;
+}
+
+// ---- List items for the You and Chats tabs ----
+
+export interface PoppedItem {
+  bubbleId: string;
+  title: string;
+  category: Category;
+  placeName: string;
+  poppedAt: string;
+  loved: boolean;
+}
+
+export interface DroppedItem {
+  bubbleId: string;
+  title: string;
+  category: Category;
+  placeName: string;
+  createdAt: string;
+  expiresAt?: string;
+  status: 'floating' | 'expired';
+  popCount: number;
+}
+
+export interface IncomingWave {
+  from: User;
+  bubbleId: string;
+  placeName: string;
+  category: Category;
+  createdAt: string;
+}
+
+export interface ChatSummary {
+  chat: Chat;
+  otherUser: User;
+  lastMessage?: Message;
+  unread: boolean;
 }
