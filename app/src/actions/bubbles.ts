@@ -74,7 +74,8 @@ function toSeedBubble(row: SeedRow, index: number): (BubbleRow & { id?: string }
   if (typeof row.id !== 'string' || !SEED_ID.test(row.id)) return `${where}: id must look like seed-<name>`
   if (!nonEmptyString(row.authorId)) return `${where}: authorId is required`
   if (!nonEmptyString(row.title)) return `${where}: title is required`
-  if (!nonEmptyString(row.text)) return `${where}: text is required`
+  if (row.text !== undefined && typeof row.text !== 'string') return `${where}: text must be a string`
+  if (!nonEmptyString(row.text) && !nonEmptyString(row.mediaUrl)) return `${where}: text is required when there is no media`
   if (!nonEmptyString(row.placeName)) return `${where}: placeName is required`
   if (!CATEGORIES.includes(row.category as Category)) return `${where}: category must be one of ${CATEGORIES.join(', ')}`
   if (!isFiniteNumber(row.lat) || Math.abs(row.lat) > 90) return `${where}: lat is invalid`
@@ -94,7 +95,7 @@ function toSeedBubble(row: SeedRow, index: number): (BubbleRow & { id?: string }
     placeName: row.placeName.trim(),
     category: row.category as Category,
     title: row.title.trim(),
-    text: row.text.trim(),
+    text: (row.text ?? '').trim(),
     mediaUrl: row.mediaUrl,
     mediaType: row.mediaType,
     language: nonEmptyString(row.language) ? row.language : 'en',

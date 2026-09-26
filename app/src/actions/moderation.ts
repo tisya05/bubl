@@ -62,7 +62,8 @@ export async function checkBubble(
 ): Promise<ModerationVerdict | null> {
   if (!env.GEMINI_API_KEY) return null
 
-  const noteText = input.title ? `Title: ${input.title}\n\nNote: ${input.text}` : `Note: ${input.text}`
+  const note = input.text || '(no note, media only)'
+  const noteText = input.title ? `Title: ${input.title}\n\nNote: ${note}` : `Note: ${note}`
   const content = [
     { type: 'text', text: noteText },
     ...(input.imagesBase64 ?? []).map((b64) => ({

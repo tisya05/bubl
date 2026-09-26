@@ -32,7 +32,7 @@ export const bubblesSchema: CollectionSchema = {
     { name: 'placeName', storage: 'text', interpretation: 'plain', required: true },
     { name: 'category', storage: 'text', interpretation: { kind: 'select', options: CATEGORY_OPTIONS }, required: true },
     { name: 'title', storage: 'text', interpretation: 'plain', required: true },
-    { name: 'text', storage: 'text', interpretation: 'plain', required: true },
+    { name: 'text', storage: 'text', interpretation: 'plain' },
     { name: 'mediaUrl', storage: 'text', interpretation: 'plain' },
     { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video'] } },
     { name: 'language', storage: 'text', interpretation: 'plain', required: true },

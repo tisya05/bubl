@@ -1,3 +1,5 @@
 CLAUDE.md
 deepspace.pdf
 seed/.uploads.*.json
+seed/media/*
+!seed/media/.gitkeep

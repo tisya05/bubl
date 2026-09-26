@@ -27,8 +27,9 @@ const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.t
 function parseInput(params: Record<string, unknown>): DropBubbleInput | string {
   const { title, text, category, lat, lng, placeName, uploadId, frameBase64, floatsFor } = params
 
-  if (!nonEmptyString(text)) return 'text is required'
-  if (text.length > MAX_TEXT_CHARS) return `text must be at most ${MAX_TEXT_CHARS} characters`
+  if (text !== undefined && typeof text !== 'string') return 'text must be a string'
+  if (!nonEmptyString(text) && !nonEmptyString(uploadId)) return 'text is required when there is no photo or video'
+  if (typeof text === 'string' && text.length > MAX_TEXT_CHARS) return `text must be at most ${MAX_TEXT_CHARS} characters`
   if (title !== undefined && (typeof title !== 'string' || title.length > MAX_TITLE_CHARS)) {
     return `title must be at most ${MAX_TITLE_CHARS} characters`
   }
@@ -48,7 +49,7 @@ function parseInput(params: Record<string, unknown>): DropBubbleInput | string {
 
   return {
     title: nonEmptyString(title) ? title.trim() : undefined,
-    text: text.trim(),
+    text: typeof text === 'string' ? text.trim() : '',
     category: category as Category | undefined,
     lat,
     lng,
@@ -84,7 +85,7 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
     lng: input.lng,
     placeName: input.placeName,
     category: input.category ?? verdict?.suggestedCategory ?? 'Misc',
-    title: input.title ?? (verdict?.suggestedTitle || fallbackTitle(input.text)),
+    title: input.title ?? (verdict?.suggestedTitle || fallbackTitle(input.text) || `a ${media?.ok ? media.mediaType : 'note'}`),
     text: input.text,
     ...(media?.ok ? { mediaUrl: media.mediaUrl, mediaType: media.mediaType } : {}),
     language: verdict?.language ?? 'en',

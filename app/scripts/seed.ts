@@ -153,7 +153,7 @@ export function toSeedBubbles(csv: string, mediaDir: string): { bubbles: SeedBub
     const lng = Number(row.longitude)
     const authorId = AUTHORS[row.author.toLowerCase()]
     if (!row.title) rowErrors.push('title is empty')
-    if (!row.note_text) rowErrors.push('note_text is empty')
+    if (!row.note_text && !row.media_file) rowErrors.push('note_text is empty (it can only be empty when there is a media_file)')
     if (!row.place_name) rowErrors.push('place_name is empty')
     if (!category) rowErrors.push(`category must be one of ${CATEGORIES.join(', ')}`)
     if (!row.latitude || !Number.isFinite(lat) || Math.abs(lat) > 90) rowErrors.push('latitude is not a number')
