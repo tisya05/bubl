@@ -42,7 +42,7 @@ Three people push to one repo overnight, so `main` must always build and demo. N
 | P0.4 Pop flow | `tisya-can-pop`, `stephanie-pop-animation`, `stephanie-note-screen` |
 | P0.5 Seed data | `tisya-seed-data`, `urvi-seed-import` |
 | P0.6 Deploy + domain | `urvi-deploy` |
-| P1.1 Sign-in | `urvi-auth` |
+| P0.7 Basic sign-in | `urvi-auth` |
 | P1.2 Drop flow | `tisya-drop-screen`, `tisya-check-bubble` |
 | P1.3 Read-aloud | `tisya-speak` |
 | P1.4 Loves, waves, chat unlock | `urvi-wave-rule` |
