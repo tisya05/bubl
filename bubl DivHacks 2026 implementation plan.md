@@ -35,7 +35,7 @@ P0 has to work for any demo. Finish each tier before starting the next.
 | P0.4 | Pop flow: server-side 15 m check, pop animation, note screen with text, photo or video | Tisya, Stephanie, Urvi | Know Your City, DeepSpace, Wow Factor |
 | P0.5 | Seed data collected and imported | Tisya, Urvi | Functionality score |
 | P0.6 | Deploy to app.space early, connect .tech domain | Urvi | DeepSpace, .Tech |
-| P1.1 | Sign-in with DeepSpace auth | Urvi | DeepSpace |
+| P0.7 | Basic sign-in with DeepSpace auth (the fastest method it offers). Every server function needs a user; `canPop` records a Pop per user | Urvi | DeepSpace |
 | P1.2 | Drop flow: compose screen, category picker, media upload, Grok moderation and suggested category | Tisya, Urvi | SpaceXAI (long shot), DeepSpace |
 | P1.3 | Read-aloud on pop: ElevenLabs audio generated once and saved | Tisya | ElevenLabs, Wow Factor |
 | P1.4 | Loves, waves, chat unlock enforced on the server | Urvi | DeepSpace, Concept score |

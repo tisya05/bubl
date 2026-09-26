@@ -24,7 +24,7 @@ import type { BubblePreview } from '../types';
 
 ## MVP first
 
-MVP = map with bubbles + location / demo dot + `canPop` + note screen + seed data + deploy. Everything else stays minimal until that works end to end. Security hardening comes after.
+MVP = basic sign-in + map with bubbles + location / demo dot + `canPop` + note screen + seed data + deploy. Everything else stays minimal until that works end to end. Security hardening comes after.
 
 ## Server functions
 
@@ -59,9 +59,9 @@ All of them require a signed-in user.
 5. **Never expose a user's location.** `User` holds a neighborhood, never coordinates.
 6. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
-## Decision needed: sign-in vs. guest
+## Sign-in is P0
 
-`canPop`, `loveBubble` and the rest need a user identity, but sign-in is currently P1. Options: move basic DeepSpace sign-in into P0, or give every visitor an automatic guest account. Guest is faster and lets judges scanning the QR code start immediately. Decide as a team.
+Every server function needs a user identity (`canPop` records a `Pop` per user), so basic DeepSpace sign-in is part of the MVP (Urvi). Keep it to the fastest method DeepSpace offers so judges scanning the QR code can get in within seconds. The mock signs everyone in as a fake `me` user, so screens don't wait on it.
 
 ## Known limitations
 
