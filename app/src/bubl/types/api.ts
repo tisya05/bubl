@@ -56,6 +56,7 @@ export interface SpeakResult {
 }
 
 // Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
+// Deferred: not planned for now. Kept as a placeholder; don't build UI for it.
 export interface TranslateInput {
   bubbleId: string;
   targetLanguage: string;
