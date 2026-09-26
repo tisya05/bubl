@@ -15,9 +15,9 @@ bubl is a mobile-first PWA where locals pin notes (text, photos, short videos) t
 Core loop:
 1. **Walk.** A map shows nearby bubbles, color-coded by category. Far bubbles are blurred soft dots in their category color. Bubbles within ~100 m become solid and show a category icon. Contents stay sealed.
 2. **Pop.** Within 15 m, the user gets an in-app "you drifted into a bubble" banner, taps, sees a bubble-pop animation, and the note opens.
-3. **Drop.** Users leave their own bubble at their current location: text, photo, or video (max 15 s), a category, who can pop it, and how long it floats (1 week, 1 month, forever). Every drop is moderated by Grok before it goes live.
-4. **Wave.** If two people both loved the same spot, each can wave at the other. A chat unlocks **only when both have waved**. Nobody can message anyone before that.
-5. **Chat.** In-app chat between matched people. The thread pins the bubble that connected them.
+3. **Drop.** Users leave their own bubble at their current location: text, photo, or video (max 15 s), a category, and how long it floats (1 week, 1 month, forever). Every drop is moderated by Grok before it goes live. **Every live bubble is visible to everyone** (map previews are public; there is no "only people you know" / `whoCanPop` gate). Contents still stay sealed until `canPop` passes on distance.
+4. **Wave.** A wave is only between the **bubble author (A)** and a person who **popped and loved** that bubble (B). **Either side may wave first.** After B loves, A and B can see each other's **display names** for that bubble (so each can wave). Other lovers (C) cannot see that B loved it, cannot wave at B, and can only wave at A about that bubble. Authors cannot love their own bubble. On the note screen the action is **Wave** (not "Reply here"), with an **optional short note** (max ~280 chars). A chat unlocks **only when A and B have both waved**. Nobody can message anyone before that.
+5. **Chat.** One DM thread per user pair (not one chat per bubble). The thread pins the **first** connecting bubble (simpler; do not update the pin later).
 
 Name and brand: "bubl". The two b's are eyes, the u is a smile. Tagline: "pop ur bubl." (come out of your bubble, explore NYC, meet people).
 
@@ -110,10 +110,13 @@ interface Bubble {
   language: string;        // e.g. 'en', 'es'
   audioUrl?: string;       // cached ElevenLabs audio
   popRadiusM: number;      // 15 by default, 60 for the Lerner demo bubble
-  whoCanPop: 'anyone' | 'met';
+  // No whoCanPop: all live bubbles are discoverable by everyone.
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
+  // Optional denormalized counts (easy; returned after canPop):
+  poppedCount?: number;
+  lovedCount?: number;
 }
 
 // What the map receives for nearby bubbles: NO text, NO media.
@@ -122,7 +125,21 @@ interface BubblePreview {
 }
 
 interface Pop   { userId: string; bubbleId: string; poppedAt: string; loved: boolean; }
-interface Wave  { fromUserId: string; toUserId: string; bubbleId: string; createdAt: string; }
+// Wave is author ↔ lover only (enforced server-side). Optional note from the waver.
+interface Wave  {
+  fromUserId: string;
+  toUserId: string;
+  bubbleId: string;
+  note?: string;
+  createdAt: string;
+}
+// One Chat per user pair; pin one connecting bubbleId.
+interface Chat  {
+  id: string;
+  participantIds: [string, string];
+  bubbleId: string;        // pinned connecting bubble
+  unlockedAt: string;
+}
 interface Message { chatId: string; senderId: string; text: string; sentAt: string; }
 ```
 
