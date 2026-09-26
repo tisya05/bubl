@@ -98,7 +98,8 @@ export interface IncomingWave {
   bubbleId: string;
   placeName: string;
   category: Category;
-  createdAt: string;
+  note?: string;           // the waver's optional note
+  createdAt: string;       // day only (midnight UTC), not the exact time
 }
 
 export interface ChatSummary {

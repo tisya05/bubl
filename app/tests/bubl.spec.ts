@@ -221,3 +221,61 @@ test('loveBubble and lovedBy refuse what the rules forbid', async ({ users, requ
   expect(await lovers(devToken, 'seed-test-love')).toEqual({ success: true, data: [] })
   expect(await lovers(mayaToken, 'seed-test-love')).toEqual({ success: true, data: [] })
 })
+
+test('waves: only author and lover, note limit, mutual wave opens one chat per pair', async ({ users, request }) => {
+  const jwt = ownerJwt()
+  test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [maya, dev, sam] = await users(['Maya', 'Dev', 'Sam'])
+  const [mayaToken, devToken, samToken] = await Promise.all([tokenFor(maya), tokenFor(dev), tokenFor(sam)])
+  const run = Date.now()
+  const first = `seed-test-wave-a-${run}`
+  const second = `seed-test-wave-b-${run}`
+
+  const act = (name: string, token: string | undefined, params: object = {}) =>
+    callAction(request, name, token, params).then((r) => r.json())
+  const bubble = (id: string) => ({ id, authorId: maya.userId, title: '__test__', text: '__test__', placeName: `place ${id}`, category: 'Street', ...LERNER })
+
+  expect(await act('importSeedBubbles', jwt, { bubbles: [bubble(first), bubble(second)] })).toMatchObject({ success: true })
+  for (const [user, id] of [[dev, first], [sam, first], [dev, second]] as const) {
+    expect(await act('testRecordPop', jwt, { userId: user.userId, bubbleId: id })).toMatchObject({ success: true })
+  }
+  await act('loveBubble', devToken, { bubbleId: first })
+  await act('loveBubble', devToken, { bubbleId: second })
+  // Sam popped `first` but never loved it.
+
+  const refused = { success: false, error: expect.stringContaining('author') }
+  expect(await act('sendWave', samToken, { toUserId: maya.userId, bubbleId: first })).toMatchObject(refused)
+  expect(await act('sendWave', mayaToken, { toUserId: sam.userId, bubbleId: first })).toMatchObject(refused)
+  expect(await act('sendWave', devToken, { toUserId: sam.userId, bubbleId: first })).toMatchObject(refused)
+  expect(await act('sendWave', devToken, { toUserId: dev.userId, bubbleId: first })).toMatchObject({ success: false })
+  expect(await act('sendWave', devToken, { toUserId: maya.userId, bubbleId: first, note: 'x'.repeat(281) })).toMatchObject({
+    success: false,
+    error: expect.stringContaining('280'),
+  })
+
+  // Dev waves first, with a note. Waving again is a no-op.
+  const hello = { toUserId: maya.userId, bubbleId: first, note: '  loved this spot!  ' }
+  expect(await act('sendWave', devToken, hello)).toEqual({ success: true, data: { matched: false } })
+  expect(await act('sendWave', devToken, hello)).toEqual({ success: true, data: { matched: false } })
+
+  const mayaInbox = (await act('incomingWaves', mayaToken)) as { data: Record<string, any>[] }
+  const fromDev = mayaInbox.data.filter((w) => w.bubbleId === first)
+  expect(fromDev).toHaveLength(1)
+  expect(fromDev[0]).toMatchObject({ from: { id: dev.userId }, placeName: `place ${first}`, category: 'Street', note: 'loved this spot!' })
+  expect(fromDev[0].createdAt).toMatch(/T00:00:00\.000Z$/)
+  expect(fromDev[0].from).not.toHaveProperty('email')
+  expect(((await act('incomingWaves', samToken)) as { data: { bubbleId: string }[] }).data.some((w) => w.bubbleId === first)).toBe(false)
+
+  // Maya waves back: matched, and the wave leaves her inbox.
+  const match = (await act('sendWave', mayaToken, { toUserId: dev.userId, bubbleId: first })) as { data: { matched: boolean; chatId: string } }
+  expect(match.data.matched).toBe(true)
+  expect(match.data.chatId).toBeTruthy()
+  const after = (await act('incomingWaves', mayaToken)) as { data: { bubbleId: string }[] }
+  expect(after.data.some((w) => w.bubbleId === first)).toBe(false)
+
+  // Maya waves first on the second bubble; Dev waves back. Same pair, same chat.
+  expect(await act('sendWave', mayaToken, { toUserId: dev.userId, bubbleId: second })).toEqual({ success: true, data: { matched: false } })
+  const again = (await act('sendWave', devToken, { toUserId: maya.userId, bubbleId: second })) as { data: { matched: boolean; chatId: string } }
+  expect(again.data).toEqual({ matched: true, chatId: match.data.chatId })
+})

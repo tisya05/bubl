@@ -49,8 +49,8 @@ All of them require a signed-in user.
 | `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
 | `myPopped` | Urvi | none | `PoppedItem[]` | You tab |
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
-| `sendWave` | Urvi | `toUserId`, `bubbleId` | `{ matched, chatId? }` | `matched` when the other person already waved back; the server creates the `Chat` then |
-| `incomingWaves` | Urvi | none | `IncomingWave[]` | |
+| `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
+| `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
 | `myChats` | Urvi | none | `ChatSummary[]` | |
 | `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users |
 | `sendMessage` | Urvi | `chatId`, `text` | `Message` | Only the chat's two users |
