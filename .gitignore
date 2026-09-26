@@ -1,2 +1,5 @@
 CLAUDE.md
 deepspace.pdf
+app/dist-ui/
+app/test-results/
+app/playwright-report/

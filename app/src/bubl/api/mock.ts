@@ -1,5 +1,5 @@
 // In-memory mock of the API so screens can be built before the backend exists.
-// Only nearbyBubbles and canPop are fully implemented; everything else returns simple defaults.
+// Demo-only data and interactions, stored on this browser. No backend calls.
 // Like the real backend, every call resolves to DeepSpace's ActionResult.
 
 import type { ActionResult } from 'deepspace/worker';
@@ -10,9 +10,14 @@ import {
   MAX_NEARBY_RADIUS_M,
 } from '../config';
 import { distanceM } from '../lib/geo';
-import type { Api, Bubble, BubblePreview, User } from '../types';
+import type { Api, Bubble, BubblePreview, User, Chat, Message, Wave } from '../types';
+import type { LibraryActions } from '../lib/libraryActions';
+import { loadProfile } from '../lib/localProfile';
+import { readDemoMedia, saveDemoMedia } from '../lib/demoMedia';
 
-const ME: User = { id: 'me', name: 'You' };
+const initialProfile = loadProfile({ id: 'me', name: 'You' });
+const ME: User = { id: 'me', name: initialProfile.name, imageUrl: initialProfile.imageUrl };
+const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 const AUTHORS: Record<string, User> = {
   'u-maya': { id: 'u-maya', name: 'Maya' },
@@ -106,11 +111,51 @@ const bubbles: Bubble[] = [
   }),
 ];
 
-const pops = new Set<string>(); // `${userId}:${bubbleId}`
+const pops = new Set<string>();
+const hiddenPops = new Set<string>();
+const loves = new Set<string>();
+const waves: Wave[] = [];
+const chats: Chat[] = [];
+const messages: Message[] = [];
+const uploads = new Map<string, { url: string; type: 'photo' | 'video' }>();
+const mediaUrls = new Map<string, string>();
+const STATE_KEY = 'bubl.demo.v2';
+try {
+  const saved = JSON.parse(localStorage.getItem(STATE_KEY) ?? 'null');
+  if (saved?.version === 2 && Array.isArray(saved.bubbles)) {
+    bubbles.splice(0, bubbles.length, ...saved.bubbles);
+    for (const key of saved.pops ?? []) pops.add(key);
+    for (const key of saved.hiddenPops ?? []) hiddenPops.add(key);
+    for (const key of saved.loves ?? []) loves.add(key);
+    waves.push(...(saved.waves ?? [])); chats.push(...(saved.chats ?? [])); messages.push(...(saved.messages ?? []));
+  }
+} catch { /* A fresh or storage-restricted browser starts with an empty library. */ }
+function persist() {
+  try { localStorage.setItem(STATE_KEY, JSON.stringify({ version: 2, bubbles, pops: [...pops], hiddenPops: [...hiddenPops], loves: [...loves], waves, chats, messages })); } catch { /* State remains usable for this session if storage is full. */ }
+}
+async function withMedia(b: Bubble): Promise<Bubble> {
+  if (!b.mediaUrl?.startsWith('bubl-media:')) return { ...b };
+  const id = b.mediaUrl.slice('bubl-media:'.length);
+  if (!mediaUrls.has(id)) { const file = await readDemoMedia(id); if (file) mediaUrls.set(id, URL.createObjectURL(file)); }
+  return { ...b, mediaUrl: mediaUrls.get(id) };
+}
+const fail = <T>(error: string): Promise<ActionResult<T>> => Promise.resolve({ success: false, error });
 
-// Resolves like a successful DeepSpace action after a fake network delay.
-const ok = <T>(data: T, ms = 300) =>
-  new Promise<ActionResult<T>>((resolve) => setTimeout(() => resolve({ success: true, data }), ms));
+/** Explicit demo control; never called by the production API. */
+export function simulateWaveBack(authorId: string, bubbleId: string) {
+  const b = bubbles.find(b => b.id === bubbleId);
+  if (!b || b.authorId !== authorId || !loves.has(`me:${bubbleId}`)) return;
+  if (!waves.some(w => w.fromUserId === authorId && w.toUserId === 'me' && w.bubbleId === bubbleId)) {
+    waves.push({ fromUserId: authorId, toUserId: 'me', bubbleId, createdAt: new Date().toISOString() });
+    persist();
+  }
+}
+
+// Preserve the agreed result shape without an artificial demo delay.
+const ok = <T>(data: T): Promise<ActionResult<T>> => {
+  persist();
+  return Promise.resolve({ success: true, data });
+};
 
 const isExpired = (b: Bubble) => b.expiresAt !== undefined && Date.parse(b.expiresAt) < Date.now();
 
@@ -137,12 +182,14 @@ export const mockApi: Api = {
       return ok({ ok: false as const, reason: 'too_far' as const, distanceM: Math.round(d) });
     }
     pops.add(`${ME.id}:${b.id}`);
-    return ok({ ok: true as const, bubble: b, author: AUTHORS[b.authorId] });
+    hiddenPops.delete(b.id);
+    return ok({ ok: true as const, bubble: await withMedia(b), author: b.authorId === ME.id ? ME : AUTHORS[b.authorId] });
   },
 
-  // ---- Simple defaults below ----
-
-  async loveBubble() {
+  async loveBubble({ bubbleId }) {
+    const b = bubbles.find(b => b.id === bubbleId);
+    if (!b || !pops.has(`me:${bubbleId}`) || b.authorId === ME.id) return fail('Pop someone else’s bubble before loving it.');
+    loves.add(`me:${bubbleId}`);
     return ok({ loved: true as const });
   },
   async lovedBy() {
@@ -151,46 +198,100 @@ export const mockApi: Api = {
   async speak() {
     return ok({ audioUrl: '' });
   },
-  async translate({ bubbleId }) {
+  async translate({ bubbleId, targetLanguage }) {
     const b = bubbles.find((x) => x.id === bubbleId);
+    if (!b || !pops.has(`me:${bubbleId}`)) return fail('Pop this bubble first.');
+    if (b.id === 'b-riverside' && targetLanguage === 'en') return ok({ title: 'The best sunset', text: 'Head down the stairs at sunset. The river turns golden, and there is almost nobody around.', sourceLanguage: 'es' });
+    if (targetLanguage !== b.language) return fail('This language is not available in the demo. Live translation will use Gemini.');
     return ok({ title: b?.title ?? '', text: b?.text ?? '', sourceLanguage: b?.language ?? 'en' });
   },
   async uploadMedia(file) {
-    return ok({ uploadId: 'mock-upload', mediaType: file.type.startsWith('video/') ? ('video' as const) : ('photo' as const) });
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return fail('Choose a photo or video.');
+    const uploadId = newId();
+    const mediaType = file.type.startsWith('video/') ? 'video' as const : 'photo' as const;
+    await saveDemoMedia(uploadId, file);
+    uploads.set(uploadId, { url: `bubl-media:${uploadId}`, type: mediaType });
+    return ok({ uploadId, mediaType });
   },
   async dropBubble(input) {
     const b = bubble({
-      id: `b-${Date.now()}`,
+      id: `b-${newId()}`,
       authorId: ME.id,
       lat: input.lat,
       lng: input.lng,
       placeName: input.placeName,
       category: input.category ?? 'Misc',
-      title: input.title ?? 'Untitled',
+      title: input.title || input.text.slice(0, 48),
       text: input.text,
+      createdAt: new Date().toISOString(),
+      moderation: 'unchecked',
+      expiresAt: input.floatsFor === 'forever' ? undefined : new Date(Date.now() + (input.floatsFor === '1w' ? 7 : 30) * 86400000).toISOString(),
+      mediaUrl: input.uploadId ? uploads.get(input.uploadId)?.url : undefined,
+      mediaType: input.uploadId ? uploads.get(input.uploadId)?.type : undefined,
     });
     bubbles.push(b);
     return ok({ ok: true as const, bubble: b });
   },
   async myPopped() {
-    return ok([]);
+    return ok(bubbles.filter(b => pops.has(`me:${b.id}`) && !hiddenPops.has(b.id)).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, poppedAt: CREATED, loved: loves.has(`me:${b.id}`) })));
   },
   async myDropped() {
-    return ok([]);
+    return ok(bubbles.filter(b => b.authorId === ME.id).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, createdAt: b.createdAt, expiresAt: b.expiresAt, status: isExpired(b) ? 'expired' as const : 'floating' as const, popCount: 0 })));
   },
-  async sendWave() {
-    return ok({ matched: false });
+  async sendWave({ toUserId, bubbleId, note }) {
+    const b = bubbles.find(b => b.id === bubbleId);
+    if (!b || toUserId === ME.id || (note?.length ?? 0) > 280) return fail('This wave is not available.');
+    const eligible = (b.authorId === toUserId && loves.has(`me:${bubbleId}`)) || (b.authorId === ME.id && loves.has(`${toUserId}:${bubbleId}`));
+    if (!eligible) return fail('Waves connect a bubble’s author with someone who loved it.');
+    if (!waves.some(w => w.fromUserId === ME.id && w.toUserId === toUserId && w.bubbleId === bubbleId)) waves.push({ fromUserId: ME.id, toUserId, bubbleId, note, createdAt: new Date().toISOString() });
+    const matched = waves.some(w => w.fromUserId === toUserId && w.toUserId === ME.id && w.bubbleId === bubbleId);
+    if (!matched) return ok({ matched: false });
+    let chat = chats.find(c => c.participantIds.includes(toUserId) && c.participantIds.includes(ME.id));
+    if (!chat) { chat = { id: `chat-${newId()}`, participantIds: [ME.id, toUserId], bubbleId, unlockedAt: new Date().toISOString() }; chats.push(chat); }
+    return ok({ matched: true, chatId: chat.id });
   },
   async incomingWaves() {
-    return ok([]);
+    return ok(waves.filter(w => w.toUserId === ME.id && !waves.some(reverse => reverse.fromUserId === ME.id && reverse.toUserId === w.fromUserId && reverse.bubbleId === w.bubbleId)).flatMap(w => {
+      const b = bubbles.find(b => b.id === w.bubbleId); const from = AUTHORS[w.fromUserId];
+      return b && from ? [{ from, note: w.note, bubbleId: b.id, category: b.category, placeName: b.placeName, createdAt: w.createdAt }] : [];
+    }));
   },
   async myChats() {
-    return ok([]);
+    return ok(chats.filter(c => c.participantIds.includes(ME.id)).map(chat => ({ chat, otherUser: AUTHORS[chat.participantIds.find(id => id !== ME.id)!], lastMessage: messages.filter(m => m.chatId === chat.id).at(-1), unread: false })));
   },
-  async getMessages() {
-    return ok([]);
+  async getMessages({ chatId }) {
+    if (!chats.some(c => c.id === chatId && c.participantIds.includes(ME.id))) return fail('This chat is locked. You both need to wave first.');
+    return ok([...messages.filter(m => m.chatId === chatId)]);
   },
   async sendMessage({ chatId, text }) {
-    return ok({ chatId, senderId: ME.id, text, sentAt: new Date().toISOString() });
+    if (!chats.some(c => c.id === chatId && c.participantIds.includes(ME.id))) return fail('This chat is locked. You both need to wave first.');
+    if (!text.trim() || text.length > 2000) return fail('Messages must be between 1 and 2000 characters.');
+    const message = { chatId, senderId: ME.id, text: text.trim(), sentAt: new Date().toISOString() };
+    messages.push(message);
+    return ok(message);
   },
+};
+
+export const mockLibrary: LibraryActions = {
+  simulateWaveBack,
+  async getSavedBubble(id) {
+    const b = bubbles.find(b => b.id === id);
+    if (!b || (b.authorId !== ME.id && (!pops.has(`me:${id}`) || hiddenPops.has(id)))) throw new Error('This bubble is no longer in your collection.');
+    return { bubble: await withMedia(b), author: b.authorId === ME.id ? { ...ME } : AUTHORS[b.authorId], loved: loves.has(`me:${id}`) };
+  },
+  async removePopped(id) { hiddenPops.add(id); persist(); },
+  async deleteDropped(id) {
+    const index = bubbles.findIndex(b => b.id === id && b.authorId === ME.id);
+    if (index < 0) throw new Error('Only your own dropped bubbles can be deleted.');
+    bubbles.splice(index, 1); persist();
+  },
+  async deleteChat(id) {
+    const index = chats.findIndex(c => c.id === id && c.participantIds.includes(ME.id));
+    if (index < 0) throw new Error('Chat not found.');
+    const chat = chats[index]; chats.splice(index, 1);
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i].chatId === id) messages.splice(i, 1);
+    for (let i = waves.length - 1; i >= 0; i--) if (chat.participantIds.includes(waves[i].fromUserId) && chat.participantIds.includes(waves[i].toUserId)) waves.splice(i, 1);
+    persist();
+  },
+  updateProfile(user) { Object.assign(ME, user); },
 };
