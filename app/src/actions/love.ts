@@ -57,9 +57,11 @@ export const lovedBy: ActionHandler<Env> = async ({ userId, params, tools }) => 
   if (!authorId) return { success: false, error: 'Bubble not found' }
 
   if (userId === authorId) {
-    const res = await tools.query<PopRow>('pops', { where: { bubbleId, loved: true }, limit: 500 })
+    // `loved` is stored as 0/1, so filter here rather than in `where`.
+    const res = await tools.query<PopRow>('pops', { where: { bubbleId }, limit: 500 })
     if (!res.success) return res
-    const lovers = await Promise.all(res.data.records.map((r) => publicUser(tools, r.data.userId)))
+    const loverPops = res.data.records.filter((r) => Boolean(r.data.loved))
+    const lovers = await Promise.all(loverPops.map((r) => publicUser(tools, r.data.userId)))
     return { success: true, data: lovers }
   }
 

@@ -142,7 +142,51 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
   expect(ids).not.toContain('seed-test-beyond-cap')
 })
 
-// The happy path (pop -> love -> author sees lover) needs canPop to create the Pop.
+test('love flow: author sees every lover, lovers see only the author', async ({ users, request }) => {
+  const jwt = ownerJwt()
+  test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [maya, dev, sam] = await users(['Maya', 'Dev', 'Sam'])
+  const [mayaToken, devToken, samToken] = await Promise.all([tokenFor(maya), tokenFor(dev), tokenFor(sam)])
+  const bubbleId = `seed-test-flow-${Date.now()}`
+
+  const seed = await callAction(request, 'importSeedBubbles', jwt, {
+    bubbles: [{ id: bubbleId, authorId: maya.userId, title: '__test__', text: '__test__', placeName: 'test', category: 'Food', ...LERNER }],
+  })
+  expect(await seed.json()).toMatchObject({ success: true })
+
+  const act = (name: string, token: string | undefined, params: object) =>
+    callAction(request, name, token, params).then((r) => r.json())
+  const loverIds = async (token: string) =>
+    ((await act('lovedBy', token, { bubbleId })) as { data: { id: string }[] }).data.map((u) => u.id).sort()
+
+  for (const user of [dev, sam]) {
+    expect(await act('testRecordPop', jwt, { userId: user.userId, bubbleId })).toMatchObject({ success: true })
+  }
+  expect(await act('testRecordPop', devToken, { userId: dev.userId, bubbleId })).toMatchObject({ success: false, error: 'Forbidden' })
+
+  // Popped but not loved yet: nobody is listed anywhere.
+  expect(await loverIds(mayaToken)).toEqual([])
+  expect(await loverIds(devToken)).toEqual([])
+
+  expect(await act('loveBubble', devToken, { bubbleId })).toEqual({ success: true, data: { loved: true } })
+  expect(await act('loveBubble', devToken, { bubbleId })).toEqual({ success: true, data: { loved: true } })
+  expect(await loverIds(mayaToken)).toEqual([dev.userId])
+  expect(await loverIds(devToken)).toEqual([maya.userId])
+  expect(await loverIds(samToken)).toEqual([])
+
+  expect(await act('loveBubble', samToken, { bubbleId })).toMatchObject({ success: true })
+  expect(await loverIds(mayaToken)).toEqual([dev.userId, sam.userId].sort())
+  expect(await loverIds(samToken)).toEqual([maya.userId])
+  expect(await loverIds(devToken)).toEqual([maya.userId])
+
+  const authorView = (await act('lovedBy', mayaToken, { bubbleId })) as { data: Record<string, unknown>[] }
+  for (const lover of authorView.data) {
+    expect(Object.keys(lover).sort()).toEqual(expect.arrayContaining(['id', 'name']))
+    expect(lover).not.toHaveProperty('email')
+  }
+})
+
 test('loveBubble and lovedBy refuse what the rules forbid', async ({ users, request }) => {
   const jwt = ownerJwt()
   test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
