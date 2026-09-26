@@ -23,7 +23,7 @@ export interface Bubble {
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
-  moderation: 'passed' | 'unchecked';  // 'unchecked' = Grok failed, saved anyway
+  moderation: 'passed' | 'unchecked';  // 'unchecked' = Gemini unavailable, saved anyway
   poppedCount?: number;    // optional denormalized counts, returned after canPop
   lovedCount?: number;
 }

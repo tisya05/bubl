@@ -10,6 +10,7 @@ import {
   MAX_NEARBY_RADIUS_M,
 } from '../config';
 import { distanceM } from '../lib/geo';
+import { findPii } from '../lib/moderation';
 import { checkPop, isExpired } from '../lib/pop';
 import type { Api, Bubble, BubblePreview, User } from '../types';
 
@@ -154,6 +155,8 @@ export const mockApi: Api = {
     return ok({ uploadId: 'mock-upload', mediaType: file.type.startsWith('video/') ? ('video' as const) : ('photo' as const) });
   },
   async dropBubble(input) {
+    const pii = findPii(`${input.title ?? ''}\n${input.text}`);
+    if (pii.length > 0) return ok({ ok: false as const, reasons: pii });
     const b = bubble({
       id: `b-${Date.now()}`,
       authorId: ME.id,

@@ -44,9 +44,9 @@ All of them require a signed-in user.
 | `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`; refused for the bubble's own author. Loving twice is a no-op |
 | `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` (a lover gets the author from `canPop`) |
 | `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
-| `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
+| `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | **Deferred: not planned for now, don't build UI for it.** The type and a mock stay as a placeholder. If revived: server loads the bubble itself, only if the caller has popped it; cached per bubble and language |
 | `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Not an action: multipart `POST /api/media/upload`. JPEG, PNG, WebP (max 5 MB) or MP4/MOV (max 12 MB, 15 s). Strips GPS/EXIF/XMP and video metadata. The bubble's `mediaUrl` is `/api/media/<uploadId>`, served only to the uploader, the author, and people who popped it. The client (`uploadMedia`) converts HEIC and photos over 4 MB to JPEG first, where the browser can decode them (HEIC: Safari) |
-| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
+| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Checks run in order: input validation, a PII pre-check (emails, phone numbers, SSNs, card numbers; works even without Gemini), then Gemini moderation (hate speech, offensive language, swearing, PII such as private names or home addresses; images too). Rejected drops are never saved; `reasons` are safe to show the author. Empty title/category use Gemini's suggestions; Gemini also sets `language`. If Gemini is unreachable (no `GEMINI_API_KEY`, network error, 10 s timeout, error status) the bubble is saved with `moderation: 'unchecked'`; if Gemini answers but gives no usable verdict (likely its own safety filter), the drop is rejected. Text max 1000 chars, title max 60. `uploadId` is refused until `uploadMedia` exists; for video, send 1 to 2 client-extracted frames as `frameBase64` |
 | `myPopped` | Urvi | none | `PoppedItem[]` | You tab. The caller's pops, newest first |
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab. The caller's live drops, newest first. `popCount` excludes the author's own pop |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
@@ -84,6 +84,7 @@ Every server function needs a user identity (`canPop` records a `Pop` per user),
 - `canPop` trusts client coordinates, so GPS can be spoofed. The server check keeps sealed content off the client; it doesn't stop a determined spoofer.
 - No rate limiting yet.
 - HEIC photos are only converted to JPEG in browsers that can decode them (Safari).
+- The Gemini key lives in the DeepSpace secrets store (`npx deepspace secrets set GEMINI_API_KEY=...`), never in code or `.dev.vars`. Without it, drops still work but are saved `unchecked`.
 
 ## Seed data (Urvi)
 
