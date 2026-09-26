@@ -85,3 +85,10 @@ export function useUserLocation(): UserLocation | null {
 export function useLocationSource(): LocationSource {
   return useSyncExternalStore(subscribe, getSource);
 }
+
+// Same store, outside React (walking mode). Calls back on every location change.
+export function watchUserLocation(onChange: (location: UserLocation | null) => void): () => void {
+  const unsubscribe = subscribe(() => onChange(getLocation()));
+  onChange(getLocation());
+  return unsubscribe;
+}

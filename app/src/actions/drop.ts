@@ -70,7 +70,7 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
   const verdict = await checkBubble(env, {
     title: input.title,
     text: input.text,
-    imagesBase64: input.frameBase64,
+    media: input.frameBase64?.map((base64) => ({ mimeType: base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg', base64 })),
   })
   if (verdict && !verdict.allowed) return rejected(verdict.reasons)
 
