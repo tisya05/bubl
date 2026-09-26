@@ -6,6 +6,7 @@ import { getAuthToken } from 'deepspace';
 import type { ActionResult } from 'deepspace/worker';
 import type { Api } from '../types';
 import { mockApi } from './mock';
+import { preparePhoto } from './prepare-photo';
 
 // Calls the DeepSpace server action with the same name (src/actions/index.ts).
 async function callAction<T>(name: string, params: object = {}): Promise<ActionResult<T>> {
@@ -23,7 +24,7 @@ async function callAction<T>(name: string, params: object = {}): Promise<ActionR
 // Media goes through our own route (metadata stripping, private storage), not a JSON action.
 async function uploadMedia(file: File): Promise<ActionResult<{ uploadId: string; mediaType: 'photo' | 'video' }>> {
   const body = new FormData();
-  body.append('file', file);
+  body.append('file', await preparePhoto(file));
   const res = await fetch('/api/media/upload', {
     method: 'POST',
     headers: { Authorization: `Bearer ${await getAuthToken()}` },
