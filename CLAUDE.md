@@ -90,7 +90,9 @@ Respect `prefers-reduced-motion` for all animations. Touch targets at least 44 p
 
 ---
 
-## 5. Shared contracts (write these first as TS types in `src/types/`)
+## 5. Shared contracts
+
+**The code blocks below are OUTDATED. The source of truth is `app/src/bubl/types/` and `docs/CONTRACTS.md`.** All shared bubl code lives in `app/src/bubl/`; never create a top-level `src/` folder. Server functions are DeepSpace server actions returning `ActionResult` (`{ success, data, error }`). The wave/chat rules in section 1 are being folded into the contracts next.
 
 ```ts
 type Category = 'Food' | 'Cafe' | 'Park' | 'Street' | 'Misc';

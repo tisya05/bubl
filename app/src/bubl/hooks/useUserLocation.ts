@@ -3,7 +3,7 @@
 // Demo mode swaps the source to the draggable "you" dot, which writes here via setDemoLocation.
 
 import { useSyncExternalStore } from 'react';
-import { LERNER_HALL } from '../constants';
+import { LERNER_HALL } from '../config';
 
 export type LocationSource = 'gps' | 'demo';
 

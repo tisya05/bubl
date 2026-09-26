@@ -23,6 +23,11 @@ export const THEMES = [
     description: 'Neutral dark placeholder default. Replace with your own theme.',
   },
   {
+    id: 'navy-sherbet',
+    label: 'Navy Sherbet',
+    description: 'bubl: navy on warm paper, sherbet accent.',
+  },
+  {
     id: 'paper',
     label: 'Paper',
     description: 'Light example theme showing the token contract. Replace or delete.',
