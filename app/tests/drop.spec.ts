@@ -82,3 +82,50 @@ test('a clean drop is saved and shows on the map as a preview', async ({ users }
   expect(preview).toMatchObject({ placeName: 'Broadway & 115th St', category: 'Misc' })
   expect(preview).not.toHaveProperty('text')
 })
+
+const TINY_JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xda, 0, 2, 1, 2, 3, 0xff, 0xd9])
+
+async function uploadPhoto(request: APIRequestContext, token: string): Promise<string> {
+  const res = await request.post('/api/media/upload', {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: { file: { name: 'p.jpg', mimeType: 'image/jpeg', buffer: TINY_JPEG } },
+  })
+  const body = (await res.json()) as { success: boolean; data: { uploadId: string; mediaType: string } }
+  expect(body).toMatchObject({ success: true, data: { mediaType: 'photo' } })
+  return body.data.uploadId
+}
+
+test('a photo drop: upload, drop, sealed until popped, then served', async ({ users }) => {
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [dev, sam] = await users(['Dev', 'Sam'])
+  const [devToken, samToken] = await Promise.all([tokenFor(dev), tokenFor(sam)])
+  const photo = { ...base, title: '__test__ photo', text: '__test__ the mural behind the deli', category: 'Street' }
+
+  const uploadId = await uploadPhoto(dev.page.request, devToken)
+  const res = await callAction(dev.page.request, 'dropBubble', devToken, {
+    ...photo,
+    uploadId,
+    frameBase64: [TINY_JPEG.toString('base64')],
+  })
+  const body = (await res.json()) as { success: boolean; data: { ok: boolean; bubble: { id: string; mediaUrl: string } } }
+  expect(body).toMatchObject({ success: true, data: { ok: true, bubble: { mediaUrl: `/api/media/${uploadId}`, mediaType: 'photo' } } })
+  const { id: bubbleId, mediaUrl } = body.data.bubble
+
+  const reused = await callAction(dev.page.request, 'dropBubble', devToken, { ...photo, uploadId })
+  expect(await reused.json()).toMatchObject({ success: false, error: expect.stringContaining('already attached') })
+  const notMine = await callAction(sam.page.request, 'dropBubble', samToken, { ...photo, uploadId: await uploadPhoto(dev.page.request, devToken) })
+  expect(await notMine.json()).toMatchObject({ success: false, error: 'Upload not found' })
+
+  const near = await callAction(sam.page.request, 'nearbyBubbles', samToken, { ...LERNER, radiusM: 200 })
+  const preview = ((await near.json()) as { data: Record<string, unknown>[] }).data.find((b) => b.id === bubbleId)
+  expect(preview).toBeTruthy()
+  expect(preview).not.toHaveProperty('mediaUrl')
+
+  const getMedia = (token: string) => sam.page.request.get(mediaUrl, { headers: { Authorization: `Bearer ${token}` } })
+  expect((await getMedia(samToken)).status()).toBe(404)
+  const pop = await callAction(sam.page.request, 'canPop', samToken, { userLat: LERNER.lat, userLng: LERNER.lng, bubbleId })
+  expect(await pop.json()).toMatchObject({ success: true, data: { ok: true, bubble: { mediaUrl, mediaType: 'photo' } } })
+  const served = await getMedia(samToken)
+  expect(served.status()).toBe(200)
+  expect(served.headers()['content-type']).toBe('image/jpeg')
+})

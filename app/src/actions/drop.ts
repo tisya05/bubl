@@ -13,6 +13,7 @@ import { expiresAtFor, fallbackTitle, findPii } from '../bubl/lib/moderation'
 import { CATEGORIES, type Category, type DropBubbleInput, type DropBubbleResult } from '../bubl/types'
 import { saveBubble } from './bubbles'
 import { checkBubble } from './moderation'
+import { mediaForDrop } from '../server/media-routes'
 
 const MAX_TEXT_CHARS = 1000
 const MAX_TITLE_CHARS = 60
@@ -39,8 +40,7 @@ function parseInput(params: Record<string, unknown>): DropBubbleInput | string {
   }
   if (!nonEmptyString(placeName)) return 'placeName is required'
   if (!FLOATS_FOR.includes(floatsFor as DropBubbleInput['floatsFor'])) return 'floatsFor must be 1w, 1m or forever'
-  // TODO: accept uploadId once uploadMedia (Urvi) exists.
-  if (uploadId !== undefined) return 'Photo and video drops are not available yet'
+  if (uploadId !== undefined && !nonEmptyString(uploadId)) return 'uploadId must be a string'
   if (frameBase64 !== undefined) {
     if (!Array.isArray(frameBase64) || frameBase64.length > MAX_FRAMES) return `frameBase64 takes at most ${MAX_FRAMES} images`
     if (!frameBase64.every((f) => typeof f === 'string' && f.length <= MAX_FRAME_CHARS)) return 'frameBase64 images are too large'
@@ -53,6 +53,7 @@ function parseInput(params: Record<string, unknown>): DropBubbleInput | string {
     lat,
     lng,
     placeName: placeName.trim(),
+    uploadId: uploadId as string | undefined,
     frameBase64: frameBase64 as string[] | undefined,
     floatsFor: floatsFor as DropBubbleInput['floatsFor'],
   }
@@ -66,6 +67,9 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
 
   const pii = findPii(`${input.title ?? ''}\n${input.text}`)
   if (pii.length > 0) return rejected(pii)
+
+  const media = input.uploadId ? await mediaForDrop(tools, userId, input.uploadId) : undefined
+  if (media && !media.ok) return { success: false, error: media.error }
 
   const verdict = await checkBubble(env, {
     title: input.title,
@@ -82,6 +86,7 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
     category: input.category ?? verdict?.suggestedCategory ?? 'Misc',
     title: input.title ?? (verdict?.suggestedTitle || fallbackTitle(input.text)),
     text: input.text,
+    ...(media?.ok ? { mediaUrl: media.mediaUrl, mediaType: media.mediaType } : {}),
     language: verdict?.language ?? 'en',
     popRadiusM: DEFAULT_POP_RADIUS_M,
     expiresAt: expiresAtFor(input.floatsFor),
