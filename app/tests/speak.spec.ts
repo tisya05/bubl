@@ -15,7 +15,10 @@ test.skip(
 )
 
 const LERNER = { lat: 40.8069, lng: -73.964 }
+// Stable, so its audio is generated once and cached across runs.
 const BUBBLE_ID = 'seed-test-speak'
+// Fresh every run, so nobody has popped it yet (speak refuses before any ElevenLabs call).
+const UNPOPPED_ID = `seed-test-speak-unpopped-${Date.now()}`
 
 function ownerJwt(): string | undefined {
   try {
@@ -45,23 +48,17 @@ test('speak returns real ElevenLabs audio only after a pop, then reuses it', asy
   test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
   const [maya, dev] = await users(['Maya', 'Dev'])
 
+  const base = { authorId: maya.userId ?? 'maya', title: 'Hi', text: 'Welcome to bubl.', placeName: 'Broadway & 115th St', category: 'Misc', ...LERNER }
   const seed = await callAction(request, 'importSeedBubbles', jwt, {
     bubbles: [
-      {
-        id: BUBBLE_ID,
-        authorId: maya.userId ?? 'maya',
-        title: 'Hi',
-        text: 'Welcome to bubl.',
-        placeName: 'Broadway & 115th St',
-        category: 'Misc',
-        ...LERNER,
-      },
+      { ...base, id: BUBBLE_ID },
+      { ...base, id: UNPOPPED_ID },
     ],
   })
   expect(await seed.json()).toMatchObject({ success: true })
 
   const devToken = await tokenFor(dev)
-  expect(await (await callAction(dev.page.request, 'speak', devToken, { bubbleId: BUBBLE_ID })).json()).toMatchObject({
+  expect(await (await callAction(dev.page.request, 'speak', devToken, { bubbleId: UNPOPPED_ID })).json()).toMatchObject({
     success: false,
     error: 'Pop this bubble first',
   })
