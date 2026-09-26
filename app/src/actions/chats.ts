@@ -19,9 +19,9 @@ const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.t
 
 const toChat = (recordId: string, row: ChatRow, createdAt: string): Chat => ({
   id: recordId,
-  userIds: [row.userIds[0], row.userIds[1]],
+  participantIds: [row.userIds[0], row.userIds[1]],
   bubbleId: row.bubbleId,
-  createdAt,
+  unlockedAt: createdAt,
 })
 
 const toMessage = (row: MessageRow): Message => ({
@@ -69,7 +69,7 @@ export const myChats: ActionHandler<Env> = async ({ userId, tools }) => {
       }
     }),
   )
-  const activity = (s: ChatSummary) => s.lastMessage?.sentAt ?? s.chat.createdAt
+  const activity = (s: ChatSummary) => s.lastMessage?.sentAt ?? s.chat.unlockedAt
   summaries.sort((a, b) => activity(b).localeCompare(activity(a)))
   return { success: true, data: summaries }
 }

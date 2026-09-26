@@ -142,7 +142,14 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
   expect(ids).not.toContain('seed-test-beyond-cap')
 })
 
-test('love flow: author sees every lover, lovers see only the author', async ({ users, request }) => {
+async function popAtLerner(request: APIRequestContext, token: string, bubbleId: string) {
+  const res = await callAction(request, 'canPop', token, { userLat: LERNER.lat, userLng: LERNER.lng, bubbleId })
+  const body = await res.json()
+  expect(body).toMatchObject({ success: true, data: { ok: true } })
+  return body.data as { author: { id: string } }
+}
+
+test('love flow: only the author sees lovers; lovers never see each other', async ({ users, request }) => {
   const jwt = ownerJwt()
   test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
   test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
@@ -160,25 +167,30 @@ test('love flow: author sees every lover, lovers see only the author', async ({ 
   const loverIds = async (token: string) =>
     ((await act('lovedBy', token, { bubbleId })) as { data: { id: string }[] }).data.map((u) => u.id).sort()
 
-  for (const user of [dev, sam]) {
-    expect(await act('testRecordPop', jwt, { userId: user.userId, bubbleId })).toMatchObject({ success: true })
-  }
-  expect(await act('testRecordPop', devToken, { userId: dev.userId, bubbleId })).toMatchObject({ success: false, error: 'Forbidden' })
+  // Too far away: no pop, so no love.
+  const far = await act('canPop', samToken, { userLat: 40.7128, userLng: -74.006, bubbleId })
+  expect(far).toMatchObject({ success: true, data: { ok: false, reason: 'too_far' } })
+  expect(await act('loveBubble', samToken, { bubbleId })).toMatchObject({ success: false, error: expect.stringContaining('Pop this bubble') })
 
-  // Popped but not loved yet: nobody is listed anywhere.
+  // A real pop hands the lover the author, which is who they can wave at.
+  expect((await popAtLerner(request, devToken, bubbleId)).author.id).toBe(maya.userId)
+  await popAtLerner(request, samToken, bubbleId)
+
+  // Popped but not loved yet: nobody is listed.
   expect(await loverIds(mayaToken)).toEqual([])
-  expect(await loverIds(devToken)).toEqual([])
 
   expect(await act('loveBubble', devToken, { bubbleId })).toEqual({ success: true, data: { loved: true } })
   expect(await act('loveBubble', devToken, { bubbleId })).toEqual({ success: true, data: { loved: true } })
   expect(await loverIds(mayaToken)).toEqual([dev.userId])
-  expect(await loverIds(devToken)).toEqual([maya.userId])
-  expect(await loverIds(samToken)).toEqual([])
 
   expect(await act('loveBubble', samToken, { bubbleId })).toMatchObject({ success: true })
   expect(await loverIds(mayaToken)).toEqual([dev.userId, sam.userId].sort())
-  expect(await loverIds(samToken)).toEqual([maya.userId])
-  expect(await loverIds(devToken)).toEqual([maya.userId])
+  expect(await loverIds(samToken)).toEqual([])
+  expect(await loverIds(devToken)).toEqual([])
+
+  // Popping again keeps the loved flag.
+  await popAtLerner(request, devToken, bubbleId)
+  expect(await loverIds(mayaToken)).toEqual([dev.userId, sam.userId].sort())
 
   const authorView = (await act('lovedBy', mayaToken, { bubbleId })) as { data: Record<string, unknown>[] }
   for (const lover of authorView.data) {
@@ -237,8 +249,8 @@ test('waves: only author and lover, note limit, mutual wave opens one chat per p
   const bubble = (id: string) => ({ id, authorId: maya.userId, title: '__test__', text: '__test__', placeName: `place ${id}`, category: 'Street', ...LERNER })
 
   expect(await act('importSeedBubbles', jwt, { bubbles: [bubble(first), bubble(second)] })).toMatchObject({ success: true })
-  for (const [user, id] of [[dev, first], [sam, first], [dev, second]] as const) {
-    expect(await act('testRecordPop', jwt, { userId: user.userId, bubbleId: id })).toMatchObject({ success: true })
+  for (const [token, id] of [[devToken, first], [samToken, first], [devToken, second]] as const) {
+    await popAtLerner(request, token, id)
   }
   await act('loveBubble', devToken, { bubbleId: first })
   await act('loveBubble', devToken, { bubbleId: second })
@@ -301,7 +313,7 @@ test('chats: only the pair can list, read and write; pinned to the first bubble'
 
   expect(await act('importSeedBubbles', jwt, { bubbles: [bubble(first), bubble(second)] })).toMatchObject({ success: true })
   for (const id of [first, second]) {
-    await act('testRecordPop', jwt, { userId: dev.userId, bubbleId: id })
+    await popAtLerner(request, devToken, id)
     await act('loveBubble', devToken, { bubbleId: id })
     await act('sendWave', devToken, { toUserId: maya.userId, bubbleId: id })
   }
@@ -310,7 +322,7 @@ test('chats: only the pair can list, read and write; pinned to the first bubble'
   const chatId = match.data.chatId
 
   const summary = await chatWithDev()
-  expect(summary).toMatchObject({ chat: { id: chatId, userIds: expect.arrayContaining([maya.userId, dev.userId]) }, otherUser: { id: dev.userId } })
+  expect(summary).toMatchObject({ chat: { id: chatId, participantIds: expect.arrayContaining([maya.userId, dev.userId]) }, otherUser: { id: dev.userId } })
   expect(summary!.otherUser).not.toHaveProperty('email')
   if (!existing) expect(summary!.chat.bubbleId).toBe(first)
   else expect(summary!.chat.bubbleId).toBe(existing.chat.bubbleId)

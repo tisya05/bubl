@@ -92,7 +92,7 @@ Respect `prefers-reduced-motion` for all animations. Touch targets at least 44 p
 
 ## 5. Shared contracts
 
-**The code blocks below are OUTDATED. The source of truth is `app/src/bubl/types/` and `docs/CONTRACTS.md`.** All shared bubl code lives in `app/src/bubl/`; never create a top-level `src/` folder. Server functions are DeepSpace server actions returning `ActionResult` (`{ success, data, error }`). The wave/chat rules in section 1 are being folded into the contracts next.
+**The code blocks below are OUTDATED. The source of truth is `app/src/bubl/types/` and `docs/CONTRACTS.md`.** All shared bubl code lives in `app/src/bubl/`; never create a top-level `src/` folder. Server functions are DeepSpace server actions returning `ActionResult` (`{ success, data, error }`). The wave/chat rules in section 1 are now in the contracts.
 
 ```ts
 type Category = 'Food' | 'Cafe' | 'Park' | 'Street' | 'Misc';
@@ -202,7 +202,7 @@ Finish each tier before starting the next.
 - **Never send sealed bubble content to the client early.** The map gets `BubblePreview` only. Text, media, and audio come back only from `canPop` after the server verifies distance. Hiding content in the UI is not enough.
 - **Strip GPS/EXIF metadata** from every uploaded photo and video on the server.
 - **Chat permissions enforced server-side:** a DM channel is created only when waves exist in both directions, and only those two users can read or write it.
-- **Never expose users' locations** to other users. Profiles show neighborhoods only.
+- **Never expose users' locations** to other users. Profiles show name and photo only.
 - API keys server-side only.
 - Validate and size-limit uploads (video 15 s, keep files small).
 

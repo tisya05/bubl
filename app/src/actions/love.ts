@@ -1,8 +1,8 @@
 /**
  * Love actions: loveBubble and lovedBy.
  *
- * Visibility rule: the author sees everyone who loved their bubble; a lover
- * sees only the author; nobody else sees anything. Lovers never see each other.
+ * Visibility rule: only the author sees who loved their bubble. Lovers never
+ * see each other.
  */
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
@@ -48,7 +48,7 @@ export const loveBubble: ActionHandler<Env> = async ({ userId, params, tools }) 
   return { success: true, data: { loved: true } }
 }
 
-/** Author: everyone who loved it. Lover: just the author. Anyone else: []. */
+/** Author: everyone who loved it. Anyone else: [] (a lover gets the author from canPop). */
 export const lovedBy: ActionHandler<Env> = async ({ userId, params, tools }) => {
   const { bubbleId } = params
   if (!nonEmptyString(bubbleId)) return { success: false, error: 'bubbleId is required' }
@@ -56,16 +56,12 @@ export const lovedBy: ActionHandler<Env> = async ({ userId, params, tools }) => 
   const authorId = await authorOf(tools, bubbleId)
   if (!authorId) return { success: false, error: 'Bubble not found' }
 
-  if (userId === authorId) {
-    // `loved` is stored as 0/1, so filter here rather than in `where`.
-    const res = await tools.query<PopRow>('pops', { where: { bubbleId }, limit: 500 })
-    if (!res.success) return res
-    const loverPops = res.data.records.filter((r) => Boolean(r.data.loved))
-    const lovers = await Promise.all(loverPops.map((r) => publicUser(tools, r.data.userId)))
-    return { success: true, data: lovers }
-  }
+  if (userId !== authorId) return { success: true, data: [] }
 
-  const pop = await findPop(tools, userId, bubbleId)
-  if (pop?.data.loved) return { success: true, data: [await publicUser(tools, authorId)] }
-  return { success: true, data: [] }
+  // `loved` is stored as 0/1, so filter here rather than in `where`.
+  const res = await tools.query<PopRow>('pops', { where: { bubbleId }, limit: 500 })
+  if (!res.success) return res
+  const loverPops = res.data.records.filter((r) => Boolean(r.data.loved))
+  const lovers = await Promise.all(loverPops.map((r) => publicUser(tools, r.data.userId)))
+  return { success: true, data: lovers }
 }

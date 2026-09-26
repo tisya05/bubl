@@ -10,6 +10,7 @@ import type { ActionHandler, ActionResult, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import { DEFAULT_POP_RADIUS_M, MAX_NEARBY_RADIUS_M } from '../bubl/config'
 import { distanceM } from '../bubl/lib/geo'
+import { isExpired } from '../bubl/lib/pop'
 import { CATEGORIES, type Bubble, type BubblePreview, type Category } from '../bubl/types'
 
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
@@ -17,10 +18,6 @@ type PreviewRow = Omit<BubblePreview, 'id'> & { expiresAt?: string }
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
-
-// Copied from api/mock.ts until a shared helper exists in bubl/lib.
-const isExpired = (expiresAt?: string) => expiresAt !== undefined && Date.parse(expiresAt) < Date.now()
-
 /**
  * The one DeepSpace write for bubbles, used by the seed import and dropBubble.
  * Writes the sealed row, then (for live bubbles) the public preview under the
