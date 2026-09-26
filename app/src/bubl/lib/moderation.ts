@@ -1,12 +1,12 @@
-// Drop moderation pieces that don't call anything: the PII pre-check, the Grok
-// prompt and output schema, and parsing Grok's answer. Unit-tested in moderation.test.ts.
-// The Grok call itself lives server-side in src/actions/moderation.ts.
+// Drop moderation pieces that don't call anything: the PII pre-check, the Gemini
+// prompt and output schema, and parsing Gemini's answer. Unit-tested in moderation.test.ts.
+// The Gemini call itself lives server-side in src/actions/moderation.ts.
 
 import { CATEGORIES, type Category, type DropBubbleInput } from '../types';
 
 // ---- PII pre-check ----
-// Runs before Grok, so obvious personal info is blocked even when Grok is down.
-// Street addresses are left to Grok: a café's address is fine, someone's home isn't.
+// Runs before Gemini, so obvious personal info is blocked even when Gemini is down.
+// Street addresses are left to Gemini: a café's address is fine, someone's home isn't.
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
 // US-style phone numbers: 212-555-0123, (212) 555 0123, +1 212.555.0123
@@ -38,7 +38,7 @@ export function findPii(text: string): string[] {
   return reasons;
 }
 
-// ---- Grok verdict ----
+// ---- Gemini verdict ----
 
 export interface ModerationVerdict {
   allowed: boolean;
@@ -71,7 +71,7 @@ export const MODERATION_SCHEMA = {
   additionalProperties: false,
 } as const;
 
-/** Validates Grok's JSON. Returns null for anything malformed, so the caller treats it as "Grok unavailable". */
+/** Validates Gemini's JSON. Returns null for anything malformed. */
 export function parseVerdict(raw: unknown): ModerationVerdict | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const v = raw as Record<string, unknown>;
@@ -101,7 +101,7 @@ export function expiresAtFor(floatsFor: DropBubbleInput['floatsFor'], now = Date
   return undefined;
 }
 
-/** Title when neither the author nor Grok gave one: the first few words of the note. */
+/** Title when neither the author nor Gemini gave one: the first few words of the note. */
 export function fallbackTitle(text: string): string {
   const words = text.trim().split(/\s+/).slice(0, 5).join(' ');
   return words.length > 40 ? `${words.slice(0, 40)}…` : words;

@@ -1,8 +1,8 @@
 /**
  * dropBubble: leave a bubble at the caller's location.
  *
- * Order: validate -> PII pre-check (no Grok needed) -> Grok moderation ->
- * saveBubble. A rejected drop is never saved. If Grok is unavailable the
+ * Order: validate -> PII pre-check (no Gemini needed) -> Gemini moderation ->
+ * saveBubble. A rejected drop is never saved. If Gemini is unavailable the
  * bubble is saved as moderation: 'unchecked' so a demo never breaks.
  */
 
@@ -68,7 +68,6 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
   if (pii.length > 0) return rejected(pii)
 
   const verdict = await checkBubble(env, {
-    userId,
     title: input.title,
     text: input.text,
     imagesBase64: input.frameBase64,

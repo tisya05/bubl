@@ -75,7 +75,7 @@ export interface UploadMediaResult {
 }
 
 // Moderation runs inside dropBubble and cannot be skipped. Empty title or category
-// fall back to Grok's suggestions. If Grok fails, the bubble is saved with moderation 'unchecked'.
+// fall back to Gemini's suggestions. If Gemini is unavailable, the bubble is saved with moderation 'unchecked'.
 export interface DropBubbleInput {
   title?: string;
   text: string;

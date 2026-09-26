@@ -1,6 +1,6 @@
 /**
  * dropBubble: validation, the PII pre-check, and a clean drop reaching the map.
- * Grok's own verdicts aren't asserted here: without XAI_API_KEY the drop is
+ * Gemini's own verdicts aren't asserted here: without GEMINI_API_KEY the drop is
  * saved as 'unchecked', with it as 'passed'. Needs the Dev test account.
  */
 import { test, expect, loadAllTestAccounts, type MultiplayerUser } from 'deepspace/testing'
