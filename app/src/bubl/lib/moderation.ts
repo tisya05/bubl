@@ -49,11 +49,13 @@ export interface ModerationVerdict {
 }
 
 export const MODERATION_INSTRUCTIONS = `You moderate notes that locals pin to real places in New York City in an app called bubl.
-Anyone nearby can read an approved note, so reject a note (allowed: false) if the text or any image contains:
+Anyone nearby can read an approved note, so reject a note (allowed: false) if the text, any image, or any video (what it shows AND anything said or heard in it) contains:
 - hate speech: attacks or slurs targeting people for race, ethnicity, religion, gender, sexual orientation, disability, or similar
 - offensive language: harassment, threats, insults aimed at a person or group, sexual content, or promotion of violence or self-harm
 - swear words or profanity, even mild or casual (the app is for all ages)
 - personal information (PII) about anyone: full names of private individuals, phone numbers, email addresses, home addresses or apartment numbers, license plates, ID or account numbers, or anything that could locate a private person. Names and addresses of businesses, parks, landmarks and public figures are fine.
+- in images and videos: nudity or sexual content, graphic violence, gore or injury, hate symbols, or readable personal information (license plates, documents, screens, mail, a home's door or apartment number).
+Faces and people in public are fine: do NOT reject a photo or video just because someone is in it.
 Everything else is allowed, including negative opinions about places ("the coffee here is bad").
 For each problem add one short, plain reason the author will see, without repeating the offending words. Use [] when allowed.
 Also suggest the best category (Food, Cafe, Park, Street, or Misc), a short title (at most 6 words, no quotes), and the note's language as an ISO 639-1 code.`;
@@ -89,6 +91,25 @@ export function parseVerdict(raw: unknown): ModerationVerdict | null {
     suggestedTitle: v.suggestedTitle.trim().slice(0, 60),
     language: /^[a-z]{2}$/.test(v.language) ? v.language : 'en',
   };
+}
+
+// ---- Media for Gemini ----
+
+export interface ModerationMedia {
+  mimeType: string;
+  base64: string; // raw base64 or a data: URL
+}
+
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+// Gemini's names for video types; iPhone .mov files arrive as video/quicktime.
+const VIDEO_TYPES: Record<string, string> = { 'video/mp4': 'video/mp4', 'video/quicktime': 'video/mov', 'video/mov': 'video/mov', 'video/webm': 'video/webm' };
+
+/** A Gemini Interactions content block for a photo or video, or null if the type isn't supported. */
+export function mediaContentBlock(media: ModerationMedia): { type: 'image' | 'video'; data: string; mime_type: string } | null {
+  const data = media.base64.replace(/^data:[^;]+;base64,/, '');
+  if (IMAGE_TYPES.has(media.mimeType)) return { type: 'image', data, mime_type: media.mimeType };
+  const video = VIDEO_TYPES[media.mimeType];
+  return video ? { type: 'video', data, mime_type: video } : null;
 }
 
 // ---- Drop helpers ----

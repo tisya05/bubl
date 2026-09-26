@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expiresAtFor, fallbackTitle, findPii, parseVerdict } from './moderation';
+import { expiresAtFor, fallbackTitle, findPii, mediaContentBlock, parseVerdict } from './moderation';
 
 describe('findPii', () => {
   it.each([
@@ -70,5 +70,24 @@ describe('expiresAtFor', () => {
 describe('fallbackTitle', () => {
   it('uses the first few words', () => {
     expect(fallbackTitle('  Best rugelach in the whole neighborhood, trust me ')).toBe('Best rugelach in the whole');
+  });
+});
+
+describe('mediaContentBlock', () => {
+  it('passes photos through and strips a data: prefix', () => {
+    expect(mediaContentBlock({ mimeType: 'image/jpeg', base64: 'data:image/jpeg;base64,QUJD' })).toEqual({
+      type: 'image',
+      data: 'QUJD',
+      mime_type: 'image/jpeg',
+    });
+  });
+
+  it("maps iPhone videos (video/quicktime) to Gemini's video/mov", () => {
+    expect(mediaContentBlock({ mimeType: 'video/quicktime', base64: 'QUJD' })).toEqual({ type: 'video', data: 'QUJD', mime_type: 'video/mov' });
+    expect(mediaContentBlock({ mimeType: 'video/mp4', base64: 'QUJD' })?.mime_type).toBe('video/mp4');
+  });
+
+  it('returns null for types Gemini cannot moderate', () => {
+    expect(mediaContentBlock({ mimeType: 'application/pdf', base64: 'QUJD' })).toBeNull();
   });
 });

@@ -36,6 +36,14 @@ describe.skipIf(!key)('Gemini moderation (live)', { timeout: 30_000 }, () => {
     expect(v.reasons.length).toBeGreaterThan(0)
   })
 
+  it('allows a harmless photo with a clean note', async () => {
+    // A plain 32x32 park-green square.
+    const green = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGPIXl9FU8QwasGoBaMWjFowasGoBaMWjFowasGoBaMWDBULAA5JUFsXkAF7AAAAAElFTkSuQmCC'
+    const v = await checkBubble(env, { text: 'The lawn here is perfect for a picnic.', media: [{ mimeType: 'image/png', base64: green }] })
+    expect(v, 'Gemini was unreachable (null verdict)').not.toBeNull()
+    expect(v!.allowed, v!.reasons.join('; ')).toBe(true)
+  })
+
   it('detects the language and suggests a category and short title', async () => {
     const v = await moderate('Baja las escaleras al atardecer. El río se pone dorado y casi no hay gente.')
     expect(v.allowed).toBe(true)
