@@ -1,7 +1,9 @@
 // Inputs and outputs of every server function the client can call.
-// All of them run server-side and require a signed-in user; API keys never reach the client.
-// Owners are in docs/CONTRACTS.md.
+// Each one is a DeepSpace server action (POST /api/actions/<name>), requires a signed-in
+// user, and returns DeepSpace's ActionResult: { success: true, data } or { success: false, error }.
+// API keys never reach the client. Owners are in docs/CONTRACTS.md.
 
+import type { ActionResult } from 'deepspace/worker';
 import type {
   Bubble,
   BubblePreview,
@@ -109,24 +111,26 @@ export interface SendMessageInput {
 }
 
 // ---- The whole client-facing API ----
+// canPop and dropBubble put their user-facing outcome (too far, rejected) inside `data`;
+// `success: false` is only for real failures (not signed in, server error).
 
 export interface Api {
-  nearbyBubbles(input: NearbyBubblesInput): Promise<BubblePreview[]>;
-  canPop(input: CanPopInput): Promise<CanPopResult>;
-  loveBubble(input: LoveBubbleInput): Promise<{ loved: true }>;
-  lovedBy(input: LovedByInput): Promise<User[]>;
-  speak(input: SpeakInput): Promise<SpeakResult>;
-  translate(input: TranslateInput): Promise<TranslateResult>;
+  nearbyBubbles(input: NearbyBubblesInput): Promise<ActionResult<BubblePreview[]>>;
+  canPop(input: CanPopInput): Promise<ActionResult<CanPopResult>>;
+  loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
+  lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
+  speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
+  translate(input: TranslateInput): Promise<ActionResult<TranslateResult>>;
 
-  uploadMedia(file: File): Promise<UploadMediaResult>;
-  dropBubble(input: DropBubbleInput): Promise<DropBubbleResult>;
+  uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
+  dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;
 
-  myPopped(): Promise<PoppedItem[]>;
-  myDropped(): Promise<DroppedItem[]>;
+  myPopped(): Promise<ActionResult<PoppedItem[]>>;
+  myDropped(): Promise<ActionResult<DroppedItem[]>>;
 
-  sendWave(input: SendWaveInput): Promise<SendWaveResult>;
-  incomingWaves(): Promise<IncomingWave[]>;
-  myChats(): Promise<ChatSummary[]>;
-  getMessages(input: GetMessagesInput): Promise<Message[]>;
-  sendMessage(input: SendMessageInput): Promise<Message>;
+  sendWave(input: SendWaveInput): Promise<ActionResult<SendWaveResult>>;
+  incomingWaves(): Promise<ActionResult<IncomingWave[]>>;
+  myChats(): Promise<ActionResult<ChatSummary[]>>;
+  getMessages(input: GetMessagesInput): Promise<ActionResult<Message[]>>;
+  sendMessage(input: SendMessageInput): Promise<ActionResult<Message>>;
 }

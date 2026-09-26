@@ -1,20 +1,22 @@
 // In-memory mock of the API so screens can be built before the backend exists.
 // Only nearbyBubbles and canPop are fully implemented; everything else returns simple defaults.
+// Like the real backend, every call resolves to DeepSpace's ActionResult.
 
+import type { ActionResult } from 'deepspace/worker';
 import {
   DEFAULT_POP_RADIUS_M,
   DEMO_POP_RADIUS_M,
   LERNER_HALL,
   MAX_NEARBY_RADIUS_M,
-} from '../constants';
+} from '../config';
 import { distanceM } from '../lib/geo';
 import type { Api, Bubble, BubblePreview, User } from '../types';
 
-const ME: User = { id: 'me', displayName: 'You', neighborhood: 'Morningside Heights', language: 'en' };
+const ME: User = { id: 'me', name: 'You' };
 
 const AUTHORS: Record<string, User> = {
-  'u-maya': { id: 'u-maya', displayName: 'Maya', neighborhood: 'Morningside Heights', language: 'en' },
-  'u-diego': { id: 'u-diego', displayName: 'Diego', neighborhood: 'Manhattanville', language: 'es' },
+  'u-maya': { id: 'u-maya', name: 'Maya' },
+  'u-diego': { id: 'u-diego', name: 'Diego' },
 };
 
 const PHOTO_PLACEHOLDER =
@@ -106,8 +108,9 @@ const bubbles: Bubble[] = [
 
 const pops = new Set<string>(); // `${userId}:${bubbleId}`
 
-const delay = <T>(value: T, ms = 300) =>
-  new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
+// Resolves like a successful DeepSpace action after a fake network delay.
+const ok = <T>(data: T, ms = 300) =>
+  new Promise<ActionResult<T>>((resolve) => setTimeout(() => resolve({ success: true, data }), ms));
 
 const isExpired = (b: Bubble) => b.expiresAt !== undefined && Date.parse(b.expiresAt) < Date.now();
 
@@ -121,39 +124,39 @@ export const mockApi: Api = {
     const nearby = bubbles.filter(
       (b) => b.status === 'live' && !isExpired(b) && distanceM({ lat, lng }, b) <= radius,
     );
-    return delay(nearby.map(toPreview));
+    return ok(nearby.map(toPreview));
   },
 
   async canPop({ userLat, userLng, bubbleId }) {
     const b = bubbles.find((x) => x.id === bubbleId && x.status === 'live');
-    if (!b) return delay({ ok: false as const, reason: 'not_found' as const });
-    if (isExpired(b)) return delay({ ok: false as const, reason: 'expired' as const });
+    if (!b) return ok({ ok: false as const, reason: 'not_found' as const });
+    if (isExpired(b)) return ok({ ok: false as const, reason: 'expired' as const });
 
     const d = distanceM({ lat: userLat, lng: userLng }, b);
     if (d > b.popRadiusM) {
-      return delay({ ok: false as const, reason: 'too_far' as const, distanceM: Math.round(d) });
+      return ok({ ok: false as const, reason: 'too_far' as const, distanceM: Math.round(d) });
     }
     pops.add(`${ME.id}:${b.id}`);
-    return delay({ ok: true as const, bubble: b, author: AUTHORS[b.authorId] });
+    return ok({ ok: true as const, bubble: b, author: AUTHORS[b.authorId] });
   },
 
   // ---- Simple defaults below ----
 
   async loveBubble() {
-    return delay({ loved: true as const });
+    return ok({ loved: true as const });
   },
   async lovedBy() {
-    return delay([]);
+    return ok([]);
   },
   async speak() {
-    return delay({ audioUrl: '' });
+    return ok({ audioUrl: '' });
   },
   async translate({ bubbleId }) {
     const b = bubbles.find((x) => x.id === bubbleId);
-    return delay({ title: b?.title ?? '', text: b?.text ?? '', sourceLanguage: b?.language ?? 'en' });
+    return ok({ title: b?.title ?? '', text: b?.text ?? '', sourceLanguage: b?.language ?? 'en' });
   },
   async uploadMedia(file) {
-    return delay({ uploadId: 'mock-upload', mediaType: file.type.startsWith('video/') ? ('video' as const) : ('photo' as const) });
+    return ok({ uploadId: 'mock-upload', mediaType: file.type.startsWith('video/') ? ('video' as const) : ('photo' as const) });
   },
   async dropBubble(input) {
     const b = bubble({
@@ -167,27 +170,27 @@ export const mockApi: Api = {
       text: input.text,
     });
     bubbles.push(b);
-    return delay({ ok: true as const, bubble: b });
+    return ok({ ok: true as const, bubble: b });
   },
   async myPopped() {
-    return delay([]);
+    return ok([]);
   },
   async myDropped() {
-    return delay([]);
+    return ok([]);
   },
   async sendWave() {
-    return delay({ matched: false });
+    return ok({ matched: false });
   },
   async incomingWaves() {
-    return delay([]);
+    return ok([]);
   },
   async myChats() {
-    return delay([]);
+    return ok([]);
   },
   async getMessages() {
-    return delay([]);
+    return ok([]);
   },
   async sendMessage({ chatId, text }) {
-    return delay({ chatId, senderId: ME.id, text, sentAt: new Date().toISOString() });
+    return ok({ chatId, senderId: ME.id, text, sentAt: new Date().toISOString() });
   },
 };
