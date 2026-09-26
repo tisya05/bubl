@@ -17,7 +17,7 @@ export interface Bubble {
   language: string;        // e.g. 'en', 'es'
   audioUrl?: string;       // cached ElevenLabs audio
   popRadiusM: number;      // 15 by default, 60 for the Lerner demo bubble
-  whoCanPop: 'anyone' | 'met';
+  whoCanPop: 'anyone' | 'met';  // 'met' = only users with a mutual wave with the author
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
@@ -42,6 +42,22 @@ export interface Wave {
   fromUserId: string;
   toUserId: string;
   bubbleId: string;
+  createdAt: string;
+}
+
+// Public profile: safe to show other users. Never add location, email or phone here.
+export interface User {
+  id: string;
+  displayName: string;
+  neighborhood: string;    // e.g. 'Morningside Heights', never coordinates
+  language: string;        // reader's language for translate, e.g. 'en'
+}
+
+// Created by the server only when waves exist in both directions.
+export interface Chat {
+  id: string;
+  userIds: [string, string];
+  bubbleId: string;        // the bubble that connected them, pinned in the thread
   createdAt: string;
 }
 
