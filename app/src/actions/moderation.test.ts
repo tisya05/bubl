@@ -35,7 +35,7 @@ describe('checkBubble (Gemini)', () => {
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('test-key')
     const body = JSON.parse(init.body as string)
     expect(body).toMatchObject({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.5-flash-lite',
       store: false,
       response_format: { type: 'text', mime_type: 'application/json' },
       input: [
@@ -57,13 +57,29 @@ describe('checkBubble (Gemini)', () => {
     expect(await checkBubble(env, { text: 'x' })).toMatchObject({ allowed: false, reasons: ['Contains a swear word'] })
   })
 
-  it('returns null on an error status or a network failure (saved unchecked)', async () => {
-    mockFetch(async () => new Response('quota', { status: 429 }))
-    expect(await checkBubble(env, { text: 'x' })).toBeNull()
+  it('retries a rate limit or overload, then uses the verdict', async () => {
+    let calls = 0
+    const fetch = mockFetch(async () =>
+      ++calls < 3 ? new Response('busy', { status: calls === 1 ? 429 : 503 }) : Response.json(interaction(JSON.stringify(verdict))),
+    )
+    expect(await checkBubble(env, { text: 'x' }, [0, 0])).toEqual(verdict)
+    expect(fetch).toHaveBeenCalledTimes(3)
+  })
+
+  it('returns null once retries run out, or on a network failure (saved unchecked)', async () => {
+    const fetch = mockFetch(async () => new Response('quota', { status: 429 }))
+    expect(await checkBubble(env, { text: 'x' }, [0, 0])).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(3)
     mockFetch(async () => {
       throw new TypeError('network down')
     })
-    expect(await checkBubble(env, { text: 'x' })).toBeNull()
+    expect(await checkBubble(env, { text: 'x' }, [0, 0])).toBeNull()
+  })
+
+  it('does not retry a request Gemini refuses outright', async () => {
+    const fetch = mockFetch(async () => new Response('bad key', { status: 403 }))
+    expect(await checkBubble(env, { text: 'x' }, [0, 0])).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 
   it('rejects when Gemini answers with no usable verdict (likely its own safety block)', async () => {

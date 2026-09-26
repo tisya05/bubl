@@ -118,7 +118,7 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   ALLOW_DEBUG_ROUTES?: string
   /** Gemini key for dropBubble moderation (`deepspace secrets set GEMINI_API_KEY=...`). Unset = drops saved unchecked. */
   GEMINI_API_KEY?: string
-  /** Optional Gemini model override; defaults to gemini-3.8-flash. */
+  /** Optional Gemini model override; defaults to gemini-3.5-flash-lite. */
   GEMINI_MODEL?: string
 }
 
