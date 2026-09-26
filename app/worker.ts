@@ -106,6 +106,8 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   /** Immutable record-scope and platform identity. */
   DEEPSPACE_APP_ID: string
   OWNER_USER_ID: string
+  /** Comma-separated user IDs (besides the owner) allowed to run importSeedBubbles. */
+  SEED_IMPORTERS?: string
   /**
    * Long-lived owner JWT used for developer-billed server calls. User-billed
    * calls always forward the signed-in caller's JWT instead.

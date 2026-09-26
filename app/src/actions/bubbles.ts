@@ -56,8 +56,18 @@ export async function saveBubble(
 
 type SeedRow = Partial<BubbleRow> & { id?: string }
 
+// Seed ids are namespaced so an import can never overwrite a user's drop.
+const SEED_ID = /^seed-[A-Za-z0-9_-]{1,60}$/
+
+function canImportSeeds(userId: string, env: Env): boolean {
+  if (userId === env.OWNER_USER_ID) return true
+  const allowed = (env.SEED_IMPORTERS ?? '').split(',').map((id) => id.trim())
+  return allowed.includes(userId)
+}
+
 function toSeedBubble(row: SeedRow, index: number): (BubbleRow & { id?: string }) | string {
   const where = `row ${index + 1}`
+  if (typeof row.id !== 'string' || !SEED_ID.test(row.id)) return `${where}: id must look like seed-<name>`
   if (!nonEmptyString(row.authorId)) return `${where}: authorId is required`
   if (!nonEmptyString(row.title)) return `${where}: title is required`
   if (!nonEmptyString(row.text)) return `${where}: text is required`
@@ -92,12 +102,12 @@ function toSeedBubble(row: SeedRow, index: number): (BubbleRow & { id?: string }
 }
 
 /**
- * Owner-only: import seed bubbles. Params: `{ bubbles: SeedRow[] }`.
- * Every row is validated before anything is written. Give rows a stable `id`
- * (e.g. 'seed-01') so re-running the import updates instead of duplicating.
+ * Owner or SEED_IMPORTERS only: import seed bubbles. Params: `{ bubbles: SeedRow[] }`.
+ * Every row is validated before anything is written. Every row needs a stable
+ * `id` like 'seed-lerner-steps'; re-running the import updates instead of duplicating.
  */
 export const importSeedBubbles: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
-  if (userId !== env.OWNER_USER_ID) return { success: false, error: 'Forbidden: owner only' }
+  if (!canImportSeeds(userId, env)) return { success: false, error: 'Forbidden: seed importers only' }
 
   const rows = params.bubbles
   if (!Array.isArray(rows) || rows.length === 0) return { success: false, error: 'bubbles must be a non-empty array' }

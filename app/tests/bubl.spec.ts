@@ -46,12 +46,12 @@ test('bubl actions require sign-in', async ({ request }) => {
   expect(res.status()).toBe(401)
 })
 
-test('only the app owner can import seed bubbles', async ({ users }) => {
+test('non-importers cannot import seed bubbles', async ({ users }) => {
   const [maya] = await users(['Maya'])
   const res = await callAction(maya.page.request, 'importSeedBubbles', await tokenFor(maya), {
     bubbles: [{ title: 'x', text: 'x', placeName: 'x', category: 'Misc', lat: 0, lng: 0, authorId: 'x' }],
   })
-  expect(await res.json()).toMatchObject({ success: false, error: 'Forbidden: owner only' })
+  expect(await res.json()).toMatchObject({ success: false, error: 'Forbidden: seed importers only' })
 })
 
 test('nearbyBubbles rejects bad input', async ({ users }) => {
@@ -68,7 +68,7 @@ test('a seeded bubble reaches nearbyBubbles as a preview only', async ({ users, 
   const seed = await callAction(request, 'importSeedBubbles', jwt, {
     bubbles: [
       {
-        id: 'test-seed-lerner',
+        id: 'seed-test-lerner',
         authorId: maya.userId ?? 'maya',
         title: '__test__ Lerner steps',
         text: '__test__ sealed text',
@@ -85,7 +85,7 @@ test('a seeded bubble reaches nearbyBubbles as a preview only', async ({ users, 
   const body = (await near.json()) as { success: boolean; data: Record<string, unknown>[] }
   expect(body.success).toBe(true)
 
-  const preview = body.data.find((b) => b.id === 'test-seed-lerner')
+  const preview = body.data.find((b) => b.id === 'seed-test-lerner')
   expect(preview).toMatchObject({ placeName: 'Broadway & 115th St', category: 'Misc', popRadiusM: 60 })
   for (const item of body.data) {
     for (const field of SEALED_FIELDS) expect(item).not.toHaveProperty(field)
@@ -97,7 +97,7 @@ test('a seeded bubble reaches nearbyBubbles as a preview only', async ({ users, 
     radiusM: 500,
   })
   const farBody = (await far.json()) as { data: { id: string }[] }
-  expect(farBody.data.some((b) => b.id === 'test-seed-lerner')).toBe(false)
+  expect(farBody.data.some((b) => b.id === 'seed-test-lerner')).toBe(false)
 })
 
 test('seed import: bad rows block the batch, re-import upserts, expired and out-of-cap bubbles stay hidden', async ({
@@ -111,18 +111,23 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
 
   const bad = await callAction(request, 'importSeedBubbles', jwt, {
     bubbles: [
-      { ...base, id: 'test-batch-good', ...LERNER },
-      { ...base, id: 'test-batch-bad', category: 'Nightclub', ...LERNER },
+      { ...base, id: 'seed-test-batch-good', ...LERNER },
+      { ...base, id: 'seed-test-batch-bad', category: 'Nightclub', ...LERNER },
     ],
   })
   expect(await bad.json()).toMatchObject({ success: false, error: expect.stringContaining('row 2') })
 
+  const notSeed = await callAction(request, 'importSeedBubbles', jwt, {
+    bubbles: [{ ...base, id: 'some-user-drop', ...LERNER }],
+  })
+  expect(await notSeed.json()).toMatchObject({ success: false, error: expect.stringContaining('seed-') })
+
   const good = {
     bubbles: [
-      { ...base, id: 'test-upsert', ...LERNER },
-      { ...base, id: 'test-expired', ...LERNER, expiresAt: '2020-01-01T00:00:00.000Z' },
+      { ...base, id: 'seed-test-upsert', ...LERNER },
+      { ...base, id: 'seed-test-expired', ...LERNER, expiresAt: '2020-01-01T00:00:00.000Z' },
       // ~1.5 km north of Lerner: outside the 1 km cap even if the client asks for more.
-      { ...base, id: 'test-beyond-cap', lat: LERNER.lat + 0.0135, lng: LERNER.lng },
+      { ...base, id: 'seed-test-beyond-cap', lat: LERNER.lat + 0.0135, lng: LERNER.lng },
     ],
   }
   for (let i = 0; i < 2; i++) {
@@ -131,8 +136,8 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
 
   const near = await callAction(dev.page.request, 'nearbyBubbles', await tokenFor(dev), { ...LERNER, radiusM: 5000 })
   const ids = ((await near.json()) as { data: { id: string }[] }).data.map((b) => b.id)
-  expect(ids.filter((id) => id === 'test-upsert')).toHaveLength(1)
-  expect(ids).not.toContain('test-batch-good')
-  expect(ids).not.toContain('test-expired')
-  expect(ids).not.toContain('test-beyond-cap')
+  expect(ids.filter((id) => id === 'seed-test-upsert')).toHaveLength(1)
+  expect(ids).not.toContain('seed-test-batch-good')
+  expect(ids).not.toContain('seed-test-expired')
+  expect(ids).not.toContain('seed-test-beyond-cap')
 })
