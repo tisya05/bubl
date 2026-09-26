@@ -41,8 +41,8 @@ All of them require a signed-in user.
 | --- | --- | --- | --- | --- |
 | `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 1000 m |
 | `canPop` | Tisya | `userLat`, `userLng`, `bubbleId` | `{ ok: true, bubble, author }` or `{ ok: false, reason }` | `reason`: `'too_far'` (with `distanceM`), `'not_found'`, `'expired'`. Success creates the caller's `Pop` (one per user and bubble; popping again is a no-op). `lovedBy` and `loveBubble` depend on it |
-| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop` |
-| `lovedBy` | Urvi | `bubbleId` | `User[]` | Others who loved it. Empty unless the caller has popped it; never includes the caller |
+| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`; the author can't love their own bubble. Loving twice is a no-op |
+| `lovedBy` | Urvi | `bubbleId` | `User[]` | The author gets everyone who loved it; a lover gets only the author; anyone else gets `[]`. Lovers never see each other |
 | `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
 | `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
 | `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |

@@ -141,3 +141,39 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
   expect(ids).not.toContain('seed-test-expired')
   expect(ids).not.toContain('seed-test-beyond-cap')
 })
+
+// The happy path (pop -> love -> author sees lover) needs canPop to create the Pop.
+test('loveBubble and lovedBy refuse what the rules forbid', async ({ users, request }) => {
+  const jwt = ownerJwt()
+  test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
+  const [maya, dev] = await users(['Maya', 'Dev'])
+  const mayaToken = await tokenFor(maya)
+  const devToken = await tokenFor(dev)
+
+  const seed = await callAction(request, 'importSeedBubbles', jwt, {
+    bubbles: [
+      {
+        id: 'seed-test-love',
+        authorId: maya.userId,
+        title: '__test__',
+        text: '__test__',
+        placeName: 'test',
+        category: 'Cafe',
+        ...LERNER,
+      },
+    ],
+  })
+  expect(await seed.json()).toMatchObject({ success: true })
+
+  const love = (token: string, bubbleId: string) =>
+    callAction(request, 'loveBubble', token, { bubbleId }).then((r) => r.json())
+  const lovers = (token: string, bubbleId: string) =>
+    callAction(request, 'lovedBy', token, { bubbleId }).then((r) => r.json())
+
+  expect(await love(mayaToken, 'seed-test-love')).toMatchObject({ success: false, error: expect.stringContaining('own bubble') })
+  expect(await love(devToken, 'seed-test-love')).toMatchObject({ success: false, error: expect.stringContaining('Pop this bubble') })
+  expect(await love(devToken, 'no-such-bubble')).toMatchObject({ success: false, error: 'Bubble not found' })
+
+  expect(await lovers(devToken, 'seed-test-love')).toEqual({ success: true, data: [] })
+  expect(await lovers(mayaToken, 'seed-test-love')).toEqual({ success: true, data: [] })
+})
