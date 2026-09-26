@@ -5,6 +5,7 @@ import { canPop } from './pop'
 import { loveBubble, lovedBy } from './love'
 import { incomingWaves, sendWave } from './waves'
 import { getMessages, myChats, sendMessage } from './chats'
+import { myDropped, myPopped } from './you'
 
 export const actions: Record<string, ActionHandler<Env>> = {
   importSeedBubbles,
@@ -17,4 +18,6 @@ export const actions: Record<string, ActionHandler<Env>> = {
   myChats,
   getMessages,
   sendMessage,
+  myPopped,
+  myDropped,
 }

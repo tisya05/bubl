@@ -47,8 +47,8 @@ All of them require a signed-in user.
 | `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
 | `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |
 | `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
-| `myPopped` | Urvi | none | `PoppedItem[]` | You tab |
-| `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
+| `myPopped` | Urvi | none | `PoppedItem[]` | You tab. The caller's pops, newest first |
+| `myDropped` | Urvi | none | `DroppedItem[]` | You tab. The caller's live drops, newest first. `popCount` excludes the author's own pop |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
 | `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
 | `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. No read receipts: `unread` means the other person sent the last message |

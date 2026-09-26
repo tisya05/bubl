@@ -351,3 +351,38 @@ test('chats: only the pair can list, read and write; pinned to the first bubble'
   const thread = ((await act('getMessages', devToken, { chatId })) as { data: { text: string }[] }).data.map((m) => m.text)
   expect(thread.slice(-2)).toEqual([hi, reply])
 })
+
+test('You tab: myPopped and myDropped show only the caller’s own bubbles', async ({ users, request }) => {
+  const jwt = ownerJwt()
+  test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [maya, dev, sam] = await users(['Maya', 'Dev', 'Sam'])
+  const [mayaToken, devToken, samToken] = await Promise.all([tokenFor(maya), tokenFor(dev), tokenFor(sam)])
+  const run = Date.now()
+  const live = `seed-test-you-live-${run}`
+  const old = `seed-test-you-old-${run}`
+
+  const act = (name: string, token: string | undefined, params: object = {}) =>
+    callAction(request, name, token, params).then((r) => r.json())
+  const bubble = (id: string, extra: object = {}) => ({ id, authorId: maya.userId, title: `title ${id}`, text: '__test__', placeName: 'test', category: 'Park', ...LERNER, ...extra })
+
+  expect(await act('importSeedBubbles', jwt, { bubbles: [bubble(live), bubble(old, { expiresAt: '2020-01-01T00:00:00.000Z' })] })).toMatchObject({ success: true })
+  await popAtLerner(request, devToken, live)
+  await popAtLerner(request, samToken, live)
+  await popAtLerner(request, mayaToken, live) // the author's own pop doesn't count
+  await act('loveBubble', devToken, { bubbleId: live })
+
+  const devPopped = ((await act('myPopped', devToken)) as { data: Record<string, unknown>[] }).data
+  expect(devPopped.find((p) => p.bubbleId === live)).toMatchObject({ title: `title ${live}`, category: 'Park', placeName: 'test', loved: true })
+  expect(devPopped[0].bubbleId).toBe(live)
+  const samPopped = ((await act('myPopped', samToken)) as { data: Record<string, unknown>[] }).data
+  expect(samPopped.find((p) => p.bubbleId === live)).toMatchObject({ loved: false })
+
+  const dropped = ((await act('myDropped', mayaToken)) as { data: Record<string, unknown>[] }).data
+  expect(dropped.find((d) => d.bubbleId === live)).toMatchObject({ title: `title ${live}`, status: 'floating', popCount: 2 })
+  expect(dropped.find((d) => d.bubbleId === old)).toMatchObject({ status: 'expired', popCount: 0 })
+
+  // Dev and Sam dropped nothing; Dev never sees Maya's drops.
+  const devDropped = ((await act('myDropped', devToken)) as { data: { bubbleId: string }[] }).data
+  expect(devDropped.some((d) => d.bubbleId === live || d.bubbleId === old)).toBe(false)
+})
