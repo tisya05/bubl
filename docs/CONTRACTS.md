@@ -45,7 +45,7 @@ All of them require a signed-in user.
 | `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` (a lover gets the author from `canPop`) |
 | `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
 | `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
-| `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |
+| `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Not an action: multipart `POST /api/media/upload`. JPEG, PNG, WebP (max 5 MB) or MP4/MOV (max 12 MB, 15 s). Strips GPS/EXIF/XMP and video metadata. The bubble's `mediaUrl` is `/api/media/<uploadId>`, served only to the uploader, the author, and people who popped it. HEIC isn't supported: convert to JPEG on the client |
 | `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
 | `myPopped` | Urvi | none | `PoppedItem[]` | You tab. The caller's pops, newest first |
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab. The caller's live drops, newest first. `popCount` excludes the author's own pop |
@@ -58,6 +58,7 @@ All of them require a signed-in user.
 **Server-only pieces (not in `Api`, never called from the client):**
 
 - `saveBubble(bubble: Bubble)` (Urvi): the one DeepSpace write the seed import and `dropBubble` use.
+- `mediaForDrop(tools, userId, uploadId)` (Urvi, `app/src/server/media-routes.ts`): `dropBubble` calls it with the input's `uploadId`. It checks the caller owns an unused upload and returns `{ ok, mediaUrl, mediaType }` to put on the bubble; `saveBubble` then links the upload to the bubble.
 - Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
 
 Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic that doesn't.

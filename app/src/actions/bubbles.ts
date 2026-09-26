@@ -11,6 +11,7 @@ import type { Env } from '../../worker'
 import { DEFAULT_POP_RADIUS_M, MAX_NEARBY_RADIUS_M } from '../bubl/config'
 import { distanceM } from '../bubl/lib/geo'
 import { isExpired } from '../bubl/lib/pop'
+import { uploadIdFromMediaUrl } from '../server/media-routes'
 import { CATEGORIES, type Bubble, type BubblePreview, type Category } from '../bubl/types'
 
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
@@ -31,6 +32,12 @@ export async function saveBubble(
   const created = await tools.create('bubbles', row, id)
   if (!created.success) return created
   const recordId = created.data.recordId
+
+  const uploadId = uploadIdFromMediaUrl(row.mediaUrl)
+  if (uploadId) {
+    const linked = await tools.update('media_uploads', uploadId, { bubbleId: recordId })
+    if (!linked.success) return linked
+  }
 
   if (row.status === 'live') {
     const preview: PreviewRow = {

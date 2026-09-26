@@ -58,3 +58,20 @@ export const bubblePreviewsSchema: CollectionSchema = {
   ],
   permissions: { viewer: noAccess, member: allRows, admin: allRows },
 }
+
+/**
+ * Uploaded photos and videos (metadata already stripped). Server-only: the
+ * file itself lives in private storage and is served by /api/media/:id only
+ * to its uploader or to someone who popped the bubble it's attached to.
+ */
+export const mediaUploadsSchema: CollectionSchema = {
+  name: 'media_uploads',
+  columns: [
+    { name: 'ownerId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
+    { name: 'storageKey', storage: 'text', interpretation: 'plain', required: true, immutable: true },
+    { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video'] }, required: true },
+    { name: 'contentType', storage: 'text', interpretation: 'plain', required: true },
+    { name: 'bubbleId', storage: 'text', interpretation: 'plain' },
+  ],
+  permissions: { viewer: noAccess, member: noAccess, admin: noAccess },
+}
