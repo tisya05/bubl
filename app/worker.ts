@@ -116,6 +116,10 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
    * an authenticated app owner/admin. deepspace dev/test set it locally.
    */
   ALLOW_DEBUG_ROUTES?: string
+  /** xAI key for Grok moderation in dropBubble (`deepspace secrets set XAI_API_KEY=...`). Unset = drops saved unchecked. */
+  XAI_API_KEY?: string
+  /** Optional Grok model override; defaults to grok-4.7. */
+  XAI_MODEL?: string
 }
 
 export type AppContext = { Bindings: Env }
