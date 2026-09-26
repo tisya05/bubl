@@ -84,6 +84,27 @@ test('a clean drop is saved and shows on the map as a preview', async ({ users }
 })
 
 // A real 16x16 orange JPEG; Gemini rejects stub bytes that aren't a decodable image.
+test('with Gemini configured, dropBubble moderates: clean passes, hateful is rejected and never saved', async ({ users }) => {
+  test.skip(!process.env.GEMINI_API_KEY, 'Needs GEMINI_API_KEY in the test environment')
+  const [dev] = await users(['Dev'])
+  const token = await tokenFor(dev)
+
+  const clean = await callAction(dev.page.request, 'dropBubble', token, {
+    ...base,
+    text: '__test__ go down the steps at sunset, the river turns gold',
+  })
+  expect(await clean.json()).toMatchObject({ success: true, data: { ok: true, bubble: { moderation: 'passed' } } })
+
+  const hateful = await callAction(dev.page.request, 'dropBubble', token, {
+    ...base,
+    text: '__test__ immigrants should be kept out of this park, it was better before they came',
+  })
+  const body = (await hateful.json()) as { success: boolean; data: { ok: boolean; reasons: string[]; bubble?: unknown } }
+  expect(body).toMatchObject({ success: true, data: { ok: false } })
+  expect(body.data.reasons.length).toBeGreaterThan(0)
+  expect(body.data.bubble).toBeUndefined()
+})
+
 const TINY_JPEG = Buffer.from(
   '/9j/4AAQSkZJRgABAQAASABIAAD/4QBMRXhpZgAATU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAEKADAAQAAAABAAAAEAAAAAD/7QA4UGhvdG9zaG9wIDMuMAA4QklNBAQAAAAAAAA4QklNBCUAAAAAABDUHYzZjwCyBOmACZjs+EJ+/8AAEQgAEAAQAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/bAEMAAgICAgICAwICAwUDAwMFBgUFBQUGCAYGBgYGCAoICAgICAgKCgoKCgoKCgwMDAwMDA4ODg4ODw8PDw8PDw8PD//bAEMBAgICBAQEBwQEBxALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/dAAQAAf/aAAwDAQACEQMRAD8A6yiiiv57P6sP/9k=',
   'base64',
