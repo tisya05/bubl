@@ -1,6 +1,8 @@
 // Shared data shapes for bubl. Everyone codes against these.
 // See docs/CONTRACTS.md for the rules and how to change them.
 
+import type { RoomUser } from 'deepspace';
+
 export const CATEGORIES = ['Food', 'Cafe', 'Park', 'Street', 'Misc'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
@@ -49,13 +51,9 @@ export interface Wave {
   createdAt: string;
 }
 
-// Public profile: safe to show other users. Never add location, email or phone here.
-export interface User {
-  id: string;
-  displayName: string;
-  neighborhood: string;    // e.g. 'Morningside Heights', never coordinates
-  language: string;        // reader's language for translate, e.g. 'en'
-}
+// Another user as we show them: DeepSpace's own user fields, minus email and role.
+// Never add location, email or phone here.
+export type User = Pick<RoomUser, 'id' | 'name' | 'imageUrl'>;
 
 // Created by the server only when waves exist in both directions.
 export interface Chat {

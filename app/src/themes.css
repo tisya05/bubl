@@ -44,3 +44,32 @@
   --color-shell: #fafafa;
   --color-shell-panel: #ffffff;
 }
+
+/* Navy Sherbet — bubl's theme (active in index.html). Category colors and the
+ * "you" dot color live in src/bubl/colors.ts because map layers need them in code. */
+[data-theme="navy-sherbet"] {
+  color-scheme: light;
+  --color-background: #F4F1EA;           /* paper */
+  --color-foreground: #17171C;           /* ink */
+  --color-card: #FBF9F4;
+  --color-card-foreground: #17171C;
+  --color-popover: #FBF9F4;
+  --color-popover-foreground: #17171C;
+  --color-primary: #243B64;              /* navy */
+  --color-primary-foreground: #FBF9F4;
+  --color-secondary: #CFE0F0;            /* pale blue */
+  --color-secondary-foreground: #243B64;
+  --color-muted: #FBF9F4;
+  --color-muted-foreground: #5E5A52;
+  --color-accent: #CFE0F0;
+  --color-accent-foreground: #243B64;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #DDD6C8;
+  --color-input: #DDD6C8;
+  --color-ring: #243B64;
+  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.016);
+  --shadow-card-hover: 0 2px 8px 0 rgba(0, 0, 0, 0.032);
+  --color-shell: #F4F1EA;
+  --color-shell-panel: #FBF9F4;
+}

@@ -46,7 +46,7 @@ Urvi to confirm. The rule: Urvi owns anything that calls DeepSpace; Tisya owns t
 - **Seed import script:** reads the CSV, validates each row (category, coordinates, place name), builds `Bubble` objects, runs media through metadata stripping, then calls Urvi's `saveBubble` for each one.
 - **Metadata stripping helper:** one function that removes GPS/EXIF from photos (and video if time allows). Used by the seed import and later by Urvi's `uploadMedia`. Post-MVP for user uploads, but the seed media gets stripped from the start.
 - **.tech domain:** claim it through MLH and set up DNS. Urvi does the one step that points it at the DeepSpace deploy.
-- **Pure server logic in `src/lib/`:** the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap) and the expiry check, so Urvi's version is just "load bubbles, call the helper".
+- **Pure server logic in `app/src/bubl/lib/`:** the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap) and the expiry check, so Urvi's version is just "load bubbles, call the helper".
 - **Cut P3.2 (expiry scheduled job):** `nearbyBubbles` and `canPop` already skip expired bubbles, so the job isn't needed.
 
 **Tisya's load after this:** the scaffold and seed script come first (they unblock others), then `canPop` + demo mode, then the walk. If Tisya falls behind on P1, Shreya can take the Drop screen UI once her P0 is done.
@@ -98,7 +98,7 @@ git push -u origin tisya-demo-mode       # first push; later just `git push`
 2. **Sync before you open a PR.** Run `git pull origin main` inside your branch (merge, not rebase, so nobody has to force-push), fix conflicts, check the app still runs, then open the PR.
 3. **Merging.** Post the PR link in the group chat. Anyone can merge once the app builds and the PR only touches the author's area. Use "Squash and merge" and delete the branch after.
 4. **Stay in your lane.** Only edit files in your own area (see Roles). If you need a change in a teammate's file, ask them or put it in a separate small PR and tag them.
-5. **Shared contracts (`src/types/`) change in their own PR,** announced in the group chat before merging, because everyone codes against them.
+5. **Shared contracts (`app/src/bubl/types/`) change in their own PR,** announced in the group chat before merging, because everyone codes against them.
 6. **Dependencies.** Say so in the chat when you add a package. For `package-lock.json` conflicts, take `main`'s version and run `npm install` again; do not hand-merge the lockfile.
 7. **No secrets in git.** API keys go in `.env` (gitignored) and in the deploy environment, never in a commit.
 8. **Never force-push `main`,** and never commit to it directly.
@@ -110,7 +110,7 @@ P0 has to work for any demo. Finish each tier before starting the next.
 
 | # | Feature | Owner | Prize it counts toward |
 | --- | --- | --- | --- |
-| P0.1 | Contracts (done: `src/types`, `docs/CONTRACTS.md`) and scaffold: Vite + React + TS (Tisya), DeepSpace setup (Urvi) | Tisya, Urvi | DeepSpace |
+| P0.1 | Contracts (done: `app/src/bubl/types`, `docs/CONTRACTS.md`) and scaffold: Vite + React + TS (Tisya), DeepSpace setup (Urvi) | Tisya, Urvi | DeepSpace |
 | P0.2 | Map with color-coded bubbles: far = soft dot, close = solid with icon, legend row | Stephanie | Know Your City |
 | P0.3 | Real GPS plus demo mode (draggable "you" dot) | Tisya | Functionality score |
 | P0.4 | Pop flow: server-side 15 m check, pop animation, note screen with text, photo or video | Tisya, Stephanie, Urvi | Know Your City, DeepSpace, Wow Factor |

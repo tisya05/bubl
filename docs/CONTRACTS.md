@@ -1,25 +1,32 @@
 # bubl contracts
 
-Everything all four of us code against. If it's not here or in `src/types/`, it isn't agreed yet.
+Everything all four of us code against. If it's not here or in `app/src/bubl/types/`, it isn't agreed yet.
 
 ## What's where
 
-| Path | What |
+All shared bubl code lives in **`app/src/bubl/`**, inside Urvi's DeepSpace app. There is no other `src` folder; don't create one. Screens go in `app/src/pages/`, server actions in `app/src/actions/`.
+
+| Path (under `app/src/bubl/`) | What |
 | --- | --- |
-| `src/types/models.ts` | Data shapes: `Category` (+ `CATEGORIES`), `Bubble`, `BubblePreview`, `Pop`, `Wave`, `User`, `Chat`, `Message`, and the list items `PoppedItem`, `DroppedItem`, `IncomingWave`, `ChatSummary` |
-| `src/types/api.ts` | Inputs and outputs of every server function, plus the `Api` interface listing them all |
-| `src/types/errors.ts` | `ApiError` |
-| `src/api/client.ts` | The one `api` object screens import. Mock when `VITE_USE_MOCK=true`, otherwise real (TODO stubs for now) |
-| `src/api/mock.ts` | In-memory mock: 6 fake bubbles near Lerner. Only `nearbyBubbles` and `canPop` are real; the rest return simple defaults |
-| `src/hooks/useUserLocation.ts` | The only source of the user's location (GPS or demo dot) |
-| `src/components/DemoModeToggle.tsx` | In-app GPS / demo switch |
-| `src/lib/geo.ts` | `distanceM(a, b)`, the one distance function |
-| `src/constants.ts` | Distances: `NEAR_ICON_M`, `DEFAULT_POP_RADIUS_M`, `DEMO_POP_RADIUS_M`, `NEARBY_QUERY_RADIUS_M`, `MAX_NEARBY_RADIUS_M`, `LERNER_HALL` |
-| `src/theme.ts` | Navy Sherbet color and font tokens, `CATEGORY_META` (color, tint, lucide icon name, label) |
+| `types/models.ts` | Data shapes: `Category` (+ `CATEGORIES`), `Bubble`, `BubblePreview`, `Pop`, `Wave`, `User`, `Chat`, `Message`, and the list items `PoppedItem`, `DroppedItem`, `IncomingWave`, `ChatSummary` |
+| `types/api.ts` | Inputs and outputs of every server function, plus the `Api` interface listing them all |
+| `api/client.ts` | The one `api` object screens import. Mock when `VITE_USE_MOCK=true`; otherwise it calls the DeepSpace server action with the same name |
+| `api/mock.ts` | In-memory mock: 6 fake bubbles near Lerner. Only `nearbyBubbles` and `canPop` are real; the rest return simple defaults |
+| `hooks/useUserLocation.ts` | The only source of the user's location (GPS or demo dot) |
+| `components/DemoModeToggle.tsx` | In-app GPS / demo switch (template `Switch`) |
+| `lib/geo.ts` | `distanceM(a, b)`, the one distance function |
+| `config.ts` | Distances: `NEAR_ICON_M`, `DEFAULT_POP_RADIUS_M`, `DEMO_POP_RADIUS_M`, `NEARBY_QUERY_RADIUS_M`, `MAX_NEARBY_RADIUS_M`, `LERNER_HALL` |
+| `colors.ts` | `BRAND` (navy, sherbet, pale blue) and `CATEGORY_META` (color, tint, lucide icon component, label) |
+
+The app-wide palette is the `navy-sherbet` theme in `app/src/themes.css` (active in `app/index.html`), so the template's UI components (`@/components/ui`) are already on-brand. Use Tailwind theme classes (`bg-background`, `text-primary`, ...) for screens and `colors.ts` only where code needs a raw color (map layers, the "you" dot).
 
 ```ts
-import { api } from '../api/client';
-import type { BubblePreview } from '../types';
+import { api } from '@/bubl/api/client';
+import type { BubblePreview } from '@/bubl/types';
+
+const res = await api.nearbyBubbles({ lat, lng, radiusM: NEARBY_QUERY_RADIUS_M });
+if (!res.success) return showError(res.error);
+res.data; // BubblePreview[]
 ```
 
 ## MVP first
@@ -51,16 +58,16 @@ All of them require a signed-in user.
 **Server-only pieces (not in `Api`, never called from the client):**
 
 - `saveBubble(bubble: Bubble)` (Urvi): the one DeepSpace write the seed import and `dropBubble` use.
-- Pure helpers in `src/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
+- Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
 
 Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic that doesn't.
 
-**Errors:** functions throw an `ApiError` (`{ code, message }`, codes `unauthenticated`, `forbidden`, `not_found`, `invalid_input`, `rate_limited`, `internal`). **Except `canPop` and `dropBubble`,** which return their union results because the UI shows those reasons to the user.
+**Results and errors (DeepSpace native):** every server function is a DeepSpace server action (`POST /api/actions/<name>`) and returns `ActionResult`: `{ success: true, data }` or `{ success: false, error }`. Check `res.success` before reading `res.data`. `canPop` and `dropBubble` put their user-facing outcome (too far, rejected by moderation) inside `data`; `success: false` is only for real failures. `User` is DeepSpace's own user (`id`, `name`, `imageUrl`), never email.
 
 ## Rules the types don't enforce
 
 1. **Sealed content stays on the server.** The map only gets `BubblePreview` (id, position, place name, category, pop radius). `title`, `text`, `mediaUrl` and `audioUrl` reach the client only in a successful `canPop` result. `speak` and `translate` take a `bubbleId`, never text from the client.
-2. **The pop radius is per bubble:** 15 m by default, 60 m for the Lerner demo bubble. Use `popRadiusM` from the preview for the in-bubble banner, and `distanceM` from `src/lib/geo.ts` for the math.
+2. **The pop radius is per bubble:** 15 m by default, 60 m for the Lerner demo bubble. Use `popRadiusM` from the preview for the in-bubble banner, and `distanceM` from `app/src/bubl/lib/geo.ts` for the math.
 3. **Location comes only from `useUserLocation`.** Nothing else calls `navigator.geolocation`. The in-app toggle switches between GPS and the draggable demo dot (`setDemoLocation`); denied or missing GPS falls back to the demo dot automatically.
 4. **A chat exists only when waves go both ways** on the same bubble, and only those two users can read or write it.
 5. **Never expose a user's location.** `User` holds a neighborhood, never coordinates.
