@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Bell, ChevronLeft, LockKeyhole, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { useAppViewport } from '@/bubl/hooks/useAppViewport'
 import { setLocationSource } from '@/bubl/hooks/useUserLocation'
 import '@/bubl/mobile.css'
 
 export default function Welcome() {
   const navigate = useNavigate()
+  const viewport = useAppViewport()
   const [location, setLocation] = useState(true)
   const [notifications, setNotifications] = useState(false)
   async function enter() {
@@ -16,7 +18,7 @@ export default function Welcome() {
     setLocationSource(location ? 'gps' : 'demo')
     navigate(import.meta.env.VITE_UI_ONLY || import.meta.env.VITE_USE_MOCK === 'true' ? '/demo' : '/home')
   }
-  return <main className="bubl-app welcome-screen">
+  return <main ref={viewport} className="bubl-app mobile-shell welcome-screen">
     <Link className="round-button" to="/" aria-label="Back to intro"><ChevronLeft /></Link>
     <div className="welcome-heading"><p className="eyebrow">Step 1 of 1</p><h1>bubl only works on foot.</h1>
       <p className="lead">There's no search bar. A bubble opens when you're within about 15 metres of it, so we need to know where you are while you walk.</p></div>

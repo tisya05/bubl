@@ -62,10 +62,8 @@
 .bottom-nav i { width: 5px; height: 5px; border-radius: 50%; }
 .bottom-nav button[aria-current] i { background: var(--bubl-navy); }
 
-.mobile-shell[data-standalone=true] .bottom-nav { padding-bottom: 8px; }
-@media (display-mode: standalone) {
-  .mobile-shell { top: 0; bottom: 0; height: auto; }
-}
+
+
 .bubl-toast { position: absolute; bottom: 95px; left: 16px; right: 16px; z-index: 100; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 18px; background: var(--bubl-navy); color: white; box-shadow: 0 6px 28px #17171c22; font-size: 14px; }
 .bubl-toast span { flex: 1; overflow-wrap: anywhere; }
 .bubl-toast button { min-height: 44px; min-width: 32px; }
@@ -239,7 +237,7 @@
 html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-behavior: none; }
 .preview-loading { display: grid; place-items: center; height: 100dvh; background: #252b61; color: white; font-family: sans-serif; }
 .bubl-intro { height: 100dvh; min-height: 0; }
-.mobile-shell { position: fixed; inset: 0; height: 100dvh; }
+.mobile-shell { position: fixed; inset: 0; height: 110dvh; }
 .mobile-content { overflow: hidden; display: flex; flex-direction: column; }
 .screen-fill { height: 100%; min-height: 0; }
 .screen-header, .thread-pin, .mutual-label, .message-composer, .note-actions, .demo-strip, .bottom-nav { flex-shrink: 0; }
@@ -257,6 +255,8 @@ html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-be
 .map-marker-layer > * { pointer-events: auto; }
 .map-controls { position: absolute; bottom: calc(var(--sheet-height, 245px) + 18px); right: 16px; z-index: 4; display: flex; flex-direction: column; gap: 6px; }
 .map-controls .round-button { box-shadow: 0 2px 8px #243b6415; }
+.map-sound-toggle { position: relative; }
+.map-sound-toggle .sound-slash { position: absolute; stroke: #d64151; stroke-width: 2.5; stroke-linecap: round; fill: none; pointer-events: none; }
 .map-attribution { bottom: calc(var(--sheet-height, 245px) + 2px); }
 .map-sheet { padding-top: 0; max-height: 55%; overflow-y: auto; overscroll-behavior: contain; }
 .sheet-grip { width: 100%; min-height: 36px; display: grid; place-items: center; cursor: grab; touch-action: none; }
@@ -467,5 +467,30 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .bubl-app :is(input, textarea, select):focus { outline: 2px solid var(--intro-pink); outline-offset: 3px; box-shadow: 0 0 0 4px #ff60b71a; }
 .bubl-app .location-entry:focus-within { outline: 2px solid var(--intro-pink); outline-offset: 3px; box-shadow: 0 0 0 4px #ff60b71a; }
 .bubl-app .location-entry input:focus { outline: none; box-shadow: none; }
-
-@media (display-mode: standalone) { .mobile-shell { bottom: 0; height: auto; } }
+/* All routes share one full-screen app frame. Scroll only inside screens. */
+.mobile-shell { position: fixed; inset: 0; height: auto; overflow: hidden; }
+.bottom-nav { margin-top: auto; padding-bottom: 0; }
+.mobile-shell.welcome-screen { overflow-y: auto; min-height: 0; }
+.bubl-intro { position: fixed; inset: 0; height: auto; min-height: 0; }
+/* Paint the document canvas as well as the screen: iOS can expose it outside
+   the fixed frame during launch, keyboard dismissal, and viewport resizing. */
+html:has(.bubl-app), body:has(.bubl-app), #root:has(.bubl-app) { background-color: #f4f1ea; }
+html:has(.login-screen, .view-you), body:has(.login-screen, .view-you), #root:has(.login-screen, .view-you) { background-color: #ebe6dc; }
+html:has(.login-handle), body:has(.login-handle), #root:has(.login-handle) { background-color: #ead3de; }
+html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { background-color: #252b61; }
+/* Safari experiment: one blank screen followed by the app in document flow. */
+html[data-safari-scroll], html[data-safari-scroll] body, html[data-safari-scroll] #root {
+  height: auto; min-height: 100%; overflow: visible; overscroll-behavior-y: auto;
+}
+html[data-safari-scroll] #root::before {
+  content: ''; display: block; height: 100vh; background: inherit;
+}
+html[data-safari-scroll] :is(.mobile-shell, .bubl-intro) {
+  position: relative; inset: auto !important; height: 100dvh !important; min-height: 0;
+}
+/* Clip without creating a nested scroll container, so the footer sticks to
+   Safari's document viewport while its address controls expand/collapse. */
+html[data-safari-scroll] .mobile-shell { overflow: clip; }
+html[data-safari-scroll] .bottom-nav {
+  position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 10;
+}

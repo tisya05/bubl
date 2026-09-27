@@ -5,7 +5,6 @@ export function useAppViewport() {
   const ref = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     const viewport = window.visualViewport
-    const displayMode = window.matchMedia('(display-mode: standalone)')
     let frame = 0
     let settle = 0
     const update = () => {
@@ -14,14 +13,10 @@ export function useAppViewport() {
         if (!ref.current) return
         // Preserve browser accessibility zoom; only track unzoomed keyboard resizing.
         const normalScale = !viewport || Math.abs(viewport.scale - 1) < .01
-        const standalone = displayMode.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
-        ref.current.dataset.standalone = String(standalone)
         const editing = document.activeElement?.matches('input, textarea, [contenteditable="true"]')
-        const keyboardOpen = editing && viewport && (innerHeight - viewport.height > 80 || viewport.offsetTop > 0)
-        // Let WebKit lay out standalone mode against its fixed-position edges.
-        // screen.height and viewport units can include different iOS chrome areas;
-        // assigning either as a pixel height can leave a strip or clip the footer.
-        if (standalone && !keyboardOpen) {
+        const keyboardOpen = normalScale && editing && viewport && (innerHeight - viewport.height > 80 || viewport.offsetTop > 0)
+        if (!keyboardOpen) {
+          // screen.height includes space iOS may not allow this page to draw in.
           ref.current.style.height = 'auto'
           ref.current.style.top = '0px'
           ref.current.style.bottom = '0px'
@@ -43,7 +38,6 @@ export function useAppViewport() {
     window.addEventListener('resize', update)
     window.addEventListener('pageshow', update)
     window.addEventListener('orientationchange', focusChanged)
-    displayMode.addEventListener('change', update)
     document.addEventListener('focusin', focusChanged)
     document.addEventListener('focusout', focusChanged)
     return () => {
@@ -53,7 +47,6 @@ export function useAppViewport() {
       window.removeEventListener('resize', update)
       window.removeEventListener('pageshow', update)
       window.removeEventListener('orientationchange', focusChanged)
-      displayMode.removeEventListener('change', update)
       document.removeEventListener('focusin', focusChanged)
       document.removeEventListener('focusout', focusChanged)
     }

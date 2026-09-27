@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Landing from './pages/index'
 import './styles.css'
+import './bubl/lib/safariScroll'
 
 // The phone preview needs no auth, realtime providers, or unrelated routes.
 const Login = lazy(() => import('./pages/login'))

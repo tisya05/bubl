@@ -329,7 +329,7 @@ test('home-screen app fills the display and still follows the keyboard', async (
   })
   await page.goto('/demo')
   const shell = page.locator('.mobile-shell')
-  await expect(shell).toHaveAttribute('data-standalone', 'true')
+  await expect(shell).toBeVisible()
   await expect.poll(() => page.locator('.bottom-nav').evaluate(el => Math.round(el.getBoundingClientRect().bottom))).toBe(852)
   await page.getByRole('button', { name: 'Drop', exact: true }).click()
   await page.getByLabel('Give it a name').focus()
@@ -353,7 +353,7 @@ test('bubble title is required, description optional, and focus halo is pink', a
   expect(bubble.text).toBe('')
 })
 
-test('standalone anchors its footer without trusting a mismatched screen height', async ({ page }) => {
+test('standalone keeps navigation within the drawable viewport', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'standalone', { value: true, configurable: true })
     Object.defineProperty(screen, 'width', { value: 393, configurable: true })
@@ -371,3 +371,27 @@ test('standalone anchors its footer without trusting a mismatched screen height'
   await page.getByLabel('Give it a name').blur()
   await expect.poll(() => page.locator('.mobile-shell').evaluate(el => el.getBoundingClientRect().height)).toBe(852)
 })
+
+
+for (const standalone of [false, true]) {
+  test(`full-screen frame on all pages, installed=${standalone}`, async ({ page }) => {
+    await page.addInitScript(installed => {
+      Object.defineProperty(navigator, 'standalone', { value: installed, configurable: true })
+      Object.defineProperty(navigator, 'userAgent', { value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1', configurable: true })
+    }, standalone)
+    for (const route of ['/login', '/welcome', '/demo', '/demo?view=events', '/demo?view=chats', '/demo?view=you', '/demo?view=drop', '/demo?view=profile']) {
+      await page.goto(route)
+      await expect(page.locator('.mobile-shell')).toBeVisible()
+      if (!standalone) {
+        await expect.poll(() => page.locator('.mobile-shell').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBe(852)
+        await page.evaluate(() => window.scrollTo({ top: 852, behavior: 'instant' }))
+        await expect.poll(() => page.evaluate(() => scrollY)).toBe(852)
+        if (await page.locator('.bottom-nav').count()) expect(await page.locator('.bottom-nav').evaluate(el => el.getBoundingClientRect().bottom)).toBe(852)
+        continue
+      }
+      await expect.poll(() => page.locator('.mobile-shell').evaluate(el => ({ top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom, position: getComputedStyle(el).position }))).toEqual({ top: 0, bottom: 852, position: 'fixed' })
+      expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true)
+      if (await page.locator('.bottom-nav').count()) expect(await page.locator('.bottom-nav').evaluate(el => el.getBoundingClientRect().bottom)).toBe(852)
+    }
+  })
+}

@@ -12,6 +12,7 @@ import { LocationMap } from './LocationMap'
 import { ReportButton } from './ReportButton'
 import { EventWhen } from './EventsScreen'
 import { StreetMap } from './StreetMap'
+import { isSoundEnabled, useSound } from '../hooks/useSound'
 import { result, useMobile, useOperation } from './MobileApp'
 
 export function WalkScreen() {
@@ -108,19 +109,21 @@ export function NoteScreen() {
   const [loved, setLoved] = useState(opened?.loved ?? false)
   const [translated, setTranslated] = useState<{ title: string; text: string }>()
   const [language, setLanguage] = useState('en')
+  const [soundEnabled] = useSound()
   const audio = useRef<HTMLAudioElement | null>(null)
+  useEffect(() => { if (audio.current) audio.current.muted = !soundEnabled }, [soundEnabled])
   useEffect(() => () => { audio.current?.pause() }, [])
   if (!opened) return null
   const { bubble, author } = opened
   const own = bubble.authorId === user.id
   return <section className="note-screen screen-fill"><ScreenHeader onBack={() => go(opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
     <div className="note-body">
-      {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
+      {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
       {bubble.event && <EventWhen event={bubble.event} />}
       <h1>{translated?.title ?? bubble.title}</h1><p className="note-text">{translated?.text ?? bubble.text}</p>
       <p className="eyebrow">{bubble.poppedCount ?? 1} popped · {(bubble.lovedCount ?? 0) + (loved ? 1 : 0)} loved it</p>
-      {!bubble.event && <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); await audio.current.play() })}><Volume2 />Listen</Button>
+      {!bubble.event && <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); audio.current.muted = !isSoundEnabled(); await audio.current.play() })}><Volume2 />Listen</Button>
         <label className="language-picker"><span className="sr-only">Translate to</span><select aria-label="Translate to" value={language} onChange={e => setLanguage(e.target.value)}><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option><option value="hi">हिन्दी</option><option value="zh">中文</option></select></label>
         <Button variant="outline" disabled={busy} aria-label="Translate note" onClick={() => run(async () => { const data = await result(api.translate({ bubbleId: bubble.id, targetLanguage: language })); setTranslated(data) })}><Languages /></Button></div>}
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
