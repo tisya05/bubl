@@ -90,9 +90,8 @@ const bubbles: Bubble[] = [
     lng: -73.9669,
     placeName: 'Riverside Dr & 116th St',
     category: 'Park',
-    title: 'El mejor atardecer',
-    text: 'Baja las escaleras al atardecer. El río se pone dorado y casi no hay gente.',
-    language: 'es',
+    title: 'The best sunset',
+    text: 'Head down the stairs at sunset. The river turns golden, and there is almost nobody around.',
   }),
   bubble({
     id: 'b-college-walk',
@@ -258,13 +257,6 @@ export const mockApi: Api = {
   },
   async speak() {
     return ok({ audioUrl: '' });
-  },
-  async translate({ bubbleId, targetLanguage }) {
-    const b = bubbles.find((x) => x.id === bubbleId);
-    if (!b || !pops.has(`me:${bubbleId}`)) return fail('Pop this bubble first.');
-    if (b.id === 'b-riverside' && targetLanguage === 'en') return ok({ title: 'The best sunset', text: 'Head down the stairs at sunset. The river turns golden, and there is almost nobody around.', sourceLanguage: 'es' });
-    if (targetLanguage !== b.language) return fail('This language is not available in the demo. Live translation will use Gemini.');
-    return ok({ title: b?.title ?? '', text: b?.text ?? '', sourceLanguage: b?.language ?? 'en' });
   },
   async uploadMedia(file) {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return fail('Choose a photo or video.');

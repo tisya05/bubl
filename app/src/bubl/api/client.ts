@@ -41,7 +41,6 @@ const realApi: Api = {
   loveBubble: (input) => callAction('loveBubble', input),
   lovedBy: (input) => callAction('lovedBy', input),
   speak: (input) => callAction('speak', input),
-  translate: (input) => callAction('translate', input),
   uploadMedia,
   dropBubble: (input) => callAction('dropBubble', input),
   myPopped: () => callAction('myPopped'),

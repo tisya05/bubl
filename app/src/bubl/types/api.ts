@@ -66,17 +66,6 @@ export interface SpeakResult {
   audioUrl: string;
 }
 
-// Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
-// Deferred: not planned for now. Kept as a placeholder; don't build UI for it.
-export interface TranslateInput {
-  bubbleId: string;
-  targetLanguage: string;
-}
-export interface TranslateResult {
-  title: string;
-  text: string;
-  sourceLanguage: string;
-}
 
 // ---- Drop ----
 
@@ -136,7 +125,6 @@ export interface Api {
   loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
   lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
   speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
-  translate(input: TranslateInput): Promise<ActionResult<TranslateResult>>;
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;
