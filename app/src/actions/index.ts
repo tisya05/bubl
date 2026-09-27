@@ -11,6 +11,7 @@ import { resetDemo, setupDemoProfiles } from './demo'
 import { speak, speakLine } from './speak'
 import { openPopped } from './viewer'
 import { claimHandle, getMe, savePreferences } from './profile'
+import { deleteEvent, dropEvent, getEvents, refreshEvents } from './events'
 import { getPushKey, pushNearby, removePushSubscription, savePushSubscription, setAppOpen } from './push'
 
 export const actions: Record<string, ActionHandler<Env>> = {
@@ -39,6 +40,10 @@ export const actions: Record<string, ActionHandler<Env>> = {
   getMe,
   claimHandle,
   savePreferences,
+  refreshEvents,
+  getEvents,
+  deleteEvent,
+  dropEvent,
   getPushKey,
   savePushSubscription,
   removePushSubscription,
