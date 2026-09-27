@@ -10,7 +10,7 @@ import { Avatar, Categories, CategoryIcon, Empty, ScreenHeader } from './MobileU
 import { useDemoEvents, demoEvents, eventAvailability } from '../lib/eventDemo'
 import { LocationMap } from './LocationMap'
 import { ReportButton } from './ReportButton'
-import { EventWhen } from './EventsScreen'
+import { EventCard } from './EventsScreen'
 import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
 import { alert, subscribeAlerts } from '../lib/alerts'
@@ -153,8 +153,14 @@ export function NoteScreen() {
   const [loved, setLoved] = useState(opened?.loved ?? false)
   const [soundEnabled] = useSound()
   const audio = useRef<HTMLAudioElement | null>(null)
+  const [now, setNow] = useState(Date.now())
   useEffect(() => { if (audio.current) audio.current.muted = !soundEnabled }, [soundEnabled])
   useEffect(() => () => { audio.current?.pause() }, [])
+  useEffect(() => {
+    if (!opened?.bubble.event) return
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [opened?.bubble.event, opened?.bubble.id])
   const [lovers, setLovers] = useState<User[]>([])
   const ownBubbleId = opened && !opened.bubble.event && opened.bubble.authorId === user.id ? opened.bubble.id : undefined
   useEffect(() => {
@@ -164,20 +170,32 @@ export function NoteScreen() {
   }, [api, ownBubbleId])
   if (!opened) return null
   const { author } = opened
-  const bubble = liveEvents.find(item => item.id === opened.bubble.id) ?? opened.bubble
+  const eventItem = liveEvents.find(item => item.id === opened.bubble.id)
+  const bubble = eventItem ?? opened.bubble
   const own = bubble.authorId === user.id
-  return <section className={`note-screen screen-fill ${opened.justPopped ? 'just-popped' : ''}`}><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
+  const back = () => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')
+  // Popped events reuse the Events card so heart / going stay in the shared store.
+  if (eventItem && (eventItem.category === 'Events' || opened.bubble.event)) {
+    return <section className={`note-screen note-event-screen screen-fill ${opened.justPopped ? 'just-popped' : ''}`}>
+      <ScreenHeader onBack={back} title={eventItem.placeName}><ReportButton id={eventItem.id} label={eventItem.title} /></ScreenHeader>
+      <div className="note-body note-event-body">
+        <EventCard item={eventItem} now={now} variant="note" />
+        <LocationMap lat={eventItem.lat} lng={eventItem.lng} label={eventItem.placeName} />
+      </div>
+      {own && <p className="privacy-note"><MapPin size={18} />You dropped this event. Heart and Going sync with the Events tab.</p>}
+    </section>
+  }
+  return <section className={`note-screen screen-fill ${opened.justPopped ? 'just-popped' : ''}`}><ScreenHeader onBack={back} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
     <div className="note-body">
       {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
-      {bubble.event && <EventWhen event={bubble.event} />}
       <h1>{bubble.title}</h1><p className="note-text">{bubble.text}</p>
       <p className="eyebrow">{bubble.poppedCount ?? 1} popped · {(bubble.lovedCount ?? 0) + (loved ? 1 : 0)} loved it</p>
-      {!bubble.event && <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); audio.current.muted = !isSoundEnabled(); await audio.current.play() })}><Volume2 />Listen</Button></div>}
+      <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); audio.current.muted = !isSoundEnabled(); await audio.current.play() })}><Volume2 />Listen</Button></div>
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
     </div>
-    {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline wave-button" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
-    {own && !bubble.event && lovers.length > 0 && <div className="note-lovers"><p className="eyebrow section-label">Loved this · {lovers.length}</p>{lovers.map(lover => <div className="incoming-wave" key={lover.id}><Avatar name={lover.name} image={lover.imageUrl} /><div><p className="wave-person"><strong>{lover.name || 'A local'}</strong><span className="wave-action-text"> loved this spot</span></p><Button className="wave-button" onClick={() => waveAt({ user: lover, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div></div>)}</div>}
-    {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : lovers.length ? 'Wave first, or wait for them in Chats.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
+    {!own && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline wave-button" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
+    {own && lovers.length > 0 && <div className="note-lovers"><p className="eyebrow section-label">Loved this · {lovers.length}</p>{lovers.map(lover => <div className="incoming-wave" key={lover.id}><Avatar name={lover.name} image={lover.imageUrl} /><div><p className="wave-person"><strong>{lover.name || 'A local'}</strong><span className="wave-action-text"> loved this spot</span></p><Button className="wave-button" onClick={() => waveAt({ user: lover, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div></div>)}</div>}
+    {own && <p className="privacy-note"><MapPin size={18} />{lovers.length ? 'Wave first, or wait for them in Chats.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
   </section>
 }
