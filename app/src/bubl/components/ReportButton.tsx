@@ -2,13 +2,17 @@ import { useRef, useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useMobile } from './MobileApp'
+import { useDemoEvents } from '../lib/eventDemo'
+import { EventEditButton } from './EventEditButton'
 
 export function ReportButton({ id, label }: { id: string; label: string }) {
-  const { demo, notify } = useMobile()
+  const { demo, notify, user } = useMobile()
+  const ownEvent = useDemoEvents().find(item => item.id === id && item.authorId === user.id)
   const dialog = useRef<HTMLDialogElement>(null)
   const [reason, setReason] = useState('Incorrect location or details')
   const [details, setDetails] = useState('')
   const [saved, setSaved] = useState(false)
+  if (ownEvent) return <EventEditButton item={ownEvent} />
   return <><button type="button" className="report-button" aria-label={`Report ${label}`} onClick={() => { setSaved(false); dialog.current?.showModal() }}><Flag size={17} /><span>Report</span></button>
     <dialog ref={dialog} className="report-dialog"><form onSubmit={event => {
       event.preventDefault()
