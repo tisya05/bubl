@@ -12,6 +12,7 @@ import { usersSchema } from './schemas/users-schema'
 import { settingsSchema } from './schemas/admin-schema'
 import { bubblesSchema, bubblePreviewsSchema } from './schemas/bubbles-schema'
 import { popsSchema, wavesSchema, chatsSchema, messagesSchema } from './schemas/social-schema'
+import { notificationsSchema } from './schemas/notifications-schema'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
@@ -22,4 +23,5 @@ export const schemas: CollectionSchema[] = [
   wavesSchema,
   chatsSchema,
   messagesSchema,
+  notificationsSchema,
 ]

@@ -23,6 +23,7 @@ import Navigation from '../../components/Navigation'
 import { useToast } from '@/components/ui'
 import { SCOPE_ID } from '../../constants'
 import { schemas } from '../../schemas'
+import { NotificationCenter } from '@/bubl/components/NotificationCenter'
 
 export default function AppLayout() {
   const isMobileHome = useLocation().pathname === '/home'
@@ -72,6 +73,7 @@ function AuthBoot({ children }: { children: ReactNode }) {
       }
     >
       <RecordScope roomId={SCOPE_ID} schemas={schemas}>
+        <NotificationCenter />
         {children}
       </RecordScope>
     </RecordProvider>

@@ -74,6 +74,14 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
 7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
+## Notifications
+
+In-app only for now (sound, vibration, a banner; a system notification too if the app is in the background and the user allowed it). Nothing arrives while the app is closed: that needs Web Push, not built.
+
+- **Your own events** (client): call `alert({ kind: 'pop', title: 'pop.', body: bubble.title, bubbleId })` from `@/bubl/lib/alerts` when a pop succeeds. It plays the pop sound. Walking mode already does this; the Walk screen's manual pop should too. "You drifted into a bubble" fires by itself.
+- **Other people's actions** (server): after the action succeeds, one line, e.g. `await notify(tools, authorId, loveNotice({ id: userId, name: await displayName(tools, userId) }, { id: bubbleId, placeName }))`. Helpers: `notify`/`displayName` in `src/actions/notify.ts`; `loveNotice`, `waveNotice`, `matchNotice`, `messageNotice` in `@/bubl/lib/notifications`. Rows go to the recipient's private `notifications` table; `notify` never throws and never notifies you about yourself.
+- **Mounting:** `<NotificationCenter />` is already in `src/pages/(app)/_layout.tsx`. Screens that need the list or an unread badge use `useNotifications()` (`notifications`, `unreadCount`, `markRead`, `markAllRead`). System notifications need `enableSystemNotifications()` from a tap (e.g. a settings toggle).
+
 ## Sign-in is P0
 
 Every server function needs a user identity (`canPop` records a `Pop` per user), so basic DeepSpace sign-in is part of the MVP (Urvi builds auth, Shreya the screen). Keep it to the fastest method DeepSpace offers so judges scanning the QR code can get in within seconds. The mock signs everyone in as a fake `me` user, so screens don't wait on it.

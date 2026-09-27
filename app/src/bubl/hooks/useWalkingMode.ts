@@ -12,6 +12,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { api } from '../api/client';
+import { alert } from '../lib/alerts';
 import { NEARBY_QUERY_RADIUS_M } from '../config';
 import { bubblesInRange, shouldRefetch } from '../lib/walking';
 import type { Bubble, BubblePreview } from '../types';
@@ -81,7 +82,7 @@ async function popAndSpeak(preview: BubblePreview, you: UserLocation) {
     if (pop.success && !pop.data.ok && pop.data.reason === 'too_far') fired.delete(preview.id);
     return;
   }
-  navigator.vibrate?.(200);
+  alert({ kind: 'pop', title: 'pop.', body: pop.data.bubble.title, bubbleId: preview.id });
   set({ lastPopped: pop.data.bubble });
 
   const spoken = await api.speak({ bubbleId: preview.id });

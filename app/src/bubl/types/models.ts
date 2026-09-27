@@ -75,6 +75,23 @@ export interface Message {
   sentAt: string;
 }
 
+// ---- Notifications ----
+
+export type NotificationKind = 'love' | 'wave' | 'match' | 'message';
+
+// A row in the recipient's private `notifications` table, delivered live while the app is open.
+export interface BublNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  bubbleId?: string;
+  chatId?: string;
+  fromUserId?: string;
+  read: boolean;
+  createdAt: string;
+}
+
 // ---- List items for the You and Chats tabs ----
 
 export interface PoppedItem {
