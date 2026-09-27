@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test'
 
+// A phone that already allowed location and notifications, so the start-up permission
+// sheet (PermissionSheet) doesn't cover the screens these tests tap through.
+test.beforeEach(async ({ context }) => {
+  await context.grantPermissions(['geolocation', 'notifications'])
+  // Headless Chrome still reports notifications as blocked, so say they're allowed.
+  await context.addInitScript(() => Object.defineProperty(Notification, 'permission', { configurable: true, get: () => 'granted' }))
+})
+
 test('intro, onboarding and the full local demo journey', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
