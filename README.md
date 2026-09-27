@@ -172,10 +172,10 @@ npm run demo:reset             # wipes pops/loves/waves/chats/messages and demo-
 
 | Person | Responsibility |
 | --- | --- |
-| Urvi -> responsible for backend , contributed on events page, and light frontend dev | 
-|Tisya -> responsible for backend, focused on APIs, contribution to events page| 
-|Shreya-> responsible for frontend, Logo, UI & Design, contribution to frontend and backend for events page| 
-|Stephanie -> responsible for frontend , UI & Design, integrated animated features, worked on backend for some actions| 
+| Urvi| responsible for backend , contributed on events page, and light frontend dev | 
+|Tisya | responsible for backend, focused on APIs, contribution to events page| 
+|Shreya| responsible for frontend, Logo, UI & Design, contribution to frontend and backend for events page| 
+|Stephanie|responsible for frontend , UI & Design, integrated animated features, worked on backend for some actions| 
 ## Deployment
 
 The app deploys to Cloudflare Workers via the DeepSpace CLI:
