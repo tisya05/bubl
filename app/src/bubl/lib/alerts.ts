@@ -1,10 +1,10 @@
-// One pipeline for everything bubl tells you about: sound + vibration + an
-// in-app banner (NotificationCenter turns alerts into toasts), plus a system
-// notification when the app is in the background and permission was given.
+// One pipeline for everything bubl tells you about: the pop sound + vibration,
+// plus a real system notification (the phone's own notification banner) once
+// notification permission was given. There are no in-app banners.
 //
 // Anyone can raise one: alert({ kind: 'pop', title: 'pop.', body: bubble.title })
 
-import { playChime, playPop } from './sounds';
+import { playPop } from './sounds';
 
 export type AlertKind = 'pop' | 'nearby' | 'love' | 'wave' | 'match' | 'message';
 
@@ -25,23 +25,42 @@ export function subscribeAlerts(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
+/** Registers public/sw.js, which phones need before they show system notifications. */
+export function registerNotificationWorker() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  void navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// Where tapping the notification takes you.
+function urlFor(a: BublAlert): string {
+  if (a.chatId) return '/home?view=chats';
+  if (a.bubbleId) return `/home?bubble=${encodeURIComponent(a.bubbleId)}`;
+  return '/home';
+}
+
 async function systemNotification(a: BublAlert) {
-  if (typeof document === 'undefined' || document.visibilityState === 'visible') return;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const options = { body: a.body, tag: a.bubbleId ?? a.chatId ?? a.kind, icon: '/bubl/icons/icon-192.png' };
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const options: NotificationOptions = {
+    body: a.body,
+    tag: a.bubbleId ?? a.chatId ?? a.kind,
+    icon: '/bubl/icons/icon-192.png',
+    badge: '/bubl/icons/icon-192.png',
+    data: { url: urlFor(a) },
+    // While bubl is open we play our own pop, so the phone stays quiet; in the background the phone's sound plays.
+    silent: document.visibilityState === 'visible',
+  };
   try {
-    // Android only shows notifications through a service worker; iOS and desktop accept either.
+    // Phones only show notifications through a service worker; desktop browsers accept either.
     const registration = await navigator.serviceWorker?.getRegistration();
     if (registration) await registration.showNotification(a.title, options);
     else new Notification(a.title, options);
   } catch {
-    // Not supported here: the in-app banner is enough.
+    // Not supported here (e.g. iPhone Safari outside the Home Screen app).
   }
 }
 
 export function alert(a: BublAlert) {
-  if (a.kind === 'pop') playPop();
-  else playChime();
+  playPop();
   if (typeof navigator !== 'undefined') navigator.vibrate?.(a.kind === 'pop' ? [30, 40, 80] : 120);
   listeners.forEach((l) => l(a));
   if (!a.quiet) void systemNotification(a);
@@ -50,6 +69,7 @@ export function alert(a: BublAlert) {
 /** Ask for system notifications. Call it from a tap (e.g. a settings toggle). */
 export async function enableSystemNotifications(): Promise<boolean> {
   if (!('Notification' in window)) return false;
+  registerNotificationWorker();
   if (Notification.permission === 'granted') return true;
   return (await Notification.requestPermission()) === 'granted';
 }
