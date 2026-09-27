@@ -4,7 +4,7 @@ import { distanceM } from './geo'
 import { readDemoMedia, saveDemoMedia } from './demoMedia'
 import type { Bubble, EventSchedule, User } from './uiModels'
 
-export type EventItem = Bubble & { category: 'Events'; event: EventSchedule; author: User; hearted: boolean; going: boolean; poppedAt?: string; hidden?: boolean }
+export type EventItem = Bubble & { category: 'Events'; event: EventSchedule; author: User; hearted: boolean; going: boolean; poppedAt?: string; hidden?: boolean; feedHidden?: boolean }
 export type EventDraft = { title: string; text: string; placeName: string; lat: number; lng: number; event: EventSchedule; photo?: File }
 const key = 'bubl.events.v1'
 const listeners = new Set<() => void>()
@@ -70,6 +70,7 @@ export const demoEvents = {
     if (!item || (item.authorId !== userId && (!item.poppedAt || item.hidden))) throw new Error('Pop this event first.')
     return { bubble: { ...item, mediaUrl: await eventImage(item) }, author: item.author, loved: item.hearted }
   },
+  hideFromFeed(id: string) { update(id, item => ({ ...item, feedHidden: true })) },
   remove(id: string) { update(id, item => ({ ...item, hidden: true })) },
   delete(id: string, userId: string) { if (state.find(item => item.id === id)?.authorId !== userId) throw new Error('Only your own events can be deleted.'); commit(state.filter(item => item.id !== id)) },
 }

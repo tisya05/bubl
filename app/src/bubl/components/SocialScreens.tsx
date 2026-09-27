@@ -48,12 +48,12 @@ export function ChatsScreen() {
     load(); const timer = setInterval(load, 15000)
     return () => { active = false; clearInterval(timer) }
   }, [api, retry])
-  return <section className="social-screen"><p className="eyebrow">Both wave to unlock</p><h1>Chats</h1>
+  return <section className="social-screen"><h1>Chats</h1>
     {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
     {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
     {waves.length > 0 && <><p className="eyebrow section-label">Waved at you · {waves.length}</p>{waves.map(wave => <div className="incoming-wave" key={`${wave.from.id}:${wave.bubbleId}`}><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><strong>{wave.from.name} waved at you</strong><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p>{wave.note}</p>}</div><Button onClick={() => waveAt(waveTarget(wave))}><Hand />Wave</Button></div>)}</>}
     {chats.length > 0 && <><p className="eyebrow section-label">Chats</p>{chats.map(chat => <button className="chat-row" key={chat.chat.id} onClick={() => openChat(chat)}><Avatar name={chat.otherUser.name} image={chat.otherUser.imageUrl} /><span><strong>{chat.otherUser.name}</strong><span>{chat.lastMessage?.text ?? 'You both waved. Say hello!'}</span></span>{chat.unread && <i className="unread-dot" aria-label="Unread messages" />}</button>)}</>}
-    {!loading && !error && !chats.length && !waves.length && <><Empty icon={<MessageCircle />} title="Good things start with a wave.">Pop a bubble, love the spot, and wave at the local who left it.</Empty><Button className="bubl-outline" onClick={() => go('walk')}>Find your next bubble</Button></>}
+    {!loading && !error && !chats.length && !waves.length && <><Empty icon={<MessageCircle />} title="Good things start with a wave.">Pop a bubble, love the spot, and wave at the local who left it.</Empty><Button className="bubl-outline find-next-bubble" onClick={() => go('walk')}>Find your next bubble</Button></>}
   </section>
 }
 

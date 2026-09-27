@@ -40,13 +40,19 @@ async function videoFrames(file: File): Promise<string[]> {
 export function DropScreen() {
   const { api, demo, go, notify, user } = useMobile()
   const [category, setCategory] = useState<Category>('Misc')
-  const [eventVenue, setEventVenue] = useState<{ lat: number; lng: number } | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<{ lat: number; lng: number } | null>(null)
   const localDateTime = (offset: number) => { const date = new Date(Date.now() + offset * 3600000); return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) }
   const [startsAt, setStartsAt] = useState(() => localDateTime(1))
   const [endsAt, setEndsAt] = useState(() => localDateTime(3))
   const userLocation = useUserLocation()
   const demoLocation = useDemoLocation()
-  const location = category === 'Events' && eventVenue ? { ...eventVenue, source: demo ? 'demo' as const : 'gps' as const, accuracyM: 5 } : demo ? demoLocation : userLocation
+  const currentLocation = demo ? demoLocation : userLocation
+  const location = selectedPlace ? { ...selectedPlace, source: demo ? 'demo' as const : 'gps' as const, accuracyM: 5 } : currentLocation
+  const withinRange = !!currentLocation && !!location && distanceM(currentLocation, location) <= 500
+  function pickLocation(point: { lat: number; lng: number }) {
+    if (!currentLocation || distanceM(currentLocation, point) > 500) { notify("Choose a spot within 500 metres of your location."); return }
+    setSelectedPlace(point); setAutoLocation(false)
+  }
   const coordinates = location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : ''
   const { busy, run } = useOperation()
   const [kind, setKind] = useState<'Text' | 'Photo' | 'Video'>('Text')
@@ -57,20 +63,20 @@ export function DropScreen() {
   const [places, setPlaces] = useState<BubblePreview[]>([])
   const [searching, setSearching] = useState(false)
   const [autoLocation, setAutoLocation] = useState(true)
-  const nearestPlace = places.find(place => location && distanceM(location, place) < 60)?.placeName
-  const automaticName = nearestPlace ?? coordinates
+  const nearestPlace = places.find(place => currentLocation && distanceM(currentLocation, place) < 60)?.placeName
+  const automaticName = nearestPlace ?? (currentLocation ? `${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}` : '')
   useEffect(() => { if (autoLocation) setPlaceName(automaticName) }, [autoLocation, automaticName])
   const query = placeName.trim().toLowerCase()
   const matches = places.filter(place => autoLocation || query.split(/\s+/).every(word => place.placeName.toLowerCase().includes(word)))
   useEffect(() => {
-    if (!location) return
+    if (!currentLocation) return
     let active = true
     setPlaces([]); setSearching(true)
-    result(api.nearbyBubbles({ lat: location.lat, lng: location.lng, radiusM: 1000 })).then(items => {
-      if (active) setPlaces(items.filter((item, index) => items.findIndex(other => other.placeName === item.placeName) === index).sort((a, b) => distanceM(location, a) - distanceM(location, b)))
+    result(api.nearbyBubbles({ lat: currentLocation.lat, lng: currentLocation.lng, radiusM: 500 })).then(items => {
+      if (active) setPlaces(items.filter((item, index) => distanceM(currentLocation, item) <= 500 && items.findIndex(other => other.placeName === item.placeName) === index).sort((a, b) => distanceM(currentLocation, a) - distanceM(currentLocation, b)))
     }).catch(() => { if (active) setPlaces([]) }).finally(() => { if (active) setSearching(false) })
     return () => { active = false }
-  }, [api, location?.lat, location?.lng])
+  }, [api, currentLocation?.lat, currentLocation?.lng])
   const [floatsFor, setFloatsFor] = useState<DropBubbleInput['floatsFor']>('1m')
   const [file, setFile] = useState<File>()
   const [preview, setPreview] = useState('')
@@ -82,6 +88,7 @@ export function DropScreen() {
   }, [file])
   function submit() {
     if (!location || !title.trim() || !placeName.trim()) return
+    if (!withinRange) { notify('Choose a spot within 500 metres of your location.'); return }
     if (kind !== 'Text' && !file) { notify(`Choose a ${kind.toLowerCase()} first.`); return }
     void run(async () => {
       if (category === 'Events') {
@@ -106,21 +113,24 @@ export function DropScreen() {
     <div className="bottom-actions"><Button className="bubl-primary" onClick={() => go('walk')}>Back to walking</Button><button className="text-button" onClick={() => { setReleased(undefined); setText(''); setTitle(''); setFile(undefined) }}>Drop another</button></div></section>
   return <section className="drop-screen screen-fill"><ScreenHeader title="Drop a bubble" close onBack={() => go('walk')} />
     <form onSubmit={event => { event.preventDefault(); submit() }}>
-      <div className="pinned-card"><span className="icon-disc blue"><MapPin /></span><div><p className="eyebrow">{category === 'Events' ? 'Event venue' : demo ? 'Pinned to the demo dot' : "Pinned to where you’re standing"}</p><strong>{location ? (location.source === 'demo' ? `Demo dot · ${coordinates}` : 'Your current location') : 'Waiting for your location…'}</strong></div></div>
+      <div className="pinned-card"><span className="icon-disc blue"><MapPin /></span><div><p className="eyebrow">{category === 'Events' ? 'Event venue' : selectedPlace ? 'Selected location' : 'Pinned to your location'}</p><strong>{location ? (selectedPlace ? placeName || coordinates : location.source === 'demo' ? `Your location · ${coordinates}` : 'Your current location') : 'Waiting for your location…'}</strong></div></div>
       <label className="field-label" htmlFor="place-name">Where is this spot?</label>
       <div className="location-input" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setLocationFocused(false) }}>
         <div className="location-entry"><MapPin aria-hidden="true" /><Input id="place-name" required maxLength={100} autoComplete="off" value={placeName} onFocus={() => setLocationFocused(true)} onKeyDown={event => { if (event.key === 'Escape') setLocationFocused(false) }} onChange={e => { setAutoLocation(false); setPlaceName(e.target.value); setLocationFocused(true) }} placeholder="Search nearby or name this place" aria-controls={locationFocused ? 'nearby-places' : undefined} />{placeName && <button type="button" aria-label="Clear location name" onClick={() => { setAutoLocation(false); setPlaceName(''); document.getElementById('place-name')?.focus() }}><X size={18} /></button>}</div>
-        {locationFocused && <div id="nearby-places" className="location-suggestions"><button type="button" disabled={!location} onClick={() => { setEventVenue(null); setAutoLocation(true); setPlaceName(automaticName); setLocationFocused(false) }}><LocateFixed /><span>{demo ? 'Use demo dot location' : 'Use current location'}<small>{location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : 'Finding your location…'}</small></span></button>{searching && <p className="location-search-status" role="status">Finding nearby places…</p>}{matches.map(place => <button type="button" key={place.id} onClick={() => { setAutoLocation(false); if (category === 'Events') setEventVenue({ lat: place.lat, lng: place.lng }); setPlaceName(place.placeName); setLocationFocused(false) }}><MapPin /><span>{place.placeName}<small>{Math.round(distanceM(location!, place))} m from {demo ? 'the demo dot' : 'you'}</small></span></button>)}{!searching && query && !autoLocation && !matches.some(place => place.placeName.toLowerCase() === query) && <button type="button" onClick={() => setLocationFocused(false)}><PlusCircle /><span>Use “{placeName.trim()}”<small>Name this spot at {demo ? 'the demo dot' : 'your location'}</small></span></button>}</div>}
-      </div><p className="location-caption">{category === 'Events' ? 'Choose a nearby place or move the venue pin below.' : demo ? 'Your bubble stays pinned to the demo dot.' : 'Your bubble stays pinned to where you’re standing.'}</p>
+        {locationFocused && <div id="nearby-places" className="location-suggestions" onPointerDown={event => { if ((event.target as HTMLElement).closest('button')) event.preventDefault() }}><button type="button" disabled={!currentLocation} onClick={() => { setSelectedPlace(null); setAutoLocation(true); setPlaceName(automaticName); setLocationFocused(false) }}><LocateFixed /><span>Use your location<small>{currentLocation ? `${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}` : 'Finding your location…'}</small></span></button>{searching && <p className="location-search-status" role="status">Finding nearby places…</p>}{matches.map(place => <button type="button" key={place.id} onClick={() => { pickLocation({ lat: place.lat, lng: place.lng }); setPlaceName(place.placeName); setLocationFocused(false) }}><MapPin /><span>{place.placeName}<small>{Math.round(distanceM(currentLocation ?? location!, place))} m from your location</small></span></button>)}{!searching && query && !autoLocation && !matches.some(place => place.placeName.toLowerCase() === query) && <button type="button" onClick={() => setLocationFocused(false)}><PlusCircle /><span>Use “{placeName.trim()}”<small>Name this spot at {selectedPlace ? 'the selected location' : 'your location'}</small></span></button>}</div>}
+      </div>
+      <p className="location-caption">Choose a spot within 500 metres of your location.</p>
+      {!withinRange && location && <p className="inline-error" role="alert">This spot is too far away. Choose a closer location.</p>}
+      {category !== 'Events' && location && <LocationMap lat={location.lat} lng={location.lng} label={placeName || 'Selected location'} onPick={pickLocation} />}
       <fieldset><legend>What kind of spot?</legend><Categories value={category} onChange={value => { setCategory(value); if (value === 'Events' && kind === 'Video') { setKind('Text'); setFile(undefined) } }} /></fieldset>
-      {category === 'Events' && <fieldset className="event-schedule"><legend>When is it happening?</legend><p className="fine-print">Times are in {Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ')}. An event pops only here, between its start and end.</p><label className="field-label" htmlFor="event-start">Starts</label><input id="event-start" type="datetime-local" required value={startsAt} onChange={e => setStartsAt(e.target.value)} /><label className="field-label" htmlFor="event-end">Ends</label><input id="event-end" type="datetime-local" required min={startsAt} value={endsAt} onChange={e => setEndsAt(e.target.value)} />{endsAt && startsAt && endsAt <= startsAt && <p className="inline-error" role="alert">End must be after start.</p>}{location && <><p className="field-label">Event location</p><LocationMap lat={location.lat} lng={location.lng} label={placeName || 'Event venue'} onPick={point => { setEventVenue(point); setAutoLocation(false) }} /><p className="fine-print">Tap the map to move the pin. The demo dot stays where it is.</p></>}</fieldset>}
+      {category === 'Events' && <fieldset className="event-schedule"><legend>When is it happening?</legend><p className="fine-print">Times are in {Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_', ' ')}. An event pops only here, between its start and end.</p><label className="field-label" htmlFor="event-start">Starts</label><input id="event-start" type="datetime-local" required value={startsAt} onChange={e => setStartsAt(e.target.value)} /><label className="field-label" htmlFor="event-end">Ends</label><input id="event-end" type="datetime-local" required min={startsAt} value={endsAt} onChange={e => setEndsAt(e.target.value)} />{endsAt && startsAt && endsAt <= startsAt && <p className="inline-error" role="alert">End must be after start.</p>}{location && <><p className="field-label">Event location</p><LocationMap lat={location.lat} lng={location.lng} label={placeName || 'Event venue'} onPick={pickLocation} /><p className="fine-print">Tap the map to move the pin. Your location stays where it is.</p></>}</fieldset>}
       <div className="segmented" aria-label="Note format">{(['Text', 'Photo', 'Video'] as const).filter(value => category !== 'Events' || value !== 'Video').map(value => <button type="button" key={value} aria-pressed={kind === value} onClick={() => { setKind(value); setFile(undefined) }}>{value}</button>)}</div>
       {kind !== 'Text' && <label className="upload-area">{preview ? kind === 'Photo' ? <img src={preview} alt="Selected upload" /> : <video src={preview} muted playsInline /> : kind === 'Photo' ? <Camera /> : <Video />}<span>{file ? `${file.name} · change` : `Add a ${kind.toLowerCase()}`}</span><input type="file" aria-label={`Add a ${kind.toLowerCase()}`} accept={kind === 'Photo' ? 'image/*' : 'video/*'} onChange={e => setFile(e.target.files?.[0])} /><small>{kind === 'Video' ? 'Up to 15 seconds · ' : ''}20 MB max</small></label>}
       <label className="field-label" htmlFor="drop-title">{category === 'Events' ? 'Event name' : 'Give it a name'}</label><Input id="drop-title" required value={title} maxLength={100} onChange={e => setTitle(e.target.value)} placeholder="The little thing everyone walks past" />
       <label className="field-label" htmlFor="drop-text">What should someone know about this exact spot? <span>(optional)</span></label><Textarea id="drop-text" maxLength={2000} value={text} onChange={e => setText(e.target.value)} placeholder="Leave a little local knowledge…" rows={4} /><p className="character-count">{text.length}/2000</p>
       <fieldset><legend>Who can pop it</legend><p className="public-pill"><PlusCircle size={16} />Anyone walking by</p></fieldset>
       {category !== 'Events' && <fieldset><legend>Floats for</legend><div className="duration-options">{([['1w', '1 week'], ['1m', '1 month'], ['forever', 'Forever']] as const).map(([value, label]) => <button type="button" key={value} aria-pressed={floatsFor === value} onClick={() => setFloatsFor(value)}>{label}</button>)}</div></fieldset>}
-      <p className="eyebrow safety-caption">{demo ? 'Demo only · nothing is published' : 'Safety-checked before it goes live'}</p><Button type="submit" className="bubl-primary" loading={busy} disabled={!location || !title.trim() || !placeName.trim() || (category === 'Events' && (!title.trim() || !startsAt || !endsAt || endsAt <= startsAt))}>Release bubble</Button>
+      <p className="eyebrow safety-caption">{demo ? 'Demo only · nothing is published' : 'Safety-checked before it goes live'}</p><Button type="submit" className="bubl-primary" loading={busy} disabled={!withinRange || !title.trim() || !placeName.trim() || (category === 'Events' && (!title.trim() || !startsAt || !endsAt || endsAt <= startsAt))}>Release bubble</Button>
     </form>
   </section>
 }
