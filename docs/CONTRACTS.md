@@ -44,9 +44,9 @@ All of them require a signed-in user.
 | `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`. Refused for the bubble's own author |
 | `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` |
 | `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
-| `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
+| `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | **Deferred: not planned for now, don't build UI for it.** The type and a mock stay as a placeholder. If revived: server loads the bubble itself, only if the caller has popped it; cached per bubble and language |
 | `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |
-| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
+| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Checks run in order: input validation, a PII pre-check (emails, phone numbers, SSNs, card numbers; works even without Gemini), then Gemini moderation (hate speech, offensive language, swearing, PII such as private names or home addresses; images too). Rejected drops are never saved; `reasons` are safe to show the author. Empty title/category use Gemini's suggestions; Gemini also sets `language`. If Gemini is unreachable (no `GEMINI_API_KEY`, network error, 10 s timeout, error status) the bubble is saved with `moderation: 'unchecked'`; if Gemini answers but gives no usable verdict (likely its own safety filter), the drop is rejected. Text max 1000 chars, title max 60. `uploadId` is refused until `uploadMedia` exists; for video, send 1 to 2 client-extracted frames as `frameBase64` |
 | `myPopped` | Urvi | none | `PoppedItem[]` | You tab |
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` | `{ matched, chatId? }` | Only author and lover of that bubble, either direction. Optional note, max 280 chars. `matched` when the other already waved; the server then creates the pair's `Chat` (or reuses it) |
@@ -74,6 +74,14 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
 7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
+## Notifications
+
+In-app only for now (sound, vibration, a banner; a system notification too if the app is in the background and the user allowed it). Nothing arrives while the app is closed: that needs Web Push, not built.
+
+- **Your own events** (client): call `alert({ kind: 'pop', title: 'pop.', body: bubble.title, bubbleId })` from `@/bubl/lib/alerts` when a pop succeeds. It plays the pop sound. Walking mode already does this; the Walk screen's manual pop should too. "You drifted into a bubble" fires by itself.
+- **Other people's actions** (server): after the action succeeds, one line, e.g. `await notify(tools, authorId, loveNotice({ id: userId, name: await displayName(tools, userId) }, { id: bubbleId, placeName }))`. Helpers: `notify`/`displayName` in `src/actions/notify.ts`; `loveNotice`, `waveNotice`, `matchNotice`, `messageNotice` in `@/bubl/lib/notifications`. Rows go to the recipient's private `notifications` table; `notify` never throws and never notifies you about yourself.
+- **Mounting:** `<NotificationCenter />` is already in `src/pages/(app)/_layout.tsx`. Screens that need the list or an unread badge use `useNotifications()` (`notifications`, `unreadCount`, `markRead`, `markAllRead`). System notifications need `enableSystemNotifications()` from a tap (e.g. a settings toggle).
+
 ## Sign-in is P0
 
 Every server function needs a user identity (`canPop` records a `Pop` per user), so basic DeepSpace sign-in is part of the MVP (Urvi builds auth, Shreya the screen). Keep it to the fastest method DeepSpace offers so judges scanning the QR code can get in within seconds. The mock signs everyone in as a fake `me` user, so screens don't wait on it.
@@ -83,6 +91,7 @@ Every server function needs a user identity (`canPop` records a `Pop` per user),
 - `canPop` trusts client coordinates, so GPS can be spoofed. The server check keeps sealed content off the client; it doesn't stop a determined spoofer.
 - No rate limiting yet.
 - GPS/EXIF metadata stripping is a TODO for after the MVP.
+- The Gemini key lives in the DeepSpace secrets store (`npx deepspace secrets set GEMINI_API_KEY=...`), never in code or `.dev.vars`. Without it, drops still work but are saved `unchecked`.
 
 ## Seed data CSV
 

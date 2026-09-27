@@ -116,6 +116,10 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
    * an authenticated app owner/admin. deepspace dev/test set it locally.
    */
   ALLOW_DEBUG_ROUTES?: string
+  /** Gemini key for dropBubble moderation (`deepspace secrets set GEMINI_API_KEY=...`). Unset = drops saved unchecked. */
+  GEMINI_API_KEY?: string
+  /** Optional Gemini model override; defaults to gemini-3.5-flash-lite. */
+  GEMINI_MODEL?: string
 }
 
 export type AppContext = { Bindings: Env }

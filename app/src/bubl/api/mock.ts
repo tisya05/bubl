@@ -14,6 +14,8 @@ import type { Api, Bubble, BubblePreview, User, Chat, Message, Wave } from '../t
 import type { LibraryActions } from '../lib/libraryActions';
 import { loadProfile } from '../lib/localProfile';
 import { readDemoMedia, saveDemoMedia } from '../lib/demoMedia';
+import { findPii } from '../lib/moderation';
+import { checkPop, isExpired } from '../lib/pop';
 
 const initialProfile = loadProfile({ id: 'me', name: 'You' });
 const ME: User = { id: 'me', name: initialProfile.name, imageUrl: initialProfile.imageUrl };
@@ -157,8 +159,6 @@ const ok = <T>(data: T): Promise<ActionResult<T>> => {
   return Promise.resolve({ success: true, data });
 };
 
-const isExpired = (b: Bubble) => b.expiresAt !== undefined && Date.parse(b.expiresAt) < Date.now();
-
 const toPreview = ({ id, lat, lng, placeName, category, popRadiusM }: Bubble): BubblePreview => ({
   id, lat, lng, placeName, category, popRadiusM,
 });
@@ -167,20 +167,16 @@ export const mockApi: Api = {
   async nearbyBubbles({ lat, lng, radiusM }) {
     const radius = Math.min(radiusM, MAX_NEARBY_RADIUS_M);
     const nearby = bubbles.filter(
-      (b) => b.status === 'live' && !isExpired(b) && distanceM({ lat, lng }, b) <= radius,
+      (b) => b.status === 'live' && !isExpired(b.expiresAt) && distanceM({ lat, lng }, b) <= radius,
     );
     return ok(nearby.map(toPreview));
   },
 
   async canPop({ userLat, userLng, bubbleId }) {
-    const b = bubbles.find((x) => x.id === bubbleId && x.status === 'live');
+    const b = bubbles.find((x) => x.id === bubbleId);
     if (!b) return ok({ ok: false as const, reason: 'not_found' as const });
-    if (isExpired(b)) return ok({ ok: false as const, reason: 'expired' as const });
-
-    const d = distanceM({ lat: userLat, lng: userLng }, b);
-    if (d > b.popRadiusM) {
-      return ok({ ok: false as const, reason: 'too_far' as const, distanceM: Math.round(d) });
-    }
+    const check = checkPop(b, { lat: userLat, lng: userLng });
+    if (!check.ok) return ok(check);
     pops.add(`${ME.id}:${b.id}`);
     hiddenPops.delete(b.id);
     return ok({ ok: true as const, bubble: await withMedia(b), author: b.authorId === ME.id ? ME : AUTHORS[b.authorId] });
@@ -214,6 +210,8 @@ export const mockApi: Api = {
     return ok({ uploadId, mediaType });
   },
   async dropBubble(input) {
+    const pii = findPii(`${input.title ?? ''}\n${input.text}`);
+    if (pii.length > 0) return ok({ ok: false as const, reasons: pii });
     const b = bubble({
       id: `b-${newId()}`,
       authorId: ME.id,
@@ -236,7 +234,7 @@ export const mockApi: Api = {
     return ok(bubbles.filter(b => pops.has(`me:${b.id}`) && !hiddenPops.has(b.id)).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, poppedAt: CREATED, loved: loves.has(`me:${b.id}`) })));
   },
   async myDropped() {
-    return ok(bubbles.filter(b => b.authorId === ME.id).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, createdAt: b.createdAt, expiresAt: b.expiresAt, status: isExpired(b) ? 'expired' as const : 'floating' as const, popCount: 0 })));
+    return ok(bubbles.filter(b => b.authorId === ME.id).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, createdAt: b.createdAt, expiresAt: b.expiresAt, status: isExpired(b.expiresAt) ? 'expired' as const : 'floating' as const, popCount: 0 })));
   },
   async sendWave({ toUserId, bubbleId, note }) {
     const b = bubbles.find(b => b.id === bubbleId);

@@ -23,7 +23,7 @@ export interface Bubble {
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
-  moderation: 'passed' | 'unchecked';  // 'unchecked' = Grok failed, saved anyway
+  moderation: 'passed' | 'unchecked';  // 'unchecked' = Gemini unavailable, saved anyway
   poppedCount?: number;    // optional denormalized counts, returned after canPop
   lovedCount?: number;
 }
@@ -73,6 +73,23 @@ export interface Message {
   senderId: string;
   text: string;
   sentAt: string;
+}
+
+// ---- Notifications ----
+
+export type NotificationKind = 'love' | 'wave' | 'match' | 'message';
+
+// A row in the recipient's private `notifications` table, delivered live while the app is open.
+export interface BublNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  bubbleId?: string;
+  chatId?: string;
+  fromUserId?: string;
+  read: boolean;
+  createdAt: string;
 }
 
 // ---- List items for the You and Chats tabs ----

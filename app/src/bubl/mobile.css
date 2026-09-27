@@ -236,6 +236,7 @@
 .collection-tag { display: inline-block; background: #ffffffbb; padding: 3px 8px; border-radius: 20px; font-size: 10px; }
 .next-bubble { min-height: 145px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed #aaa18f; border-radius: 24px; padding: 16px; }
 .next-bubble .eyebrow { font-size: 9px; }
+.find-next-bubble { display: flex; margin-inline: auto; }
 .bubl-empty { text-align: center; padding: 48px 18px 28px; color: var(--bubl-muted); }
 .empty-icon { display: grid; place-items: center; margin: 0 auto 18px; width: 78px; height: 78px; background: #cfe0f0; border-radius: 50%; color: var(--bubl-navy); }
 .empty-icon svg { width: 34px; height: 34px; }
@@ -397,9 +398,15 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .location-map figcaption a { white-space: nowrap; font-size: 12px; text-decoration: underline; }
 .snapshot-attribution { display: block; background: var(--bubl-card); font-size: 9px; color: var(--bubl-muted); padding: 0 14px 9px; }
 .map-unavailable { position: absolute; left: 8px; bottom: 8px; padding: 4px 8px; background: white; font-size: 11px; border-radius: 8px; }
-.event-schedule { background: #f8e7ef; padding: 16px; border-radius: 20px; border: 1px solid #ecc3d6; }
+.event-schedule { min-inline-size: 0; min-width: 0; max-width: 100%; background: #f8e7ef; padding: 16px; border-radius: 20px; border: 1px solid #ecc3d6; }
 .event-schedule legend { padding: 0 6px; color: #9E3F6A; }
-.event-schedule input { width: 100%; min-width: 0; max-width: 100%; }
+.event-schedule input { display: block; box-sizing: border-box; width: 88%; min-width: 0; max-width: 260px; padding: 8px 6px; font-size: 16px; }
+.event-schedule input::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.event-card-foot { flex-wrap: wrap; }
+.event-delete { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; color: #a43e64; font-size: 12px; }
+.event-delete-confirm { margin-top: 10px; padding: 12px; border-radius: 14px; background: #f8e7ef; font-size: 14px; }
+.event-delete-confirm > div { display: flex; gap: 20px; }
+.event-delete-confirm button { min-height: 44px; font-weight: 700; }
 .event-schedule .fine-print { text-align: left; font-size: 12px; }
 .events-screen { background: #f3efe8; }
 .events-heading { display: flex; gap: 12px; align-items: center; }
