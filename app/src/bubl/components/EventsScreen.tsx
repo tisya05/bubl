@@ -16,10 +16,10 @@ export function EventWhen({ event }: { event: EventSchedule }) {
   return <div className="event-when"><span><CalendarDays size={16} />{date(event.startsAt)}{!sameDay && ` – ${date(event.endsAt)}`}</span><span><Clock3 size={16} />{time(event.startsAt)} – {time(event.endsAt)}<small>{event.timeZone.replaceAll('_', ' ')}</small></span></div>
 }
 
-function EventCard({ item, now }: { item: EventItem; now: number }) {
+export function EventCard({ item, now, variant = 'feed' }: { item: EventItem; now: number; variant?: 'feed' | 'note' }) {
   const { open, openWithPop, go, user, api } = useMobile()
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(variant === 'note')
   const location = useUserLocation()
   const { busy, run } = useOperation()
   const [image, setImage] = useState<string>()
@@ -30,8 +30,9 @@ function EventCard({ item, now }: { item: EventItem; now: number }) {
   }, [item.mediaUrl])
   const unavailable = eventAvailability(item, location, now)
   const canDeleteOwn = item.authorId === user.id
+  const onNote = variant === 'note'
   return (
-    <article className="event-card">
+    <article className={`event-card ${onNote ? 'event-card-note' : ''}`}>
       <div className="event-cover">
         <img src={image ?? '/bubl/event-social.svg'} alt={item.title} loading="lazy" onError={event => { event.currentTarget.src = '/bubl/event-social.svg' }} />
         <span className="event-cover-label"><BalloonsIcon />{now >= Date.parse(item.event.endsAt) ? 'Ended' : now < Date.parse(item.event.startsAt) ? 'Coming up' : 'Happening now'}</span>
@@ -43,16 +44,18 @@ function EventCard({ item, now }: { item: EventItem; now: number }) {
         {item.text.length > 110 && <button className="event-more" type="button" onClick={() => setExpanded(value => !value)}>{expanded ? 'Show less' : 'Show more…'}</button>}
         <p className="event-location"><MapPin size={16} />{item.placeName}<span className="event-price">{item.price}</span></p>
         <EventWhen event={item.event} />
-        <div className="event-card-actions">
+        <div className={`event-card-actions ${onNote ? 'event-card-actions-note' : ''}`}>
           <Button className="bubl-primary" aria-pressed={item.going} onClick={() => run(async () => demoEvents.going(item.id))}>{item.going ? <Check /> : <Plus />}{item.going ? 'Going' : 'I’m going'}</Button>
-          <Button className="bubl-outline" loading={busy} disabled={!item.poppedAt && !!unavailable} onClick={() => run(async () => {
+          {!onNote && <Button className="bubl-outline" loading={busy} disabled={!item.poppedAt && !!unavailable} onClick={() => run(async () => {
             if (item.poppedAt) { open({ ...await demoEvents.saved(item.id, user.id), fromEvents: true }); return }
             await openWithPop({ ...await demoEvents.pop(item.id, location), fromEvents: true })
-          })}>{item.poppedAt ? 'Open again' : 'Pop event'}</Button>
+          })}>{item.poppedAt ? 'Open again' : 'Pop event'}</Button>}
         </div>
-        <p className="event-pop-rule">{item.poppedAt ? '✓ Already popped' : unavailable ?? 'You’re here, and it’s on. Pop to discover it.'}</p>
+        {!onNote && <p className="event-pop-rule">{item.poppedAt ? '✓ Already popped' : unavailable ?? 'You’re here, and it’s on. Pop to discover it.'}</p>}
+        {onNote && <p className="event-pop-rule">✓ Popped · heart or mark going — it syncs with Events</p>}
         <div className="event-card-foot">
-          <button className="text-button" onClick={() => go('walk', item.id)}>Find it on the map</button>
+          {!onNote && <button className="text-button" onClick={() => go('walk', item.id)}>Find it on the map</button>}
+          {onNote && <button className="text-button" onClick={() => go('events')}>See in Events</button>}
           <ReportButton id={item.id} label={item.title} />
           <button className="event-delete" aria-label={`Delete ${item.title}`} onClick={() => setConfirmDelete(true)}><Trash2 size={16} />Delete</button>
         </div>
