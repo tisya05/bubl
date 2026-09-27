@@ -1,5 +1,18 @@
 import { useLayoutEffect, useRef } from 'react'
 
+// iOS 26 Home Screen apps can lay the page out short of the screen's bottom edge (the
+// home-indicator strip), leaving empty page below the app. Returns that strip's height,
+// or 0 anywhere else (Safari tabs, Android, older iOS, no gap), so nothing else changes.
+function homeScreenBottomGap(): number {
+  const iPhone = /iPhone|iPad|iPod/.test(navigator.userAgent)
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
+  if (!iPhone || !standalone) return 0
+  const portrait = innerHeight >= innerWidth
+  const screenHeight = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height)
+  const gap = Math.round(screenHeight - innerHeight)
+  return gap > 0 && gap <= 80 ? gap : 0
+}
+
 /** Follow the visible viewport, including Safari's keyboard-induced viewport pan. */
 export function useAppViewport() {
   const ref = useRef<HTMLElement>(null)
@@ -16,12 +29,15 @@ export function useAppViewport() {
         const editing = document.activeElement?.matches('input, textarea, [contenteditable="true"]')
         const keyboardOpen = normalScale && editing && viewport && (innerHeight - viewport.height > 80 || viewport.offsetTop > 0)
         if (!keyboardOpen) {
-          // screen.height includes space iOS may not allow this page to draw in.
+          // Fill the whole screen; bottom bars pad themselves by --app-bottom-gap (mobile.css).
+          const gap = homeScreenBottomGap()
           ref.current.style.height = 'auto'
           ref.current.style.top = '0px'
-          ref.current.style.bottom = '0px'
+          ref.current.style.bottom = `${-gap}px`
+          ref.current.style.setProperty('--app-bottom-gap', `${gap}px`)
           return
         }
+        ref.current.style.setProperty('--app-bottom-gap', '0px')
         ref.current.style.bottom = 'auto'
         ref.current.style.height = `${normalScale ? viewport?.height ?? innerHeight : innerHeight}px`
         ref.current.style.top = `${normalScale ? viewport?.offsetTop ?? 0 : 0}px`

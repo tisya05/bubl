@@ -60,6 +60,12 @@ test('walking voice pops a bubble you walk into and reads it, without opening it
   const page = dev.page
   await page.goto(`/home?bubble=${OTHER.id}`)
   await expect(page.locator('.walk-screen')).toBeVisible({ timeout: 20_000 })
+  // Start-up check: notifications aren't allowed in this browser, so bubl asks (with a real Allow button).
+  const sheet = page.getByRole('dialog', { name: 'bubl works best with these on' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'Allow' })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Not now' }).click()
+  await expect(sheet).toBeHidden()
   await standAt(page, SPOT.lat + 150 / 111_195, SPOT.lng)
   await expect(page.getByText(/m away · Amsterdam & 131st St/)).toBeVisible({ timeout: 15_000 })
 
