@@ -43,6 +43,7 @@ export const resetDemo: ActionHandler<Env> = async ({ userId, tools, env }) => {
   try {
     const counts = {
       messages: await removeAll(tools, 'messages'),
+      chatReads: await removeAll(tools, 'chat_reads'),
       chats: await removeAll(tools, 'chats'),
       waves: await removeAll(tools, 'waves'),
       pops: await removeAll(tools, 'pops'),
