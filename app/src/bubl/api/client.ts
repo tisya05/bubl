@@ -4,7 +4,8 @@
 
 import { getAuthToken } from 'deepspace';
 import type { ActionResult } from 'deepspace/worker';
-import type { Api } from '../types';
+import type { Api, OpenPoppedResult } from '../types';
+import type { LibraryActions } from '../lib/libraryActions';
 import { mockApi } from './mock';
 import { preparePhoto } from './prepare-photo';
 
@@ -53,3 +54,17 @@ const realApi: Api = {
 };
 
 export const api: Api = import.meta.env.VITE_USE_MOCK === 'true' ? mockApi : realApi;
+
+async function unwrap<T>(res: Promise<ActionResult<T>>): Promise<T> {
+  const r = await res;
+  if (!r.success) throw new Error(r.error || 'Something went wrong');
+  return r.data as T;
+}
+
+// You-tab stamps on the real backend: open, remove from your list, delete your own drop.
+export const realLibrary: LibraryActions = {
+  getSavedBubble: (bubbleId) => unwrap(callAction<OpenPoppedResult>('openPopped', { bubbleId })),
+  removePopped: async (bubbleId) => { await unwrap(callAction('removePopped', { bubbleId })); },
+  deleteDropped: async (bubbleId) => { await unwrap(callAction('deleteDropped', { bubbleId })); },
+  updateProfile: () => {},
+};

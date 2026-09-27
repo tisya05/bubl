@@ -6,7 +6,7 @@ export interface LibraryActions {
   getSavedBubble(id: string): Promise<{ bubble: Bubble; author: User; loved: boolean }>
   removePopped(id: string): Promise<void>
   deleteDropped(id: string): Promise<void>
-  deleteChat(id: string): Promise<void>
+  deleteChat?(id: string): Promise<void>
   updateProfile(user: User): void
   simulateWaveBack?(authorId: string, bubbleId: string): void
 }
