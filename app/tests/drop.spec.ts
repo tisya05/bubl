@@ -3,8 +3,11 @@
  * Gemini's own verdicts aren't asserted here: without GEMINI_API_KEY the drop is
  * saved as 'unchecked', with it as 'passed'. Needs the Dev test account.
  */
+import { readFileSync } from 'node:fs'
 import { test, expect, loadAllTestAccounts, type MultiplayerUser } from 'deepspace/testing'
 import type { APIRequestContext } from '@playwright/test'
+
+const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url))
 
 test.skip(
   !loadAllTestAccounts().some((account) => account.name === 'Dev'),
@@ -153,4 +156,49 @@ test('a photo drop: upload, drop, sealed until popped, then served', async ({ us
   const served = await getMedia(samToken)
   expect(served.status()).toBe(200)
   expect(served.headers()['content-type']).toBe('image/jpeg')
+})
+
+async function uploadVoiceNote(request: APIRequestContext, token: string, file: string): Promise<string> {
+  const res = await request.post('/api/media/upload', {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: { file: { name: file, mimeType: 'audio/mp4', buffer: fixture(file) } },
+  })
+  const body = (await res.json()) as { success: boolean; data: { uploadId: string } }
+  expect(body).toMatchObject({ success: true, data: { mediaType: 'audio' } })
+  return body.data.uploadId
+}
+
+test('a voice-note drop with no text: sealed until popped, then speak plays the recording', async ({ users }) => {
+  test.skip(!loadAllTestAccounts().some((a) => a.name === 'Sam'), 'Needs the Sam test account')
+  const [dev, sam] = await users(['Dev', 'Sam'])
+  const [devToken, samToken] = await Promise.all([tokenFor(dev), tokenFor(sam)])
+
+  const uploadId = await uploadVoiceNote(dev.page.request, devToken, 'voice-note.m4a')
+  const res = await callAction(dev.page.request, 'dropBubble', devToken, { ...base, uploadId })
+  const body = (await res.json()) as { success: boolean; data: { ok: boolean; bubble: { id: string; mediaUrl: string; title: string } } }
+  expect(body).toMatchObject({ success: true, data: { ok: true, bubble: { mediaUrl: `/api/media/${uploadId}`, mediaType: 'audio', text: '' } } })
+  expect(body.data.bubble.title.length).toBeGreaterThan(0)
+  const { id: bubbleId, mediaUrl } = body.data.bubble
+
+  expect(await (await callAction(sam.page.request, 'speak', samToken, { bubbleId })).json()).toMatchObject({ success: false })
+  const pop = await callAction(sam.page.request, 'canPop', samToken, { userLat: LERNER.lat, userLng: LERNER.lng, bubbleId })
+  expect(await pop.json()).toMatchObject({ success: true, data: { ok: true, bubble: { mediaUrl, mediaType: 'audio' } } })
+
+  const spoken = await callAction(sam.page.request, 'speak', samToken, { bubbleId })
+  expect(await spoken.json()).toMatchObject({ success: true, data: { audioUrl: mediaUrl } })
+  const served = await sam.page.request.get(mediaUrl, { headers: { Authorization: `Bearer ${samToken}` } })
+  expect(served.status()).toBe(200)
+  expect(served.headers()['content-type']).toBe('audio/mp4')
+})
+
+test('with Gemini configured, a voice note full of swearing is rejected and never saved', async ({ users }) => {
+  test.skip(!process.env.GEMINI_API_KEY, 'Needs GEMINI_API_KEY in the test environment')
+  const [dev] = await users(['Dev'])
+  const token = await tokenFor(dev)
+  const uploadId = await uploadVoiceNote(dev.page.request, token, 'voice-note-profanity.m4a')
+  const res = await callAction(dev.page.request, 'dropBubble', token, { ...base, uploadId })
+  const body = (await res.json()) as { success: boolean; data: { ok: boolean; reasons: string[]; bubble?: unknown } }
+  expect(body).toMatchObject({ success: true, data: { ok: false } })
+  expect(body.data.reasons.length).toBeGreaterThan(0)
+  expect(body.data.bubble).toBeUndefined()
 })

@@ -42,6 +42,10 @@ const MEDIA_TYPES: Record<string, string> = {
   '.heif': 'image/heif',
   '.mp4': 'video/mp4',
   '.mov': 'video/quicktime',
+  '.m4a': 'audio/mp4',
+  '.mp3': 'audio/mpeg',
+  '.webm': 'audio/webm',
+  '.ogg': 'audio/ogg',
 }
 const CONVERT_OVER_BYTES = 4 * 1024 * 1024
 const extOf = (file: string) => file.slice(file.lastIndexOf('.')).toLowerCase()
@@ -163,7 +167,7 @@ export function toSeedBubbles(csv: string, mediaDir: string): { bubbles: SeedBub
     }
     if (!authorId) rowErrors.push(`author must be one of ${Object.keys(AUTHORS).join(', ')}`)
     if (row.media_file) {
-      if (!MEDIA_TYPES[extOf(row.media_file)]) rowErrors.push('media_file must be .jpg, .png, .webp, .heic, .mp4 or .mov')
+      if (!MEDIA_TYPES[extOf(row.media_file)]) rowErrors.push('media_file must be .jpg, .png, .webp, .heic, .mp4, .mov, .m4a, .mp3, .webm or .ogg')
       else if (!existsSync(join(mediaDir, row.media_file))) rowErrors.push(`media_file ${row.media_file} is not in seed/media/`)
       else if (isHeic(row.media_file) && process.platform !== 'darwin') rowErrors.push('HEIC files can only be converted on a Mac')
     }
@@ -208,7 +212,7 @@ async function uploadMedia(target: string, token: string, file: string) {
   const res = await fetch(`${target}/api/media/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form })
   const body = (await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))) as {
     success: boolean
-    data?: { uploadId: string; mediaType: 'photo' | 'video' }
+    data?: { uploadId: string; mediaType: 'photo' | 'video' | 'audio' }
     error?: string
   }
   if (!body.success || !body.data) throw new Error(`${basename(file)}: ${body.error ?? 'upload failed'}`)
@@ -230,7 +234,7 @@ async function importSeeds(target: string, dryRun: boolean) {
 
   const token = ownerToken()
   const cacheFile = join(SEED_DIR, `.uploads.${new URL(target).host.replace(/[^a-z0-9.-]/gi, '_')}.json`)
-  const cache: Record<string, { uploadId: string; mediaType: 'photo' | 'video' }> = existsSync(cacheFile)
+  const cache: Record<string, { uploadId: string; mediaType: 'photo' | 'video' | 'audio' }> = existsSync(cacheFile)
     ? JSON.parse(readFileSync(cacheFile, 'utf8'))
     : {}
 

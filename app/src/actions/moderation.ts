@@ -76,7 +76,7 @@ export async function checkBubble(
   // A photo or video Gemini can't take can't be checked, so it can't go live.
   if (mediaBlocks.some((b) => b === null)) return UNVERIFIABLE
   const content = [{ type: 'text', text: noteText }, ...mediaBlocks]
-  const hasVideo = mediaBlocks.some((b) => b?.type === 'video')
+  const hasVideo = mediaBlocks.some((b) => b?.type === 'video' || b?.type === 'audio')
 
   const request = JSON.stringify({
     model: env.GEMINI_MODEL || DEFAULT_MODEL,

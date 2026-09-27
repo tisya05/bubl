@@ -13,7 +13,7 @@ import { expiresAtFor, fallbackTitle, findPii } from '../bubl/lib/moderation'
 import { CATEGORIES, type Category, type DropBubbleInput, type DropBubbleResult } from '../bubl/types'
 import { saveBubble } from './bubbles'
 import { checkBubble } from './moderation'
-import { mediaForDrop } from '../server/media-routes'
+import { mediaForDrop, readStoredMediaBase64 } from '../server/media-routes'
 
 const MAX_TEXT_CHARS = 1000
 const MAX_TITLE_CHARS = 60
@@ -28,7 +28,7 @@ function parseInput(params: Record<string, unknown>): DropBubbleInput | string {
   const { title, text, category, lat, lng, placeName, uploadId, frameBase64, floatsFor } = params
 
   if (text !== undefined && typeof text !== 'string') return 'text must be a string'
-  if (!nonEmptyString(text) && !nonEmptyString(uploadId)) return 'text is required when there is no photo or video'
+  if (!nonEmptyString(text) && !nonEmptyString(uploadId)) return 'text is required when there is no photo, video or voice note'
   if (typeof text === 'string' && text.length > MAX_TEXT_CHARS) return `text must be at most ${MAX_TEXT_CHARS} characters`
   if (title !== undefined && (typeof title !== 'string' || title.length > MAX_TITLE_CHARS)) {
     return `title must be at most ${MAX_TITLE_CHARS} characters`
@@ -72,10 +72,19 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
   const media = input.uploadId ? await mediaForDrop(tools, userId, input.uploadId) : undefined
   if (media && !media.ok) return { success: false, error: media.error }
 
+  const frames = input.frameBase64?.map((base64) => ({ mimeType: base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg', base64 }))
+  // A voice note has no frames: Gemini listens to the stored file itself.
+  let voiceNote: { mimeType: string; base64: string } | undefined
+  if (media?.ok && media.mediaType === 'audio') {
+    const base64 = await readStoredMediaBase64(env, media.storageKey)
+    if (!base64) return { success: false, error: 'Could not read the voice note, try again' }
+    voiceNote = { mimeType: media.contentType, base64 }
+  }
+
   const verdict = await checkBubble(env, {
     title: input.title,
     text: input.text,
-    media: input.frameBase64?.map((base64) => ({ mimeType: base64.startsWith('data:image/png') ? 'image/png' : 'image/jpeg', base64 })),
+    media: [...(frames ?? []), ...(voiceNote ? [voiceNote] : [])],
   })
   if (verdict && !verdict.allowed) return rejected(verdict.reasons)
 
@@ -85,7 +94,7 @@ export const dropBubble: ActionHandler<Env> = async ({ userId, params, tools, en
     lng: input.lng,
     placeName: input.placeName,
     category: input.category ?? verdict?.suggestedCategory ?? 'Misc',
-    title: input.title ?? (verdict?.suggestedTitle || fallbackTitle(input.text) || `a ${media?.ok ? media.mediaType : 'note'}`),
+    title: input.title ?? (verdict?.suggestedTitle || fallbackTitle(input.text) || (media?.ok ? { photo: 'a photo', video: 'a video', audio: 'a voice note' }[media.mediaType] : 'a note')),
     text: input.text,
     ...(media?.ok ? { mediaUrl: media.mediaUrl, mediaType: media.mediaType } : {}),
     language: verdict?.language ?? 'en',

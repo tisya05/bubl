@@ -39,6 +39,10 @@ export const speak: ActionHandler<Env> = async ({ userId, params, tools }) => {
     return { success: false, error: 'Pop this bubble first' }
   }
 
+  // A voice-note bubble plays the author's own recording instead of a generated voice.
+  if (bubble.mediaType === 'audio' && bubble.mediaUrl) {
+    return { success: true, data: { audioUrl: bubble.mediaUrl } satisfies SpeakResult }
+  }
   if (bubble.audioUrl) return { success: true, data: { audioUrl: bubble.audioUrl } satisfies SpeakResult }
 
   const tts = await tools.integration<TtsResult>('elevenlabs/generate-speech', {

@@ -16,7 +16,7 @@ export interface Bubble {
   title: string;           // sealed
   text: string;            // sealed: only returned after canPop passes
   mediaUrl?: string;       // sealed; unguessable URL, GPS metadata stripped
-  mediaType?: 'photo' | 'video';
+  mediaType?: 'photo' | 'video' | 'audio'; // audio = the author's voice note (max 30 s)
   language: string;        // e.g. 'en', 'es'
   audioUrl?: string;       // cached ElevenLabs audio
   popRadiusM: number;      // 15 by default, 60 for the Lerner demo bubble

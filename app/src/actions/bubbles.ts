@@ -83,8 +83,8 @@ function toSeedBubble(row: SeedRow, index: number): (BubbleRow & { id?: string }
   if (row.popRadiusM !== undefined && (!isFiniteNumber(row.popRadiusM) || row.popRadiusM <= 0)) {
     return `${where}: popRadiusM is invalid`
   }
-  if (row.mediaType !== undefined && row.mediaType !== 'photo' && row.mediaType !== 'video') {
-    return `${where}: mediaType must be photo or video`
+  if (row.mediaType !== undefined && !['photo', 'video', 'audio'].includes(row.mediaType)) {
+    return `${where}: mediaType must be photo, video or audio`
   }
 
   return {

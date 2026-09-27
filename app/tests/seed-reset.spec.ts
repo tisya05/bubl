@@ -23,7 +23,10 @@ const box = (type: string, payload: number[]) => [...u32(payload.length + 8), ..
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe1, 0, 12, ...ascii('Exif\0\0GPS!'), 0xff, 0xda, 0, 2, 1, 2, 0xff, 0xd9])
 const MP4 = Buffer.from([
   ...box('ftyp', ascii('isom')),
-  ...box('moov', box('mvhd', [0, 0, 0, 0, ...u32(0), ...u32(0), ...u32(1000), ...u32(8000)])),
+  ...box('moov', [
+    ...box('mvhd', [0, 0, 0, 0, ...u32(0), ...u32(0), ...u32(1000), ...u32(8000)]),
+    ...box('trak', box('mdia', box('hdlr', [0, 0, 0, 0, ...u32(0), ...ascii('vide'), ...u32(0)]))),
+  ]),
   ...box('mdat', [1, 2, 3]),
 ])
 

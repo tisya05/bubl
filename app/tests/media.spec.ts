@@ -40,8 +40,11 @@ function jpegWithGps(): Buffer {
 function mp4(seconds: number): Buffer {
   const box = (type: string, payload: number[]) => [...u32(payload.length + 8), ...ascii(type), ...payload]
   const mvhd = box('mvhd', [0, 0, 0, 0, ...u32(0), ...u32(0), ...u32(1000), ...u32(seconds * 1000)])
-  return Buffer.from([...box('ftyp', ascii('isom')), ...box('moov', [...mvhd, ...box('udta', ascii(SECRET))]), ...box('mdat', [1, 2, 3])])
+  const trak = box('trak', box('mdia', box('hdlr', [0, 0, 0, 0, ...u32(0), ...ascii('vide'), ...u32(0)])))
+  return Buffer.from([...box('ftyp', ascii('isom')), ...box('moov', [...mvhd, ...trak, ...box('udta', ascii(SECRET))]), ...box('mdat', [1, 2, 3])])
 }
+
+const VOICE_NOTE = readFileSync(fileURLToPath(new URL('./fixtures/voice-note.m4a', import.meta.url)))
 
 function upload(request: APIRequestContext, token: string | undefined, name: string, mimeType: string, buffer: Buffer) {
   return request.post('/api/media/upload', {
@@ -77,6 +80,22 @@ test('media upload: sign-in, type and length checks, metadata stripped', async (
   const bytes = await res.body()
   expect(bytes.toString('latin1')).not.toContain(SECRET)
   expect(bytes.toString('latin1')).not.toContain('Exif')
+
+  const voice = await (await upload(request, token, 'voice.m4a', 'audio/mp4', VOICE_NOTE)).json()
+  expect(voice).toMatchObject({ success: true, data: { mediaType: 'audio' } })
+  const voiceRes = await getMedia(request, token, `/api/media/${voice.data.uploadId}`)
+  expect(voiceRes.headers()['content-type']).toBe('audio/mp4')
+  expect((await voiceRes.body()).length).toBe(VOICE_NOTE.length)
+
+  const soundOnly = (seconds: number) => Buffer.from(mp4(seconds).toString('latin1').replace('vide', 'soun'), 'latin1')
+  expect(await (await upload(request, token, 'long.m4a', 'audio/mp4', soundOnly(40))).json()).toMatchObject({
+    success: false,
+    error: expect.stringContaining('30 seconds'),
+  })
+  expect(await (await upload(request, token, 'ok.m4a', 'audio/mp4', soundOnly(25))).json()).toMatchObject({
+    success: true,
+    data: { mediaType: 'audio' },
+  })
 })
 
 test('media is served only to the uploader, the author, and people who popped the bubble', async ({ users, request }) => {

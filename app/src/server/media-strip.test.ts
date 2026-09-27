@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectMedia, stripJpeg, stripPng, stripVideo, stripWebp } from './media-strip'
+import { detectMedia, oggDurationS, stripJpeg, stripMp3, stripPng, stripVideo, stripWebp } from './media-strip'
 
 const bytes = (...parts: (number[] | string)[]) =>
   new Uint8Array(parts.flatMap((p) => (typeof p === 'string' ? [...p].map((c) => c.charCodeAt(0)) : p)))
@@ -14,7 +14,34 @@ describe('detectMedia', () => {
     expect(detectMedia(bytes('RIFF', [0, 0, 0, 0], 'WEBP'))).toMatchObject({ contentType: 'image/webp' })
     expect(detectMedia(bytes(u32(16), 'ftypisom', u32(0)))).toMatchObject({ mediaType: 'video', contentType: 'video/mp4' })
     expect(detectMedia(bytes(u32(16), 'ftypqt  ', u32(0)))).toMatchObject({ contentType: 'video/quicktime' })
+    expect(detectMedia(bytes([0x1a, 0x45, 0xdf, 0xa3]))).toEqual({ mediaType: 'audio', contentType: 'audio/webm' })
+    expect(detectMedia(bytes('OggS', [0]))).toEqual({ mediaType: 'audio', contentType: 'audio/ogg' })
+    expect(detectMedia(bytes('ID3', [4, 0]))).toEqual({ mediaType: 'audio', contentType: 'audio/mpeg' })
+    expect(detectMedia(bytes([0xff, 0xfb, 0x90]))).toMatchObject({ contentType: 'audio/mpeg' })
     expect(detectMedia(bytes('<svg>'))).toBeUndefined()
+  })
+})
+
+describe('stripMp3', () => {
+  it('drops the ID3v2 and ID3v1 tags and keeps the audio frames', () => {
+    const id3v2 = bytes('ID3', [4, 0, 0, 0, 0, 0, 10], 'GPS+40.806')
+    const frames = bytes([0xff, 0xfb, 0x90, 0x00, 1, 2, 3])
+    const id3v1 = bytes('TAG', 'x'.repeat(125))
+    const out = stripMp3(new Uint8Array([...id3v2, ...frames, ...id3v1]))
+    expect([...out]).toEqual([...frames])
+  })
+})
+
+describe('oggDurationS', () => {
+  it('reads an Opus recording length from the last page', () => {
+    const page = (granule: number, payload: number[]) => {
+      const g = new Uint8Array(8)
+      new DataView(g.buffer).setBigUint64(0, BigInt(granule), true)
+      return [...bytes('OggS', [0, 0]), ...g, ...new Array(12).fill(0), 1, payload.length, ...payload]
+    }
+    const ogg = new Uint8Array([...page(0, [...bytes('OpusHead', [1, 1])]), ...page(48000 * 12, [7, 7])])
+    expect(oggDurationS(ogg)).toBe(12)
+    expect(() => oggDurationS(bytes('OggS', new Array(40).fill(0)))).toThrow()
   })
 })
 
@@ -60,19 +87,30 @@ describe('stripWebp', () => {
 describe('stripVideo', () => {
   const box = (type: string, payload: number[]) => [...u32(payload.length + 8), ...[...type].map((c) => c.charCodeAt(0)), ...payload]
   const mvhd = (timescale: number, duration: number) => box('mvhd', [0, 0, 0, 0, ...u32(0), ...u32(0), ...u32(timescale), ...u32(duration)])
-  const video = (seconds: number) =>
+  const hdlr = (handler: string) => box('hdlr', [0, 0, 0, 0, ...u32(0), ...[...handler].map((c) => c.charCodeAt(0)), ...u32(0)])
+  const video = (seconds: number, handler = 'vide') =>
     new Uint8Array([
       ...box('ftyp', [...'isom'].map((c) => c.charCodeAt(0))),
-      ...box('moov', [...mvhd(1000, seconds * 1000), ...box('udta', box('©xyz', [...'+40.8-073.9'].map((c) => c.charCodeAt(0))))]),
+      ...box('moov', [
+        ...mvhd(1000, seconds * 1000),
+        ...box('trak', box('mdia', hdlr(handler))),
+        ...box('udta', box('©xyz', [...'+40.8-073.9'].map((c) => c.charCodeAt(0)))),
+      ]),
       ...box('mdat', [9, 9, 9]),
     ])
 
   it('blanks user data (GPS) without changing the size, and reads the duration', () => {
     const input = video(12)
-    const { bytes: out, durationS } = stripVideo(input)
+    const { bytes: out, durationS, hasVideoTrack } = stripVideo(input)
     expect(durationS).toBe(12)
+    expect(hasVideoTrack).toBe(true)
     expect(out.length).toBe(input.length)
     expect(has(out, 'udta') || has(out, '+40.8')).toBe(false)
     expect(has(out, 'mdat')).toBe(true)
   })
+
+  it('reports a file with only a sound track as audio-only', () => {
+    expect(stripVideo(video(20, 'soun')).hasVideoTrack).toBe(false)
+  })
+
 })

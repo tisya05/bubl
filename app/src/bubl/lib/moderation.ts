@@ -49,7 +49,7 @@ export interface ModerationVerdict {
 }
 
 export const MODERATION_INSTRUCTIONS = `You moderate notes that locals pin to real places in New York City in an app called bubl.
-Anyone nearby can read an approved note, so reject a note (allowed: false) if the text, any image, or any video (what it shows AND anything said or heard in it) contains:
+Anyone nearby can read an approved note, so reject a note (allowed: false) if the text, any image, any video (what it shows AND anything said or heard in it), or any voice note (anything said or heard in it) contains:
 - hate speech: attacks or slurs targeting people for race, ethnicity, religion, gender, sexual orientation, disability, or similar
 - offensive language: harassment, threats, insults aimed at a person or group, sexual content, or promotion of violence or self-harm
 - swear words or profanity, even mild or casual (the app is for all ages)
@@ -103,13 +103,24 @@ export interface ModerationMedia {
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 // Gemini's names for video types; iPhone .mov files arrive as video/quicktime.
 const VIDEO_TYPES: Record<string, string> = { 'video/mp4': 'video/mp4', 'video/quicktime': 'video/mov', 'video/mov': 'video/mov', 'video/webm': 'video/webm' };
+// Gemini's names for voice-note types; Safari records audio/mp4 (M4A).
+const AUDIO_TYPES: Record<string, string> = {
+  'audio/mp4': 'audio/m4a',
+  'audio/m4a': 'audio/m4a',
+  'audio/webm': 'audio/webm',
+  'audio/ogg': 'audio/ogg',
+  'audio/mpeg': 'audio/mp3',
+  'audio/mp3': 'audio/mp3',
+};
 
-/** A Gemini Interactions content block for a photo or video, or null if the type isn't supported. */
-export function mediaContentBlock(media: ModerationMedia): { type: 'image' | 'video'; data: string; mime_type: string } | null {
+/** A Gemini Interactions content block for a photo, video or voice note, or null if the type isn't supported. */
+export function mediaContentBlock(media: ModerationMedia): { type: 'image' | 'video' | 'audio'; data: string; mime_type: string } | null {
   const data = media.base64.replace(/^data:[^;]+;base64,/, '');
   if (IMAGE_TYPES.has(media.mimeType)) return { type: 'image', data, mime_type: media.mimeType };
   const video = VIDEO_TYPES[media.mimeType];
-  return video ? { type: 'video', data, mime_type: video } : null;
+  if (video) return { type: 'video', data, mime_type: video };
+  const audio = AUDIO_TYPES[media.mimeType];
+  return audio ? { type: 'audio', data, mime_type: audio } : null;
 }
 
 // ---- Drop helpers ----

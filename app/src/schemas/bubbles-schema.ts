@@ -34,7 +34,7 @@ export const bubblesSchema: CollectionSchema = {
     { name: 'title', storage: 'text', interpretation: 'plain', required: true },
     { name: 'text', storage: 'text', interpretation: 'plain' },
     { name: 'mediaUrl', storage: 'text', interpretation: 'plain' },
-    { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video'] } },
+    { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video', 'audio'] } },
     { name: 'language', storage: 'text', interpretation: 'plain', required: true },
     { name: 'audioUrl', storage: 'text', interpretation: 'plain' },
     { name: 'popRadiusM', storage: 'number', interpretation: 'plain', required: true },
@@ -69,7 +69,7 @@ export const mediaUploadsSchema: CollectionSchema = {
   columns: [
     { name: 'ownerId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
     { name: 'storageKey', storage: 'text', interpretation: 'plain', required: true, immutable: true },
-    { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video'] }, required: true },
+    { name: 'mediaType', storage: 'text', interpretation: { kind: 'select', options: ['photo', 'video', 'audio'] }, required: true },
     { name: 'contentType', storage: 'text', interpretation: 'plain', required: true },
     { name: 'bubbleId', storage: 'text', interpretation: 'plain' },
   ],

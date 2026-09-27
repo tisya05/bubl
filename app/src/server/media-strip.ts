@@ -7,9 +7,15 @@
 export type MediaKind =
   | { mediaType: 'photo'; contentType: 'image/jpeg' | 'image/png' | 'image/webp' }
   | { mediaType: 'video'; contentType: 'video/mp4' | 'video/quicktime' }
+  | { mediaType: 'audio'; contentType: 'audio/mp4' | 'audio/webm' | 'audio/ogg' | 'audio/mpeg' }
 
 const ascii = (b: Uint8Array, at: number, len: number) => String.fromCharCode(...b.subarray(at, at + len))
 
+/**
+ * An MP4/MOV container is reported as video here; the upload route calls
+ * stripVideo and re-labels it audio/mp4 when it has no video track (a voice
+ * note recorded by Safari, or an .m4a file).
+ */
 export function detectMedia(b: Uint8Array): MediaKind | undefined {
   if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return { mediaType: 'photo', contentType: 'image/jpeg' }
   if (b.length >= 8 && ascii(b, 1, 3) === 'PNG' && b[0] === 0x89) return { mediaType: 'photo', contentType: 'image/png' }
@@ -17,7 +23,40 @@ export function detectMedia(b: Uint8Array): MediaKind | undefined {
   if (b.length >= 12 && ascii(b, 4, 4) === 'ftyp') {
     return { mediaType: 'video', contentType: ascii(b, 8, 4) === 'qt  ' ? 'video/quicktime' : 'video/mp4' }
   }
+  if (b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return { mediaType: 'audio', contentType: 'audio/webm' }
+  if (b.length >= 4 && ascii(b, 0, 4) === 'OggS') return { mediaType: 'audio', contentType: 'audio/ogg' }
+  if (b.length >= 3 && (ascii(b, 0, 3) === 'ID3' || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0))) return { mediaType: 'audio', contentType: 'audio/mpeg' }
   return undefined
+}
+
+/** MP3: drop a leading ID3v2 tag and a trailing ID3v1 tag (title, comments, cover art...). */
+export function stripMp3(b: Uint8Array): Uint8Array {
+  let start = 0
+  if (b.length >= 10 && ascii(b, 0, 3) === 'ID3') {
+    const size = ((b[6] & 0x7f) << 21) | ((b[7] & 0x7f) << 14) | ((b[8] & 0x7f) << 7) | (b[9] & 0x7f)
+    start = 10 + size + (b[5] & 0x10 ? 10 : 0)
+    if (start >= b.length) throw new Error('Corrupt MP3')
+  }
+  let end = b.length
+  if (end - start >= 128 && ascii(b, end - 128, 3) === 'TAG') end -= 128
+  return b.slice(start, end)
+}
+
+/**
+ * Ogg (Opus or Vorbis): the duration, from the last page's granule position.
+ * Browser recordings carry no location, so the bytes are kept as they are.
+ */
+export function oggDurationS(b: Uint8Array): number {
+  const view = new DataView(b.buffer, b.byteOffset, b.byteLength)
+  const body = b.length > 27 ? 27 + b[26] : 0 // first packet, after the page header and segment table
+  const isOpus = body > 0 && b.length >= body + 8 && ascii(b, body, 8) === 'OpusHead'
+  const isVorbis = body > 0 && b.length >= body + 16 && ascii(b, body + 1, 6) === 'vorbis'
+  const rate = isOpus ? 48000 : isVorbis ? view.getUint32(body + 12, true) : 0
+  if (!rate) throw new Error('Unsupported Ogg audio')
+  for (let i = b.length - 27; i >= 0; i--) {
+    if (b[i] === 0x4f && ascii(b, i, 4) === 'OggS') return Number(view.getBigUint64(i + 6, true)) / rate
+  }
+  throw new Error('Corrupt Ogg')
 }
 
 /** JPEG: keep APP0 (JFIF) and image data; drop APP1-APP15 (EXIF, XMP, IPTC...) and comments. */
@@ -86,12 +125,14 @@ const CONTAINER_BOXES = new Set(['moov', 'trak', 'mdia', 'minf', 'stbl', 'edts']
 /**
  * MP4/MOV: rename every `udta` and `meta` box (where phones store GPS, e.g.
  * ©xyz and com.apple.quicktime.location) to `free`, zeroing its contents.
- * Sizes don't change, so sample offsets stay valid. Returns the duration too.
+ * Sizes don't change, so sample offsets stay valid. Returns the duration and
+ * whether there is a video track (no video track means it's audio only).
  */
-export function stripVideo(input: Uint8Array): { bytes: Uint8Array; durationS: number } {
+export function stripVideo(input: Uint8Array): { bytes: Uint8Array; durationS: number; hasVideoTrack: boolean } {
   const b = input.slice()
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength)
   let durationS = NaN
+  let hasVideoTrack = false
 
   const walk = (start: number, end: number) => {
     let i = start
@@ -114,6 +155,8 @@ export function stripVideo(input: Uint8Array): { bytes: Uint8Array; durationS: n
         const timescale = view.getUint32(i + header + (v === 1 ? 20 : 12))
         const duration = v === 1 ? Number(view.getBigUint64(i + header + 24)) : view.getUint32(i + header + 16)
         durationS = timescale > 0 ? duration / timescale : NaN
+      } else if (type === 'hdlr') {
+        if (ascii(b, i + header + 8, 4) === 'vide') hasVideoTrack = true
       } else if (CONTAINER_BOXES.has(type)) {
         walk(i + header, i + size)
       }
@@ -122,7 +165,7 @@ export function stripVideo(input: Uint8Array): { bytes: Uint8Array; durationS: n
   }
   walk(0, b.length)
   if (!Number.isFinite(durationS)) throw new Error('Video has no duration')
-  return { bytes: b, durationS }
+  return { bytes: b, durationS, hasVideoTrack }
 }
 
 function concat(parts: Uint8Array[]): Uint8Array {
