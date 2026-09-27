@@ -221,6 +221,12 @@
 .incoming-wave .bubl-avatar { background: #eadcf5; }
 .incoming-wave:not(.outgoing-wave) > div { display: flow-root; }
 .incoming-wave:not(.outgoing-wave) .wave-button { float: right; margin: 4px 0 4px 10px; }
+/* "See all" opens the full Waved-at-you list when the preview is capped (SocialScreens.tsx). */
+.see-all-waves { display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 44px; padding: 4px; font-size: 12px; font-weight: 700; color: var(--bubl-ink); }
+.see-all-waves svg { width: 15px; height: 15px; }
+.waves-screen { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.waves-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px max(24px, env(safe-area-inset-bottom)); }
+.waves-list .section-label { margin-top: 4px !important; }
 .chat-row { display: flex; align-items: center; width: 100%; gap: 12px; border-bottom: 1px solid var(--bubl-line); padding: 15px 2px; text-align: left; }
 .chat-row .bubl-avatar { outline: none; margin-right: 3px; }
 .chat-row.unread .bubl-avatar { outline: 2px solid #db5795; outline-offset: 3px; }
