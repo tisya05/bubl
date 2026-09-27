@@ -2,14 +2,14 @@
 @import url('/bubl/fonts/fonts.css');
 
 :root { --intro-indigo: #252b61; --intro-pink: #ff60b7; }
-.bubl-intro { display: block; position: relative; width: 100%; height: 100svh; min-height: 480px; overflow: hidden; background: var(--intro-indigo); color: white; touch-action: manipulation; }
+.bubl-intro { --intro-icon-size: 250px; --intro-copy-gap: 28px; --intro-tap-size: 20px; display: block; position: relative; width: 100%; height: 100svh; min-height: 480px; overflow: hidden; background: var(--intro-indigo); color: white; touch-action: manipulation; }
 .bubl-intro:focus-visible { outline: 4px solid var(--intro-pink); outline-offset: -7px; }
 .intro-stage { width: 393px; height: 852px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .intro-bubbles { position: absolute; left: 49px; top: 104px; max-width: none; animation: intro-float 5.8s ease-in-out infinite; }
-.intro-copy { position: absolute; top: 265px; left: 0; width: 393px; text-align: center; transform: scale(.8); transform-origin: center; }
-.intro-copy > img { max-width: none; display: block; }
+.intro-copy { position: absolute; top: 265px; left: 0; width: 393px; text-align: center; transform: scale(.8); transform-origin: center; display: grid; justify-items: center; gap: var(--intro-copy-gap); }
+.intro-app-icon { width: var(--intro-icon-size); height: var(--intro-icon-size); object-fit: contain; display: block; }
 .intro-copy h1 { font-family: 'Caprasimo', Georgia, serif; font-size: 40px; font-weight: 400; line-height: 57px; margin: 0; white-space: nowrap; }
-.intro-copy p { font-family: 'Capriola', sans-serif; font-size: 20px; line-height: 35px; margin: 0; white-space: nowrap; }
+.intro-copy p { font-family: 'Capriola', sans-serif; font-size: var(--intro-tap-size); line-height: 35px; margin: 0; white-space: nowrap; }
 @keyframes intro-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-11px); } }
 @media (max-height: 760px) { .intro-stage { transform: translate(-50%, -50%) scale(.86); } }
 @media (max-width: 374px) { .intro-stage { transform: translate(-50%, -50%) scale(.81); } }
@@ -614,3 +614,4 @@ html[data-safari-scroll] .bottom-nav {
 .mutual-label svg, .pending-wave-icon { color: #3463a3; }
 .pending-wave-icon { flex-shrink: 0; width: 24px; height: 24px; }
 .outgoing-wave small { display: block; margin-top: 6px; color: var(--bubl-muted); }
+.event-title-link { color: inherit; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }

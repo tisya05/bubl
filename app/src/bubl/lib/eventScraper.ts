@@ -35,6 +35,7 @@ function jsonLd(html: string): unknown[] {
 }
 
 export function parseEventPage(html: string, sourceUrl: string, source: ScrapedEvent['source']): ScrapedEvent[] {
+  html = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '')
   const now = new Date(); const records: ScrapedEvent[] = []
   for (const value of jsonLd(html)) {
     if (!value || typeof value !== 'object' || !('name' in value)) continue
@@ -50,7 +51,7 @@ export function parseEventPage(html: string, sourceUrl: string, source: ScrapedE
   // improved independently as a provider changes its markup.
   const strip = (value: string) => value.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
   const pageImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)?.[1]
-  const headings = [...html.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)].map(match => strip(match[1])).filter(value => value.length > 8 && !/events|calendar|search|more on|more languages|top languages|official website|services|your government|back to top|filter languages|upcoming events/i.test(value))
+  const headings = [...html.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi), ...html.matchAll(/<a[^>]+href=["'][^"']*(?:event|calendar)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)].map(match => strip(match[1])).filter(value => value.length > 8 && value.length < 180 && !/events|calendar|search|more on|more languages|top languages|official website|services|your government|back to top|filter languages|upcoming events|list view|calendar view|all categories|=>|&&|\bt\s*\+=|\bvar\b|\bfunction\b/i.test(value))
   const startsAt = new Date(Date.now() + 86400000); startsAt.setHours(18, 0, 0, 0)
   return dedupeEvents(headings.slice(0, 50).map((title, index) => ({ source, sourceUrl, externalId: `${source}:heading:${index}:${title}`, title, description: `Listed by ${sourceUrl}`, imageUrl: pageImage, placeName: 'New York City', startsAt: startsAt.toISOString(), endsAt: new Date(startsAt.getTime() + 2 * 3600000).toISOString(), price: parsePrice(title) })))
 }

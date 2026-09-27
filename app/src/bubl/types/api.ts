@@ -126,6 +126,7 @@ export interface SendMessageInput {
 
 export interface Api {
   getEvents(): Promise<ActionResult<BackendEvent[]>>;
+  deleteEvent(id: string): Promise<ActionResult<unknown>>;
   refreshEvents(): Promise<ActionResult<{ scraped: number; scrapedAt: string }>>;
   nearbyBubbles(input: NearbyBubblesInput): Promise<ActionResult<BubblePreview[]>>;
   canPop(input: CanPopInput): Promise<ActionResult<CanPopResult>>;
@@ -150,6 +151,6 @@ export interface Api {
 }
 
 export interface BackendEvent {
-  id: string; title: string; description?: string; imageUrl?: string; placeName: string; lat?: number; lng?: number;
+  id: string; title: string; description?: string; imageUrl?: string; sourceUrl?: string; placeName: string; lat?: number; lng?: number;
   startsAt: string; endsAt: string; price: 'Free' | '$' | '$$' | '$$$';
 }

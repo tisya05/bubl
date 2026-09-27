@@ -28,3 +28,9 @@ export const getEvents: ActionHandler<Env> = async ({ tools }) => {
   if (!result.success) return result
   return { success: true, data: result.data.records.map(record => ({ id: record.recordId, ...record.data })) }
 }
+
+export const deleteEvent: ActionHandler<Env> = async ({ tools, params }) => {
+  const id = typeof params?.id === 'string' ? params.id : ''
+  if (!id) return { success: false, error: 'Event id is required.' }
+  return tools.remove('events', id)
+}
