@@ -116,6 +116,23 @@
 .pop-transition strong { font-size: 65px; }
 .pop-orb { width: 180px; height: 180px; border-radius: 50%; border: 2px solid #ff8a5b; position: absolute; animation: pop-burst .7s ease-out forwards; }
 @keyframes pop-burst { 0% { transform: scale(.4); opacity: 1; } 75% { opacity: .8; } 100% { transform: scale(3); opacity: 0; } }
+/* Bubble pop: the clicked button vanishes almost instantly (poof) while a
+   scatter of water droplets bursts from across its shape and falls away with
+   gravity — the next screen only appears once this finishes (login.tsx). */
+.poofing { animation: button-poof .14s ease-in forwards; pointer-events: none; }
+@keyframes button-poof { to { transform: scale(.82); opacity: 0; } }
+.droplet-burst { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 50; }
+.droplet-burst i { position: absolute; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); border-radius: 45% 45% 50% 50%; background: radial-gradient(circle at 32% 26%, #ffffffe6, #cfe0f0 65%); box-shadow: 0 1px 2px #17171c1a; opacity: 0; animation: droplet-fall .62s cubic-bezier(.3, .6, .35, 1) forwards; }
+@keyframes droplet-fall {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  35% { transform: translate(calc(var(--dx) * .55), calc(var(--dy) * .4)) scale(.9); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.3); opacity: 0; }
+}
+@keyframes bubble-ring {
+  0%, 45% { transform: scale(1); opacity: 0; }
+  60% { opacity: .55; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
 .note-body { padding: 0 20px; }
 .note-media { display: block; width: 100%; max-height: 330px; object-fit: cover; border-radius: 26px; margin-bottom: 18px; }
 .note-illustration { height: 230px; border-radius: 26px; background: #cfe0f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; margin-bottom: 18px; }
@@ -438,11 +455,12 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .login-demo-note { font-size: 12px; line-height: 1.5; color: #827b74; margin: 16px 0 !important; }
 .login-choice .login-demo-note { text-align: center; margin-bottom: 0 !important; }
 .login-card .eyebrow { margin-bottom: 18px; }
-.login-card h1:not(.login-wordmark) { font-size: 30px; margin: 0 0 16px; letter-spacing: -.8px; }
+.login-card h1:not(.login-wordmark) { font-family: 'Caprasimo', Georgia, serif; font-size: 30px; margin: 0 0 16px; letter-spacing: 0; }
+.login-code .login-subtitle { font-size: 13px; line-height: 1.5; color: #827b74; }
 .login-card input { display: block; width: 100%; min-width: 0; min-height: 60px; border: 1px solid #243454; border-radius: 18px; background: white; color: #243454; font: inherit; font-size: 17px; padding: 16px; margin-bottom: 14px; }
 .login-card input::placeholder { color: #928b82; }
 .login-card input:focus-visible { outline-color: #db81ae; }
-.login-code { text-align: center; letter-spacing: .35em; font-size: 26px !important; font-variant-numeric: tabular-nums; }
+.code-input { text-align: center; letter-spacing: .35em; font-size: 26px !important; font-variant-numeric: tabular-nums; }
 .login-resend { margin: 0 auto 16px; }
 .login-password { position: relative; }
 .login-password input { padding-right: 52px; }
