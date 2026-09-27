@@ -450,7 +450,7 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .events-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; color: #D45493; background: #f6d7e5; }
 .events-icon svg { width: 32px; height: 32px; }
 .events-screen > .lead { font-size: 14px; }
-.events-demo-label { color: var(--bubl-muted); font-size: 11px; padding: 0 4px 14px; }
+.events-demo-label { color: var(--bubl-muted); font-size: 11px; padding: 0 4px; }
 .event-card { border-radius: 25px; overflow: hidden; border: 1px solid #e3dad1; background: #fffdf9; margin-bottom: 22px; }
 .event-cover { position: relative; aspect-ratio: 5 / 3; background: #f6d7e5; }
 .event-cover > img { width: 100%; height: 100%; object-fit: cover; }
@@ -462,6 +462,12 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .event-card h2 { color: #243454; font-size: 23px; margin: 0 0 10px; }
 .event-location { display: flex; gap: 7px; align-items: center; font-size: 13px; color: #6D675F; }
 .event-location svg { flex-shrink: 0; }
+.event-price { margin-left: auto; border-radius: 999px; background: #f4d7e7; color: #9f3e72; padding: 3px 9px; font-size: 12px; font-weight: 700; }
+.event-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: -8px; row-gap: 8px; margin: 14px 0 0; }
+.events-screen > .events-demo-label + .bubl-empty { padding-top: 0px; }
+.event-filters label { display: grid; gap: 4px; color: #6d675f; font-size: 11px; font-weight: 700; }
+.event-filters input, .event-filters select { width: 100%; min-width: 0; border: 1px solid #ded5cc; border-radius: 12px; background: #fffdf9; color: #243454; padding: 9px 8px; font: inherit; }
+.event-filters > .text-button { align-self: end; justify-self: start; padding: 6px 0; font-size: 12px; }
 .event-when { display: flex; flex-direction: column; gap: 7px; padding: 12px 0; font-size: 13px; color: #6D675F; }
 .event-when > span { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
 .event-when small { font-size: 10px; color: #91877F; }

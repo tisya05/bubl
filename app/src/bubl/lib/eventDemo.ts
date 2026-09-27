@@ -4,8 +4,9 @@ import { distanceM } from './geo'
 import { readDemoMedia, saveDemoMedia } from './demoMedia'
 import type { Bubble, EventSchedule, User } from './uiModels'
 
-export type EventItem = Bubble & { category: 'Events'; event: EventSchedule; author: User; hearted: boolean; going: boolean; poppedAt?: string; hidden?: boolean; feedHidden?: boolean }
-export type EventDraft = { title: string; text: string; placeName: string; lat: number; lng: number; event: EventSchedule; photo?: File }
+export type EventPrice = 'Free' | '$' | '$$' | '$$$'
+export type EventItem = Bubble & { category: 'Events'; event: EventSchedule; author: User; hearted: boolean; going: boolean; price: EventPrice; poppedAt?: string; hidden?: boolean; feedHidden?: boolean }
+export type EventDraft = { title: string; text: string; placeName: string; lat: number; lng: number; event: EventSchedule; price?: EventPrice; photo?: File }
 const key = 'bubl.events.v1'
 const listeners = new Set<() => void>()
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -15,7 +16,7 @@ function seed(): EventItem[] {
     { id: 'event-awesome-sunset', title: 'Awesome Sunset', text: 'Catch the golden light from Low Steps. Stay a little longer—the sky gets even better.', placeName: 'Low Steps · Columbia University', ...LERNER_HALL, startsAt: iso(-1), endsAt: iso(3), image: 'social' },
     { id: 'event-demo-social', title: 'A little neighborhood social', text: 'A demo event for trying bubl. Meet at the pin, say hello, and swap your favorite neighborhood spots.', placeName: 'Lerner Hall · Broadway', ...LERNER_HALL, startsAt: iso(-1), endsAt: iso(3), image: 'social' },
     { id: 'event-demo-music', title: 'An afternoon of live music', text: 'A sample event, not a real listing. A little music and a new corner of the city to discover.', placeName: 'Riverside Dr & 116th St', lat: 40.8095, lng: -73.9669, startsAt: iso(24), endsAt: iso(27), image: 'music' },
-  ].map(item => ({ id: item.id, title: item.title, text: item.text, placeName: item.placeName, lat: item.lat, lng: item.lng, authorId: 'demo-host', author: { id: 'demo-host', name: 'bubl demo' }, category: 'Events', event: { startsAt: item.startsAt, endsAt: item.endsAt, timeZone }, createdAt: new Date().toISOString(), language: 'en', status: 'live', moderation: 'unchecked', popRadiusM: 60, hearted: false, going: false, mediaType: 'photo', mediaUrl: `/bubl/event-${item.image}.svg` }))
+  ].map((item, index) => ({ id: item.id, title: item.title, text: item.text, placeName: item.placeName, lat: item.lat, lng: item.lng, authorId: 'demo-host', author: { id: 'demo-host', name: 'bubl demo' }, category: 'Events', event: { startsAt: item.startsAt, endsAt: item.endsAt, timeZone }, createdAt: new Date().toISOString(), language: 'en', status: 'live', moderation: 'unchecked', popRadiusM: 60, hearted: false, going: false, price: index === 0 ? 'Free' : index === 1 ? '$' : '$$', mediaType: 'photo', mediaUrl: `/bubl/event-${item.image}.svg` }))
 }
 let state: EventItem[] = seed()
 try { const saved = JSON.parse(localStorage.getItem(key) ?? 'null'); if (Array.isArray(saved)) state = saved } catch { /* Keep the demo usable when storage is unavailable. */ }
@@ -66,7 +67,7 @@ export const demoEvents = {
       if (!draft.photo.type.startsWith('image/') || draft.photo.size > 20 * 1024 * 1024) throw new Error('Choose an image under 20 MB.')
       await saveDemoMedia(id, draft.photo)
     }
-    const item: EventItem = { id, authorId: author.id, author, title: draft.title.trim(), text: draft.text.trim(), placeName: draft.placeName.trim(), lat: draft.lat, lng: draft.lng, category: 'Events', event: draft.event, createdAt: new Date().toISOString(), language: 'en', status: 'live', moderation: 'unchecked', popRadiusM: 60, hearted: false, going: false, mediaType: 'photo', mediaUrl: draft.photo ? `event-media:${id}` : '/bubl/event-social.svg' }
+    const item: EventItem = { id, authorId: author.id, author, title: draft.title.trim(), text: draft.text.trim(), placeName: draft.placeName.trim(), lat: draft.lat, lng: draft.lng, category: 'Events', event: draft.event, price: draft.price ?? 'Free', createdAt: new Date().toISOString(), language: 'en', status: 'live', moderation: 'unchecked', popRadiusM: 60, hearted: false, going: false, mediaType: 'photo', mediaUrl: draft.photo ? `event-media:${id}` : '/bubl/event-social.svg' }
     commit([item, ...state]); return item
   },
   heart(id: string) { update(id, item => ({ ...item, hearted: !item.hearted })) },
