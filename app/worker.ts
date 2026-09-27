@@ -128,6 +128,11 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   DEMO_PASSWORD_MAYA?: string
   DEMO_PASSWORD_DEV?: string
   DEMO_PASSWORD_SAM?: string
+  /** Web Push keys (src/server/webpush.ts): public = 65-byte P-256 point, private = 32-byte scalar, both base64url. Unset = no phone pushes. */
+  VAPID_PUBLIC_KEY?: string
+  VAPID_PRIVATE_KEY?: string
+  /** Optional VAPID contact (https: or mailto:); defaults to the app URL. */
+  VAPID_SUBJECT?: string
 }
 
 export type AppContext = { Bindings: Env }

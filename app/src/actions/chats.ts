@@ -141,7 +141,7 @@ export const chatBubble: ActionHandler<Env> = async ({ userId, params, tools }) 
 }
 
 /** Params: `{ chatId, text }` (1 to 1000 characters). */
-export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools }) => {
+export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const chat = await chatForMember(tools, userId, params.chatId)
   if (!chat) return { success: false, error: 'Chat not found' }
 
@@ -161,7 +161,7 @@ export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools })
   const otherId = chat.data.userIds.find((id) => id !== userId)
   if (otherId) {
     const from = await publicUser(tools, userId)
-    await notify(tools, otherId, messageNotice({ id: userId, name: from.name }, chat.recordId, text))
+    await notify(tools, otherId, messageNotice({ id: userId, name: from.name }, chat.recordId, text), env)
   }
   return { success: true, data: toMessage(message) }
 }

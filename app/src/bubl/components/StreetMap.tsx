@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type CSSProperties } from 'react'
 import { LocateFixed, Minus, Plus, Volume2 } from 'lucide-react'
-import { useSound } from '../hooks/useSound'
+import { startWalkingMode, stopWalkingMode, useWalkingMode } from '../hooks/useWalkingMode'
 import type { BubblePreview } from '../lib/uiModels'
 import { LERNER_HALL, NEAR_ICON_M } from '../config'
 import { distanceM } from '../lib/geo'
@@ -23,7 +23,7 @@ type Point = { x: number; y: number }
 type View = { center: Point; zoom: number }
 export function StreetMap({ bubbles, location, selected, onSelect, focus, poppedIds = [] }: { poppedIds?: string[]; focus?: BubblePreview; bubbles: BubblePreview[]; location: UserLocation | null; selected?: string; onSelect: (bubble: BubblePreview) => void }) {
   const root = useRef<HTMLDivElement>(null)
-  const [soundEnabled, toggleSound] = useSound()
+  const walking = useWalkingMode()
   const [size, setSize] = useState({ width: 390, height: 600 })
   const [view, setView] = useState<View>(() => ({ center: project(location?.lat ?? LERNER_HALL.lat, location?.lng ?? LERNER_HALL.lng), zoom: BASE_ZOOM }))
   useEffect(() => { if (focus) setView(v => ({ ...v, center: project(focus.lat, focus.lng) })) }, [focus?.id, focus?.lat, focus?.lng])
@@ -145,9 +145,10 @@ export function StreetMap({ bubbles, location, selected, onSelect, focus, popped
       setDemoLocation(location.lat + (event.key === 'ArrowUp' ? .00005 : event.key === 'ArrowDown' ? -.00005 : 0), location.lng + (event.key === 'ArrowRight' ? .00005 : event.key === 'ArrowLeft' ? -.00005 : 0))
     }}><span /></div>}</div>
     <div className="map-controls">
-      <button className="round-button map-sound-toggle" aria-label={soundEnabled ? 'Sound on' : 'Sound off'} aria-pressed={soundEnabled} title={soundEnabled ? 'Turn sound off' : 'Turn sound on'} onClick={toggleSound}>
+      {/* Walking voice: bubbles you walk into pop by themselves and are read aloud. Must start inside the tap (audio unlock). */}
+      <button className="round-button map-sound-toggle" aria-label="Walking voice" aria-pressed={walking.on} title={walking.on ? 'Walking voice on: bubbles pop and read aloud' : 'Turn on walking voice'} onClick={() => (walking.on ? stopWalkingMode() : startWalkingMode())}>
         <Volume2 aria-hidden="true" />
-        {!soundEnabled && <svg className="sound-slash" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3 21 21" /></svg>}
+        {!walking.on && <svg className="sound-slash" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3 21 21" /></svg>}
       </button>
       <button className="round-button" aria-label="Zoom in" disabled={view.zoom === 19} onClick={() => zoomBy(1)}><Plus /></button><button className="round-button" aria-label="Zoom out" disabled={view.zoom === 13} onClick={() => zoomBy(-1)}><Minus /></button><button className="round-button" aria-label="Center map on you" onClick={() => { const p = location ?? LERNER_HALL; setView(v => ({ ...v, center: project(p.lat, p.lng) })) }}><LocateFixed /></button></div>
     <a className="map-attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>

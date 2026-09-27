@@ -20,6 +20,20 @@ const preview = (text: string) => {
 };
 const at = (placeName: string) => (placeName ? ` at ${placeName}` : '');
 
+// Some bubbles are named with raw coordinates ("40.80553, -73.96055"): never show those.
+const isCoordinates = (placeName: string) => /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(placeName);
+
+/**
+ * To you, when you drift into a bubble: its title (the server only sends it once
+ * it has checked you're inside), else its kind and, if it has a real name, where.
+ */
+export const nearbyNotice = (bubble: { category: string; placeName?: string; title?: string }) => {
+  if (bubble.title?.trim()) return { title: 'You drifted into a bubble 🫧', body: bubble.title.trim() };
+  const kind = bubble.category === 'Misc' ? 'A' : `A ${bubble.category.toLowerCase()}`;
+  const place = bubble.placeName && !isCoordinates(bubble.placeName) ? ` at ${bubble.placeName.trim()}` : '';
+  return { title: 'You drifted into a bubble 🫧', body: `${kind} bubble${place} is right here. Tap to pop it.` };
+};
+
 /** To a bubble's author: someone loved it. */
 export const loveNotice = (from: { id: string; name: string }, bubble: { id: string; placeName: string }): NotificationDraft => ({
   kind: 'love',

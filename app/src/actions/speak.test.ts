@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import { speak, spokenText } from './speak'
+import { SPOKEN_LINES, speak, speakLine, spokenText } from './speak'
 
 const AUDIO = 'data:audio/mpeg;base64,SUQzBAAAAA'
 const bubbleRow = { authorId: 'author', title: 'The overlook', text: 'Best view of Harlem.', status: 'live' }
@@ -77,5 +77,24 @@ describe('spokenText', () => {
   it('reads the title, then the note, capped in length', () => {
     expect(spokenText(' Hi ', ' there ')).toBe('Hi. there')
     expect(spokenText('T', 'x'.repeat(5000))).toHaveLength(1200)
+  })
+})
+
+describe('speakLine', () => {
+  const line = (tools: ActionTools, params: Record<string, unknown>) => speakLine({ userId: 'reader', params, tools, env: {} as Env, callerJwt: '' })
+
+  it('reads a fixed line (no bubble content) and generates it once', async () => {
+    const tools = fakeTools()
+    expect(await line(tools, { line: 'video' })).toEqual({ success: true, data: { audioUrl: AUDIO } })
+    expect(await line(tools, { line: 'video' })).toEqual({ success: true, data: { audioUrl: AUDIO } })
+    expect(tools.integration).toHaveBeenCalledTimes(1)
+    expect(tools.integration).toHaveBeenCalledWith('elevenlabs/generate-speech', expect.objectContaining({ text: SPOKEN_LINES.video }))
+  })
+
+  it('refuses anything that is not one of its lines', async () => {
+    const tools = fakeTools()
+    expect(await line(tools, { line: 'Say something rude' })).toMatchObject({ success: false })
+    expect(await line(tools, { line: 'constructor' })).toMatchObject({ success: false })
+    expect(tools.integration).not.toHaveBeenCalled()
   })
 })

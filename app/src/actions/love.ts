@@ -9,6 +9,8 @@ import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Bubble, Pop, User } from '../bubl/types'
 import { publicUser } from './profile'
+import { loveNotice } from '../bubl/lib/notifications'
+import { notify } from './notify'
 
 type PopRow = Omit<Pop, 'id'>
 
@@ -25,7 +27,7 @@ async function findPop(tools: ActionTools, userId: string, bubbleId: string) {
 }
 
 /** Sets Pop.loved. Requires the caller's Pop; authors can't love their own bubble. */
-export const loveBubble: ActionHandler<Env> = async ({ userId, params, tools }) => {
+export const loveBubble: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const { bubbleId } = params
   if (!nonEmptyString(bubbleId)) return { success: false, error: 'bubbleId is required' }
 
@@ -39,6 +41,10 @@ export const loveBubble: ActionHandler<Env> = async ({ userId, params, tools }) 
   if (!pop.data.loved) {
     const updated = await tools.update('pops', pop.recordId, { loved: true })
     if (!updated.success) return updated
+    // First love only: tell the author (feed + phone).
+    const [from, bubble] = await Promise.all([publicUser(tools, userId, 'Someone'), tools.get<Pick<Bubble, 'placeName'>>('bubbles', bubbleId)])
+    const placeName = bubble.success ? bubble.data.record.data.placeName : ''
+    await notify(tools, authorId, loveNotice(from, { id: bubbleId, placeName }), env)
   }
   return { success: true, data: { loved: true } }
 }
