@@ -66,7 +66,10 @@ async function canView(tools: ActionTools, userId: string, upload: UploadRow): P
   const pop = await tools.query('pops', { where: { userId, bubbleId: upload.bubbleId }, limit: 1 })
   if (pop.success && pop.data.records.length > 0) return true
   const bubble = await tools.get<{ authorId: string }>('bubbles', upload.bubbleId)
-  return bubble.success && bubble.data.record.data.authorId === userId
+  if (bubble.success && bubble.data.record.data.authorId === userId) return true
+  // Event cover photos are attached via the same bubbleId pointer; any signed-in user may view them.
+  const event = await tools.get('events', upload.bubbleId)
+  return event.success
 }
 
 async function serveAvatarFile(env: Env, reqUrl: string, avatarKey: string, cacheControl: string): Promise<Response> {

@@ -12,7 +12,7 @@ export function CategoryIcon({ category, className = '' }: { category: Category;
 export function Categories({ value, onChange }: { value?: Category; onChange: (value: Category) => void }) {
   return <div className="category-chips" aria-label="Bubble categories">{CATEGORIES.map(category => {
     const Icon = CATEGORY_META[category].icon
-    return <button key={category} type="button" aria-pressed={value === category} className={value === category ? 'selected' : ''} onClick={() => onChange(category)} style={{ '--category': CATEGORY_META[category].color, '--tint': CATEGORY_META[category].tint } as CSSProperties}><Icon size={13} /><span>{category}</span></button>
+    return <button key={category} type="button" aria-pressed={value === category} className={`${value === category ? 'selected ' : ''}${category === 'Events' ? 'category-events' : ''}`} onClick={() => onChange(category)} style={{ '--category': CATEGORY_META[category].color, '--tint': CATEGORY_META[category].tint } as CSSProperties}><Icon size={13} /><span>{category}</span></button>
   })}</div>
 }
 export function ScreenHeader({ title, onBack, close = false, children }: { title?: ReactNode; onBack: () => void; close?: boolean; children?: ReactNode }) {

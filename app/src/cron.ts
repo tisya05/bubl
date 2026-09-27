@@ -26,10 +26,27 @@
  *   }
  */
 
-import type { CronTask } from 'deepspace/worker'
+import { buildCronContext, type CronTask } from 'deepspace/worker'
+import type { Env } from '../worker'
+import { scrapeEvents } from './server/event-scraper'
 
-export const tasks: CronTask[] = []
+export const tasks: CronTask[] = [{ name: 'scrape-events', schedule: '0 6 * * *', timezone: 'America/New_York' }]
 
-export async function runTask(_name: string, _env: unknown): Promise<void> {
-  // No-op — implement your cron tasks here. Dispatch on `_name`.
+export async function runTask(name: string, env: Env): Promise<void> {
+  if (name === 'scrape-events') {
+    const context = buildCronContext(env, env.OWNER_USER_ID, `app:${env.DEEPSPACE_APP_ID}`)
+    const events = await scrapeEvents(fetch, env.NYC_EVENTS_API_KEY)
+    const existing = await context.records.query('events', { limit: 500 }) as Array<{ recordId?: string; data?: { externalId?: string; source?: string; authorId?: string } }>
+    const byExternalId = new Map(existing.flatMap(row => {
+      if (!row.data?.externalId || !row.recordId) return []
+      if (row.data.source === 'bubl' || row.data.authorId) return []
+      return [[row.data.externalId, row.recordId] as const]
+    }))
+    for (const event of events) {
+      const row = { ...event, scrapedAt: new Date().toISOString() }
+      const recordId = byExternalId.get(event.externalId)
+      if (recordId) await context.records.update('events', recordId, row)
+      else await context.records.create('events', row)
+    }
+  }
 }

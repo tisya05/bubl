@@ -10,7 +10,8 @@ import {
   MAX_NEARBY_RADIUS_M,
 } from '../config';
 import { distanceM } from '../lib/geo';
-import type { Api, Bubble, BubblePreview, User, Chat, Message, Wave } from '../types';
+import { judgeMeetupBackend } from '../lib/judgeMeetup';
+import type { Api, BackendEvent, Bubble, BubblePreview, User, Chat, Message, Wave } from '../types';
 import type { LibraryActions } from '../lib/libraryActions';
 import { loadProfile } from '../lib/localProfile';
 import { readDemoMedia, saveDemoMedia } from '../lib/demoMedia';
@@ -213,7 +214,70 @@ const toPreview = ({ id, lat, lng, placeName, category, popRadiusM }: Bubble): B
   id, lat, lng, placeName, category, popRadiusM,
 });
 
+/** Mock scraped feed — same shape the real scraper upserts into `events`. */
+function mockScrapedEvents(): BackendEvent[] {
+  const start = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3600000).toISOString()
+  return [
+    judgeMeetupBackend(),
+    {
+      id: 'scraped-columbia-farmers',
+      title: 'Columbia farmers market',
+      description: 'Neighborhood produce and baked goods on College Walk. A mock scraped listing for the Events feed.',
+      imageUrl: '/bubl/event-social.svg',
+      sourceUrl: 'https://www.nyc.gov/main/events/',
+      placeName: 'College Walk · Columbia University',
+      lat: 40.8078,
+      lng: -73.963,
+      startsAt: start(-2),
+      endsAt: start(4),
+      price: 'Free',
+    },
+    {
+      id: 'scraped-riverside-yoga',
+      title: 'Sunset yoga in Riverside Park',
+      description: 'Bring a mat. Mock Eventbrite-style listing near 116th.',
+      imageUrl: '/bubl/event-music.svg',
+      sourceUrl: 'https://www.eventbrite.com/d/ny--new-york/events/',
+      placeName: 'Riverside Dr & 116th St',
+      lat: 40.8095,
+      lng: -73.9669,
+      startsAt: start(20),
+      endsAt: start(22),
+      price: '$',
+    },
+    {
+      id: 'scraped-morningside-jazz',
+      title: 'Jazz under the trees',
+      description: 'Free outdoor set. Mock nycforfree listing around Morningside Park.',
+      imageUrl: '/bubl/event-music.svg',
+      sourceUrl: 'https://www.nycforfree.co/events',
+      placeName: 'Morningside Dr & 116th St',
+      lat: 40.806,
+      lng: -73.958,
+      startsAt: start(48),
+      endsAt: start(51),
+      price: 'Free',
+    },
+  ]
+}
+
+let scrapedFeed = mockScrapedEvents()
+
 export const mockApi: Api = {
+  async getEvents() { return ok(scrapedFeed.map(event => ({ ...event }))) },
+  async deleteEvent(id) {
+    const event = scrapedFeed.find(entry => entry.id === id)
+    if (!event) return fail('Event not found')
+    if (event.authorId && event.authorId !== ME.id) return fail('Only your own events can be deleted.')
+    if (!event.authorId) return fail('Only your own events can be deleted.')
+    scrapedFeed = scrapedFeed.filter(entry => entry.id !== id)
+    return ok({})
+  },
+  async refreshEvents() {
+    scrapedFeed = mockScrapedEvents()
+    const scrapedAt = new Date().toISOString()
+    return ok({ scraped: scrapedFeed.length, scrapedAt })
+  },
   async nearbyBubbles({ lat, lng, radiusM }) {
     const radius = Math.min(radiusM, MAX_NEARBY_RADIUS_M);
     const nearby = bubbles.filter(
@@ -291,6 +355,31 @@ export const mockApi: Api = {
     });
     bubbles.push(b);
     return ok({ ok: true as const, bubble: b });
+  },
+  async dropEvent(input) {
+    const pii = findPii(`${input.title}\n${input.text ?? ''}`);
+    if (pii.length > 0) return ok({ ok: false as const, reasons: pii });
+    if (Date.parse(input.endsAt) <= Date.parse(input.startsAt)) return fail('endsAt must be after startsAt');
+    if (Date.parse(input.endsAt) <= Date.now()) return fail('Choose an event that has not ended');
+    const id = `scraped-user-${newId()}`;
+    const event: BackendEvent = {
+      id,
+      title: input.title.trim(),
+      description: input.text?.trim() || undefined,
+      imageUrl: input.uploadId ? uploads.get(input.uploadId)?.url : '/bubl/event-social.svg',
+      sourceUrl: 'bubl://drop',
+      placeName: input.placeName.trim(),
+      lat: input.lat,
+      lng: input.lng,
+      startsAt: new Date(input.startsAt).toISOString(),
+      endsAt: new Date(input.endsAt).toISOString(),
+      price: input.price ?? 'Free',
+      authorId: ME.id,
+      source: 'bubl',
+      moderation: 'unchecked',
+    };
+    scrapedFeed = [event, ...scrapedFeed];
+    return ok({ ok: true as const, event });
   },
   async myPopped() {
     return ok(bubbles.filter(b => pops.has(`me:${b.id}`) && !hiddenPops.has(b.id)).map(b => ({ bubbleId: b.id, title: b.title, category: b.category, placeName: b.placeName, poppedAt: CREATED, loved: loves.has(`me:${b.id}`) })));

@@ -10,6 +10,7 @@ import { useAppOpen } from '../hooks/useAppOpen'
 import { NotificationBanner } from './NotificationBanner'
 import { registerNotificationWorker } from '../lib/alerts'
 import { installSoundUnlock } from '../lib/sounds'
+import { demoEvents, toEventItem } from '../lib/eventDemo'
 import type { ActionResult } from 'deepspace/worker'
 import type { Api, Bubble, User, ChatSummary, IncomingWave } from '../lib/uiModels'
 import { WalkScreen, NoteScreen } from './WalkScreens'
@@ -27,7 +28,7 @@ export interface WaveTarget { user: User; bubbleId: string; category: Bubble['ca
 type View = 'walk' | 'drop' | 'chats' | 'you' | 'note' | 'wave' | 'thread' | 'profile' | 'events' | 'waves' | 'sent-waves'
 interface MobileContextValue {
   api: Api; demo: boolean; user: User; opened: OpenedBubble | null; wave: WaveTarget | null; thread: ChatSummary | null;
-  go: (view: View, bubbleId?: string) => void; open: (value: OpenedBubble) => void; waveAt: (value: WaveTarget) => void;
+  go: (view: View, bubbleId?: string, extras?: Record<string, string>) => void; open: (value: OpenedBubble) => void; waveAt: (value: WaveTarget) => void;
   openWithPop: (value: OpenedBubble) => Promise<void>;
   openChat: (value: ChatSummary) => void; notify: (message: string) => void; onSignOut?: () => void;
   library?: LibraryActions; profile: LocalProfile; updateProfile: (profile: LocalProfile) => void;
@@ -84,12 +85,26 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   const [popping, setPopping] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const view: View = requested === 'note' && opened ? 'note' : requested === 'wave' && wave ? 'wave' : requested === 'thread' && thread ? 'thread' : ['drop', 'chats', 'you', 'profile', 'events', 'waves', 'sent-waves'].includes(requested) ? requested as View : 'walk'
-  function go(next: View, bubbleId?: string) { setParams(bubbleId ? { view: next, bubble: bubbleId } : { view: next }); setMessage('') }
+  function go(next: View, bubbleId?: string, extras?: Record<string, string>) {
+    const nextParams: Record<string, string> = { view: next, ...extras }
+    if (bubbleId) nextParams.bubble = bubbleId
+    setParams(nextParams)
+    setMessage('')
+  }
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   // Alerts (drifted into a bubble, love, wave, match, message) are phone notifications, never in-app banners.
   useEffect(registerNotificationWorker, [])
   useEffect(installSoundUnlock, [])
   useBubbleNearby(api)
+  // Pull scraped/mock feed into the shared event store so Walk + Events stay in sync.
+  useEffect(() => {
+    let active = true
+    api.getEvents().then(result => {
+      if (!active || !result.success) return
+      demoEvents.syncRemote(result.data.map(toEventItem))
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [api])
   useOpenChat(view === 'thread' && thread ? thread.chat.id : null)
   useAppOpen()
   const context: MobileContextValue = { api, demo, user, opened, wave, thread, onSignOut, go, notify: setMessage, library, profile, updateProfile,
