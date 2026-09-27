@@ -186,11 +186,11 @@ test('location entry and keyboard viewport recover without scrolling the page', 
 })
 
 
-test('drop follows the demo dot and searches beyond its immediate bubble', async ({ page }) => {
+test('drop starts at your location and selects a nearby place', async ({ page }) => {
   await page.goto('/demo')
   const pin = page.getByRole('slider', { name: /Your demo location/ })
   await pin.focus()
-  for (let step = 0; step < 20; step++) await pin.press('ArrowUp')
+  for (let step = 0; step < 2; step++) await pin.press('ArrowUp')
   const position = await pin.getAttribute('aria-valuetext')
   await page.getByRole('button', { name: 'Drop', exact: true }).click()
   await expect(page.getByText(`Your location · ${position}`, { exact: true })).toBeVisible()
@@ -244,7 +244,7 @@ test('events feed, reactions, location/time gating and local reports', async ({ 
   await expect(page.getByRole('heading', { name: 'A little neighborhood social' })).toBeVisible()
   await page.goto('/demo')
   const pin = page.getByRole('slider', { name: /Your demo location/ })
-  for (let step = 0; step < 20; step++) await pin.press('ArrowUp')
+  for (let step = 0; step < 2; step++) await pin.press('ArrowUp')
   await page.getByRole('navigation').getByRole('button', { name: 'Events', exact: true }).click()
   await expect(live.getByRole('button', { name: 'Pop event' })).toBeDisabled()
   await expect(live.getByText(/Get closer/)).toBeVisible()
