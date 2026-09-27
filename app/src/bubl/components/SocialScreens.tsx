@@ -122,8 +122,21 @@ export function ChatsScreen() {
   const [retry, setRetry] = useState(0)
   useEffect(() => {
     let active = true
-    function load() {
-      Promise.all([result(api.myChats()), result(api.incomingWaves()), result(api.outgoingWaves())]).then(([c, w, sent]) => { if (active) { setChats(c); setWaves(w); setOutgoing(sent); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    // Load each section on its own so a missing/failed action (e.g. outgoingWaves
+    // not yet deployed) does not blank Chats + Waved At You too.
+    async function load() {
+      const [c, w, sent] = await Promise.allSettled([result(api.myChats()), result(api.incomingWaves()), result(api.outgoingWaves())])
+      if (!active) return
+      if (c.status === 'fulfilled') setChats(c.value)
+      if (w.status === 'fulfilled') setWaves(w.value)
+      if (sent.status === 'fulfilled') setOutgoing(sent.value)
+      else setOutgoing([])
+      const failed = [c, w, sent].filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      // Only surface an error when nothing useful loaded.
+      if (c.status === 'rejected' && w.status === 'rejected' && sent.status === 'rejected') {
+        setError(failed[0]?.reason instanceof Error ? failed[0].reason.message : 'Could not load chats.')
+      } else setError('')
+      setLoading(false)
     }
     load(); const timer = setInterval(load, 15000)
     return () => { active = false; clearInterval(timer) }

@@ -1,5 +1,5 @@
 /**
- * Wave actions: sendWave and incomingWaves.
+ * Wave actions: sendWave, incomingWaves, outgoingWaves.
  *
  * A wave is only between a bubble's author and someone who popped and loved
  * it; either side may wave first. When both have waved about the same bubble,
