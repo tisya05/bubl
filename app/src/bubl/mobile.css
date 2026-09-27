@@ -156,10 +156,12 @@
 .safety-caption { text-align: center; margin: 22px 0 10px !important; }
 .release-screen { padding: 36px 24px 24px; text-align: center; }
 .release-screen h1 { font-size: 36px; margin: 28px 12px 12px; }
-.floating-bubl { position: relative; margin: 26px auto 58px; width: 130px; height: 130px; border: 3px solid var(--bubl-navy); background: #243b641e; border-radius: 50%; display: grid; place-items: center; animation: intro-float 4s ease-in-out infinite; }
-.floating-bubl span { font-size: 70px; line-height: 1; }
+.floating-bubl { position: relative; margin: 60px auto 58px; margin-bottom: 40px; width: 130px; height: 130px; border: 3px solid var(--bubl-navy); background: #243b641e; border-radius: 50%; display: grid; place-items: center; animation: intro-float 4s ease-in-out infinite; }
+.floating-bubl > img, .floating-bubl > video { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.floating-bubl > .category-icon { width: 78px; height: 78px; border: 0; }
+.floating-bubl > .category-icon svg { width: 42px; height: 42px; }
 .floating-bubl::before { content: ''; position: absolute; width: 2px; height: 46px; border-left: 2px dotted var(--bubl-muted); top: 128px; left: 61px; }
-.floating-bubl::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%; top: 169px; background: var(--bubl-accent); }
+.floating-bubl::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%; top: 169px; background: #db5795; }
 .safety-card { background: var(--bubl-card); border: 1px solid var(--bubl-line); border-radius: 24px; padding: 20px; text-align: left; margin-top: 24px; }
 .safety-card p { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 14px; }
 .safety-card svg { flex-shrink: 0; color: var(--bubl-navy); }
@@ -546,6 +548,6 @@ html[data-safari-scroll] .bottom-nav {
 
 .bubl-app .wave-button svg { color: #db5795; }
 
-.mutual-label svg, .pending-wave-icon { color: #db5795; }
+.mutual-label svg, .pending-wave-icon { color: #3463a3; }
 .pending-wave-icon { flex-shrink: 0; width: 24px; height: 24px; }
 .outgoing-wave small { display: block; margin-top: 6px; color: var(--bubl-muted); }
