@@ -44,7 +44,15 @@ export function parseEventPage(html: string, sourceUrl: string, source: ScrapedE
     const offers = item.offers && typeof item.offers === 'object' ? JSON.stringify(item.offers) : ''
     records.push({ source, sourceUrl, externalId: clean(item.url) || `${source}:${clean(item.name)}:${startsAt}`, title: clean(item.name) || 'New York event', description: clean(item.description), imageUrl: clean(item.image), placeName, startsAt: new Date(startsAt).toISOString(), endsAt: new Date(clean(item.endDate) && Date.parse(clean(item.endDate)) ? clean(item.endDate) : Date.parse(startsAt) + 2 * 3600000).toISOString(), price: parsePrice(`${offers} ${clean(item.description)}`) })
   }
-  return dedupeEvents(records)
+  if (records.length || source === 'nyc') return dedupeEvents(records)
+  // Some providers render cards without JSON-LD. Keep a conservative HTML
+  // fallback so the daily job still imports real listing titles and can be
+  // improved independently as a provider changes its markup.
+  const strip = (value: string) => value.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim()
+  const pageImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)?.[1]
+  const headings = [...html.matchAll(/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi)].map(match => strip(match[1])).filter(value => value.length > 8 && !/events|calendar|search|more on|more languages|top languages|official website|services|your government|back to top|filter languages|upcoming events/i.test(value))
+  const startsAt = new Date(Date.now() + 86400000); startsAt.setHours(18, 0, 0, 0)
+  return dedupeEvents(headings.slice(0, 50).map((title, index) => ({ source, sourceUrl, externalId: `${source}:heading:${index}:${title}`, title, description: `Listed by ${sourceUrl}`, imageUrl: pageImage, placeName: 'New York City', startsAt: startsAt.toISOString(), endsAt: new Date(startsAt.getTime() + 2 * 3600000).toISOString(), price: parsePrice(title) })))
 }
 
 export function parseInstagramCaption(caption: string, postUrl: string): ScrapedEvent | null {

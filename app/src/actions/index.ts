@@ -11,6 +11,7 @@ import { resetDemo, setupDemoProfiles } from './demo'
 import { speak } from './speak'
 import { openPopped } from './viewer'
 import { claimHandle, getMe, savePreferences } from './profile'
+import { getEvents, refreshEvents } from './events'
 
 export const actions: Record<string, ActionHandler<Env>> = {
   importSeedBubbles,
@@ -33,4 +34,6 @@ export const actions: Record<string, ActionHandler<Env>> = {
   getMe,
   claimHandle,
   savePreferences,
+  refreshEvents,
+  getEvents,
 }

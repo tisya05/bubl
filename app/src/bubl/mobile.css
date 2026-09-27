@@ -78,6 +78,7 @@
 .category-chips { display: flex; gap: 6px; width: 100%; }
 .category-chips button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; border: 1px solid var(--bubl-line); border-radius: 24px; padding: 4px; background: var(--bubl-paper); font-size: 12px; font-weight: 700; }
 .category-chips svg { color: var(--category); flex-shrink: 0; }
+.category-chips .category-events svg { width: 14px; height: 14px; }
 .category-chips button.selected { background: var(--tint); border-color: var(--category); }
 .walk-screen { height: 100%; min-height: 520px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; }
 .street-map { position: absolute; inset: 0; overflow: hidden; touch-action: none; background: #e6e1d5; }
@@ -451,6 +452,8 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .events-icon svg { width: 32px; height: 32px; }
 .events-screen > .lead { font-size: 14px; }
 .events-demo-label { color: var(--bubl-muted); font-size: 11px; padding: 0 4px; }
+.event-refresh { margin-top: -8px; }
+.events-refresh-message { margin: -10px 4px 18px !important; color: var(--bubl-muted); font-family: sans-serif; font-size: 10px; line-height: 1.3; letter-spacing: .02em; }
 .event-card { border-radius: 25px; overflow: hidden; border: 1px solid #e3dad1; background: #fffdf9; margin-bottom: 22px; }
 .event-cover { position: relative; aspect-ratio: 5 / 3; background: #f6d7e5; }
 .event-cover > img { width: 100%; height: 100%; object-fit: cover; }
@@ -463,6 +466,9 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .event-location { display: flex; gap: 7px; align-items: center; font-size: 13px; color: #6D675F; }
 .event-location svg { flex-shrink: 0; }
 .event-price { margin-left: auto; border-radius: 999px; background: #f4d7e7; color: #9f3e72; padding: 3px 9px; font-size: 12px; font-weight: 700; }
+.event-description { color: #6d675f; font-size: 13px; line-height: 1.45; margin: 0 0 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.event-description.expanded { display: block; }
+.event-more { border: 0; padding: 0; margin: 0 0 8px; background: transparent; color: #9f3e72; font-size: 12px; font-weight: 700; }
 .event-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: -8px; row-gap: 8px; margin: 14px 0 0; }
 .events-screen > .events-demo-label + .bubl-empty { padding-top: 0px; }
 .event-filters label { display: grid; gap: 4px; color: #6d675f; font-size: 11px; font-weight: 700; }

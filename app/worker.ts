@@ -124,6 +124,8 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   GEMINI_API_KEY?: string
   /** Optional Gemini model override; defaults to gemini-3.5-flash-lite. */
   GEMINI_MODEL?: string
+  /** NYC Event Calendar API subscription key, stored with `deepspace secrets`. */
+  NYC_EVENTS_API_KEY?: string
   /** Passwords for POST /api/demo/sign-in (Maya, Dev, Sam). Unset = demo sign-in off. */
   DEMO_PASSWORD_MAYA?: string
   DEMO_PASSWORD_DEV?: string

@@ -130,6 +130,8 @@ export interface SendMessageInput {
 // `success: false` is only for real failures (not signed in, server error).
 
 export interface Api {
+  getEvents(): Promise<ActionResult<BackendEvent[]>>;
+  refreshEvents(): Promise<ActionResult<{ scraped: number; scrapedAt: string }>>;
   nearbyBubbles(input: NearbyBubblesInput): Promise<ActionResult<BubblePreview[]>>;
   canPop(input: CanPopInput): Promise<ActionResult<CanPopResult>>;
   openPopped(input: OpenPoppedInput): Promise<ActionResult<OpenPoppedResult>>;
@@ -149,4 +151,9 @@ export interface Api {
   myChats(): Promise<ActionResult<ChatSummary[]>>;
   getMessages(input: GetMessagesInput): Promise<ActionResult<Message[]>>;
   sendMessage(input: SendMessageInput): Promise<ActionResult<Message>>;
+}
+
+export interface BackendEvent {
+  id: string; title: string; description?: string; imageUrl?: string; placeName: string; lat?: number; lng?: number;
+  startsAt: string; endsAt: string; price: 'Free' | '$' | '$$' | '$$$';
 }

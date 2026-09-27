@@ -215,6 +215,8 @@ const toPreview = ({ id, lat, lng, placeName, category, popRadiusM }: Bubble): B
 });
 
 export const mockApi: Api = {
+  async getEvents() { return ok([]) },
+  async refreshEvents() { return ok({ scraped: 0, scrapedAt: new Date().toISOString() }) },
   async nearbyBubbles({ lat, lng, radiusM }) {
     const radius = Math.min(radiusM, MAX_NEARBY_RADIUS_M);
     const nearby = bubbles.filter(

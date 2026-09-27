@@ -35,7 +35,7 @@ export const tasks: CronTask[] = [{ name: 'scrape-events', schedule: '0 6 * * *'
 export async function runTask(name: string, env: Env): Promise<void> {
   if (name === 'scrape-events') {
     const context = buildCronContext(env, env.OWNER_USER_ID, `app:${env.DEEPSPACE_APP_ID}`)
-    const events = await scrapeEvents()
+    const events = await scrapeEvents(fetch, env.NYC_EVENTS_API_KEY)
     const existing = await context.records.query('events', { limit: 500 }) as Array<{ recordId?: string; data?: { externalId?: string } }>
     const byExternalId = new Map(existing.flatMap(row => row.data?.externalId && row.recordId ? [[row.data.externalId, row.recordId] as const] : []))
     for (const event of events) {

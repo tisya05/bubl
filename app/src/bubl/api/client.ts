@@ -35,6 +35,8 @@ async function uploadMedia(file: File): Promise<ActionResult<{ uploadId: string;
 }
 
 const realApi: Api = {
+  getEvents: () => callAction('getEvents'),
+  refreshEvents: () => callAction('refreshEvents'),
   nearbyBubbles: (input) => callAction('nearbyBubbles', input),
   canPop: (input) => callAction('canPop', input),
   openPopped: (input) => callAction('openPopped', input),
