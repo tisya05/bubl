@@ -5,7 +5,7 @@
  * - savePushSubscription / removePushSubscription: this phone's subscription.
  * - pushNearby: "You drifted into a bubble", pushed back to the caller's own
  *   phones after the server checks they really are inside it. Preview info only
- *   (the place name), never sealed content.
+ *   (kind and place name), never sealed content.
  * - pushToUser: used by notify() for loves, waves, matches and messages.
  *
  * Needs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in DeepSpace secrets; without
@@ -14,6 +14,7 @@
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
+import { nearbyNotice } from '../bubl/lib/notifications'
 import { checkPop } from '../bubl/lib/pop'
 import type { Bubble, Pop } from '../bubl/types'
 import { isPushEndpoint, sendWebPush, type PushSubscriptionKeys, type VapidKeys } from '../server/webpush'
@@ -111,8 +112,7 @@ export const pushNearby: ActionHandler<Env> = async ({ userId, params, tools, en
   if (popped.success && popped.data.records.length > 0) return { success: true, data: { pushed: 0 } }
 
   const pushed = await pushToUser(tools, env, userId, {
-    title: 'You drifted into a bubble',
-    body: bubble.placeName ? `${bubble.placeName} · tap to pop it` : 'Tap to pop it',
+    ...nearbyNotice(bubble),
     url: `/home?bubble=${encodeURIComponent(bubbleId)}`,
     tag: bubbleId,
   })
