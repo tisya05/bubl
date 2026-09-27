@@ -1,10 +1,23 @@
 import type { User } from '../types'
+import { isAvatarPath } from '../../server/avatar-url'
 
 export interface LocalProfile { name: string; username: string; imageUrl?: string }
+
+/** Prefer a synced custom avatar over leftover local/auth URLs. */
+export function pickImageUrl(local?: string, server?: string): string | undefined {
+  if (isAvatarPath(server)) return server
+  if (isAvatarPath(local)) return local
+  if (local?.startsWith('data:')) return server || local
+  return local || server || undefined
+}
+
 export function loadProfile(user: User): LocalProfile {
   try {
     const value = JSON.parse(localStorage.getItem(`bubl.profile.${user.id}`) ?? 'null')
-    if (value && typeof value.name === 'string' && typeof value.username === 'string') return value
+    if (value && typeof value.name === 'string' && typeof value.username === 'string') {
+      const localImage = typeof value.imageUrl === 'string' ? value.imageUrl : undefined
+      return { name: value.name, username: value.username, imageUrl: pickImageUrl(localImage, user.imageUrl ?? undefined) }
+    }
   } catch { /* Private browsing can disable storage. */ }
   return { name: user.name || 'You', username: '', imageUrl: user.imageUrl ?? undefined }
 }

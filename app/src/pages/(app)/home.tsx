@@ -6,12 +6,13 @@
  * product's point of view instead of extending this page.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AuthOverlay, signOut, useAuthProfileReady } from 'deepspace'
 import { Button } from '@/components/ui/Button'
 import { MobileApp } from '@/bubl/components/MobileApp'
 import { api, realLibrary } from '@/bubl/api/client'
+import { fetchMe } from '@/bubl/lib/authActions'
 
 export default function HomePage() {
   if (import.meta.env.VITE_UI_ONLY || import.meta.env.VITE_USE_MOCK === 'true') return <Navigate to="/demo" replace />
@@ -21,7 +22,15 @@ export default function HomePage() {
 function ConnectedHome() {
   const { isSignedIn, user } = useAuthProfileReady({ requireUser: true })
   const [showAuth, setShowAuth] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | undefined>()
+  useEffect(() => {
+    if (!user) return
+    setImageUrl(user.imageUrl ?? undefined)
+    void fetchMe().then(me => {
+      if (me?.imageUrl) setImageUrl(me.imageUrl)
+    })
+  }, [user])
   if (!isSignedIn) return <div className="bubl-app screen-fill signin-screen"><p className="eyebrow">A city full of little discoveries</p><h1>Your next favorite spot is around the corner.</h1><p className="lead">Sign in to pop bubbles, leave your own, and meet the locals behind them.</p><Button className="bubl-primary" data-testid="nav-sign-in-button" onClick={() => setShowAuth(true)}>Sign in to bubl</Button><Link className="text-button" to="/demo">Explore the demo</Link>{showAuth && <AuthOverlay providers={['google', 'github']} onClose={() => setShowAuth(false)} />}</div>
   if (!user) return <div className="bubl-app screen-fill signin-screen" role="status">Getting your bubbles ready…</div>
-  return <MobileApp api={api} library={realLibrary} user={{ id: user.id, name: user.name, imageUrl: user.imageUrl }} onSignOut={() => { void signOut().then(() => { window.location.href = '/' }) }} />
+  return <MobileApp api={api} library={realLibrary} user={{ id: user.id, name: user.name, imageUrl: imageUrl ?? user.imageUrl }} onSignOut={() => { void signOut().then(() => { window.location.href = '/' }) }} />
 }
