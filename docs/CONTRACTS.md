@@ -50,8 +50,8 @@ All of them require a signed-in user.
 | `myDropped` | Urvi | none | `DroppedItem[]` | You tab. The caller's live drops, newest first. `popCount` excludes the author's own pop |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
 | `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
-| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. No read receipts: `unread` means the other person sent the last message |
-| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first |
+| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. `unread` when the other person sent something after the caller last opened the thread |
+| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first. Marks the chat read for the caller |
 | `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
 | `getMe` | Urvi | none | `{ userId, handle, notificationsEnabled, locationEnabled, onboarded }` | Splash: signed out (401 / no session) → sign-in screen; `onboarded: false` → handle, then notifications; `onboarded: true` → map. `handle` is `null` until claimed |
 | `claimHandle` | Urvi | `handle` | `{ ok: true, me }` or `{ ok: false, reason }` | 3 to 20 chars, lowercase letters, numbers and `_` (input is lowercased, a leading `@` dropped). Unique; `reason` is safe to show ("That handle is taken"). Claiming a new one frees the old one |
