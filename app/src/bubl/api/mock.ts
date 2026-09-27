@@ -232,32 +232,6 @@ function mockScrapedEvents(): BackendEvent[] {
       endsAt: start(4),
       price: 'Free',
     },
-    {
-      id: 'scraped-riverside-yoga',
-      title: 'Sunset yoga in Riverside Park',
-      description: 'Bring a mat. Mock Eventbrite-style listing near 116th.',
-      imageUrl: '/bubl/event-music.svg',
-      sourceUrl: 'https://www.eventbrite.com/d/ny--new-york/events/',
-      placeName: 'Riverside Dr & 116th St',
-      lat: 40.8095,
-      lng: -73.9669,
-      startsAt: start(20),
-      endsAt: start(22),
-      price: '$',
-    },
-    {
-      id: 'scraped-morningside-jazz',
-      title: 'Jazz under the trees',
-      description: 'Free outdoor set. Mock nycforfree listing around Morningside Park.',
-      imageUrl: '/bubl/event-music.svg',
-      sourceUrl: 'https://www.nycforfree.co/events',
-      placeName: 'Morningside Dr & 116th St',
-      lat: 40.806,
-      lng: -73.958,
-      startsAt: start(48),
-      endsAt: start(51),
-      price: 'Free',
-    },
   ]
 }
 
