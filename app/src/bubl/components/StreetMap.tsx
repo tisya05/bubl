@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
-import { LocateFixed, Minus, Plus, Volume2 } from 'lucide-react'
+import { useEffect, useRef, useState, type PointerEvent, type CSSProperties } from 'react'
+import { LocateFixed, Minus, Plus, Volume2, Check } from 'lucide-react'
 import { useSound } from '../hooks/useSound'
 import type { BubblePreview } from '../lib/uiModels'
 import { LERNER_HALL, NEAR_ICON_M } from '../config'
 import { distanceM } from '../lib/geo'
 import { setDemoLocation, type UserLocation } from '../hooks/useUserLocation'
 import { CategoryIcon } from './MobileUI'
+import { CATEGORY_META } from '../lib/uiCategories'
 
 const BASE_ZOOM = 16
 const WORLD = 256 * 2 ** BASE_ZOOM
@@ -19,7 +20,7 @@ export function unproject(x: number, y: number) {
 }
 type Point = { x: number; y: number }
 type View = { center: Point; zoom: number }
-export function StreetMap({ bubbles, location, selected, onSelect, focus }: { focus?: BubblePreview; bubbles: BubblePreview[]; location: UserLocation | null; selected?: string; onSelect: (bubble: BubblePreview) => void }) {
+export function StreetMap({ bubbles, location, selected, onSelect, focus, poppedIds = [] }: { poppedIds?: string[]; focus?: BubblePreview; bubbles: BubblePreview[]; location: UserLocation | null; selected?: string; onSelect: (bubble: BubblePreview) => void }) {
   const root = useRef<HTMLDivElement>(null)
   const [soundEnabled, toggleSound] = useSound()
   const [size, setSize] = useState({ width: 390, height: 600 })
@@ -132,7 +133,9 @@ export function StreetMap({ bubbles, location, selected, onSelect, focus }: { fo
     <div className="map-marker-layer">{bubbles.map(bubble => {
       const p = project(bubble.lat, bubble.lng)
       const near = location && distanceM(location, bubble) <= NEAR_ICON_M
-      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top }} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}`}><CategoryIcon category={bubble.category} /></button>
+      const closeEnoughToPop = !!location && distanceM(location, bubble) <= bubble.popRadiusM
+      const showPoppedCheck = poppedIds.includes(bubble.id) && closeEnoughToPop
+      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top, '--bubble-color': CATEGORY_META[bubble.category].color } as CSSProperties} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${showPoppedCheck ? ' · Already popped' : ''}`}><CategoryIcon category={bubble.category} />{showPoppedCheck && <span className="map-popped-check"><Check size={12} /></span>}</button>
     })}
     {user && <div data-demo-pin className={`you-pin ${location?.source === 'demo' ? 'draggable' : ''}`} style={{ left: user.x * scale - left, top: user.y * scale - top }} role={location?.source === 'demo' ? 'slider' : 'img'} aria-label={location?.source === 'demo' ? 'Your demo location. Drag or use arrow keys to move.' : 'Your location'} tabIndex={location?.source === 'demo' ? 0 : undefined} aria-valuetext={`${location?.lat.toFixed(5)}, ${location?.lng.toFixed(5)}`} onKeyDown={event => {
       if (location?.source !== 'demo' || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return

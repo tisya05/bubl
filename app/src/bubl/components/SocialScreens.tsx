@@ -9,6 +9,7 @@ import { demoEvents, useDemoEvents } from '../lib/eventDemo'
 import { CATEGORY_META } from '../lib/uiCategories'
 import type { ChatSummary, DroppedItem, IncomingWave, Message, PoppedItem } from '../lib/uiModels'
 import { Avatar, CategoryIcon, Empty, ScreenHeader } from './MobileUI'
+import type { LibraryActions } from '../lib/libraryActions'
 import { result, useMobile, useOperation, waveTarget } from './MobileApp'
 
 export function WaveScreen() {
@@ -26,7 +27,7 @@ export function WaveScreen() {
     <div className="wave-pair"><div><Avatar name={user.name} /><strong>You</strong><span className={`status-pill ${sent ? 'waved' : ''}`}>{sent ? 'Waved' : 'Not yet'}</span></div><CategoryIcon category={wave.category} /><div><Avatar name={name} image={wave.user.imageUrl} /><strong>{name}</strong><span className="status-pill">{matched ? 'Waved' : 'Waiting'}</span></div></div>
     <div className="pinned-card"><CategoryIcon category={wave.category} /><div><strong>{wave.placeName}</strong><p>The bubble that connected you</p></div></div>
     {!sent && <label className="wave-note">Add a note <span>(optional)</span><Textarea value={note} maxLength={280} onChange={e => setNote(e.target.value)} placeholder="Hey, I loved your little corner of the city." /><small>{note.length}/280</small></label>}
-    <div className="bottom-actions">{!sent ? <Button className="bubl-primary" loading={busy} onClick={send}><Hand />Wave at {name}</Button> : <Button className="bubl-primary" onClick={() => matched ? openChat({ chat: { id: matched, participantIds: [user.id, wave.user.id], bubbleId: wave.bubbleId, unlockedAt: new Date().toISOString() }, otherUser: wave.user, unread: false }) : go('chats')}>{matched ? 'Open chat' : 'Go to chats'}</Button>}
+    <div className="bottom-actions">{!sent ? <Button className="bubl-primary wave-button" loading={busy} onClick={send}><Hand />Wave at {name}</Button> : <Button className="bubl-primary" onClick={() => matched ? openChat({ chat: { id: matched, participantIds: [user.id, wave.user.id], bubbleId: wave.bubbleId, unlockedAt: new Date().toISOString() }, otherUser: wave.user, unread: false }) : go('chats')}>{matched ? 'Open chat' : 'Go to chats'}</Button>}
       {!sent && <button className="text-button" onClick={() => go('walk')}>Not now</button>}
       {demo && library?.simulateWaveBack && sent && !matched && <button className="text-button" onClick={() => run(async () => { library.simulateWaveBack?.(wave.user.id, wave.bubbleId); const data = await result(api.sendWave({ toUserId: wave.user.id, bubbleId: wave.bubbleId })); setMatched(data.chatId) })}>Demo: {name} waves back</button>}
       <p className="fine-print">No pressure. If they don't wave back, nothing else happens.</p></div>
@@ -34,7 +35,8 @@ export function WaveScreen() {
 }
 
 export function ChatsScreen() {
-  const { api, waveAt, openChat, go } = useMobile()
+  const { api, waveAt, openChat, go, library } = useMobile()
+  const [outgoing, setOutgoing] = useState<Awaited<ReturnType<NonNullable<LibraryActions['outgoingWaves']>>>>([])
   const [chats, setChats] = useState<ChatSummary[]>([])
   const [waves, setWaves] = useState<IncomingWave[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,22 +45,23 @@ export function ChatsScreen() {
   useEffect(() => {
     let active = true
     function load() {
-      Promise.all([result(api.myChats()), result(api.incomingWaves())]).then(([c, w]) => { if (active) { setChats(c); setWaves(w); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+      Promise.all([result(api.myChats()), result(api.incomingWaves()), library?.outgoingWaves?.() ?? Promise.resolve([])]).then(([c, w, sent]) => { if (active) { setChats(c); setWaves(w); setOutgoing(sent); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     }
     load(); const timer = setInterval(load, 15000)
     return () => { active = false; clearInterval(timer) }
-  }, [api, retry])
-  return <section className="social-screen"><h1>Chats</h1>
+  }, [api, library, retry])
+  return <section className="social-screen chats-screen"><h1>Chats</h1>
     {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
     {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
-    {waves.length > 0 && <><p className="eyebrow section-label">Waved at you · {waves.length}</p>{waves.map(wave => <div className="incoming-wave" key={`${wave.from.id}:${wave.bubbleId}`}><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><strong>{wave.from.name} waved at you</strong><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p>{wave.note}</p>}</div><Button onClick={() => waveAt(waveTarget(wave))}><Hand />Wave</Button></div>)}</>}
-    {chats.length > 0 && <><p className="eyebrow section-label">Chats</p>{chats.map(chat => <button className="chat-row" key={chat.chat.id} onClick={() => openChat(chat)}><Avatar name={chat.otherUser.name} image={chat.otherUser.imageUrl} /><span><strong>{chat.otherUser.name}</strong><span>{chat.lastMessage?.text ?? 'You both waved. Say hello!'}</span></span>{chat.unread && <i className="unread-dot" aria-label="Unread messages" />}</button>)}</>}
-    {!loading && !error && !chats.length && !waves.length && <><Empty icon={<MessageCircle />} title="Good things start with a wave.">Pop a bubble, love the spot, and wave at the local who left it.</Empty><Button className="bubl-outline find-next-bubble" onClick={() => go('walk')}>Find your next bubble</Button></>}
+    {outgoing.length > 0 && <><p className="eyebrow section-label">You Waved To · {outgoing.length}</p>{outgoing.map(wave => <div className="incoming-wave outgoing-wave" key={`${wave.to.id}:${wave.bubbleId}`}><Avatar name={wave.to.name} image={wave.to.imageUrl} /><div><strong>{wave.to.name}</strong><p className="eyebrow">{wave.placeName}</p>{wave.note && <p className="wave-message">{wave.note}</p>}<small>Waiting for a wave back</small></div><Hand className="pending-wave-icon" aria-hidden="true" /></div>)}</>}
+    {waves.length > 0 && <><p className="eyebrow section-label">Waved At You · {waves.length}</p>{waves.map(wave => <div className="incoming-wave" key={`${wave.from.id}:${wave.bubbleId}`}><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><p className="wave-person"><strong>{wave.from.name}</strong><span className="wave-action-text"> waved at you</span></p><Button className="wave-button" onClick={() => waveAt(waveTarget(wave))}><Hand />Wave</Button><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p className="wave-message">{wave.note}</p>}</div></div>)}</>}
+    {chats.length > 0 && <><p className="eyebrow section-label">Chats</p>{chats.map(chat => <button className={`chat-row ${chat.unread ? 'unread' : ''}`} key={chat.chat.id} onClick={() => openChat(chat)}><Avatar name={chat.otherUser.name} image={chat.otherUser.imageUrl} /><span><strong>{chat.otherUser.name}</strong><span>{chat.lastMessage?.text ?? 'You both waved. Say hello!'}</span></span>{chat.unread && <i className="unread-dot" aria-label="Unread messages" />}</button>)}</>}
+    {!loading && !error && !chats.length && !waves.length && !outgoing.length && <><Empty icon={<MessageCircle />} title="Good things start with a wave.">Pop a bubble, love the spot, and wave at the local who left it.</Empty><Button className="bubl-outline find-next-bubble" onClick={() => go('walk')}>Find your next bubble</Button></>}
   </section>
 }
 
 export function ThreadScreen() {
-  const { api, thread, user, go, library } = useMobile()
+  const { api, thread, user, go, library, open } = useMobile()
   const { busy, run } = useOperation()
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
@@ -66,6 +69,12 @@ export function ThreadScreen() {
   const [loading, setLoading] = useState(true)
   const [retry, setRetry] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [sharedTitle, setSharedTitle] = useState('The spot that brought you together')
+  useEffect(() => {
+    let active = true
+    if (thread && library) library.getSavedBubble(thread.chat.bubbleId).then(saved => { if (active) setSharedTitle(saved.bubble.title) }).catch(() => {})
+    return () => { active = false }
+  }, [thread, library])
   const bottom = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!thread) return
@@ -76,9 +85,10 @@ export function ThreadScreen() {
   }, [api, thread, retry])
   useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }) }, [messages.length])
   if (!thread) return null
-  return <section className="thread-screen screen-fill"><ScreenHeader onBack={() => go('chats')} title={thread.otherUser.name || 'Your new connection'}><button className="round-button" aria-label="Delete chat" disabled={!library} onClick={() => setConfirmDelete(true)}><Trash2 /></button></ScreenHeader>
+  const username = `@${(thread.otherUser.name || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`
+  return <section className="thread-screen screen-fill"><ScreenHeader onBack={() => go('chats')} title={<span className="chat-header-person"><Avatar name={thread.otherUser.name} image={thread.otherUser.imageUrl} /><span><strong>{thread.otherUser.name || 'Your new connection'}</strong><small>{username}</small></span></span>}><button className="round-button" aria-label="Delete chat" disabled={!library} onClick={() => setConfirmDelete(true)}><Trash2 /></button></ScreenHeader>
     {confirmDelete && <div className="delete-confirm" role="alert"><strong>Delete this chat?</strong><p>This removes the conversation from this device.</p><div><Button variant="outline" onClick={() => setConfirmDelete(false)}>Keep chat</Button><Button variant="destructive" loading={busy} onClick={() => run(async () => { await library!.deleteChat(thread.chat.id); go('chats') })}>Delete chat</Button></div></div>}
-    <div className="thread-pin"><Pin size={22} /><div><strong>Your first shared bubble</strong><p>The spot that brought you together</p></div></div><p className="eyebrow mutual-label"><Hand size={14} />You both waved</p>
+    <button type="button" className="thread-pin" disabled={busy} onClick={() => { if (!library) { go('walk', thread.chat.bubbleId); return } void run(async () => open({ ...await library.getSavedBubble(thread.chat.bubbleId), fromChat: true })) }}><Pin size={22} /><span><strong>Your first shared bubble</strong><span className="thread-pin-caption">{sharedTitle}</span></span></button><p className="eyebrow mutual-label"><Hand size={14} />You both waved</p>
     <div className="message-list" aria-live="polite">{loading && <p className="loading-copy">Loading your conversation…</p>}{error && <div className="inline-error"><p>{error}</p><Button onClick={() => setRetry(retry + 1)}>Retry</Button></div>}{!loading && !error && !messages.length && <Empty icon={<Hand />} title="You're in each other's orbit.">Say hello. You already have a spot in common.</Empty>}{messages.map((message, index) => <div className={`message ${message.senderId === user.id ? 'mine' : ''}`} key={`${message.sentAt}:${index}`}><p>{message.text}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></div>)}<div ref={bottom} /></div>
     <form className="message-composer" onSubmit={event => { event.preventDefault(); if (!text.trim()) return; void run(async () => { const message = await result(api.sendMessage({ chatId: thread.chat.id, text: text.trim() })); setMessages(previous => [...previous, message]); setText('') }) }}><Input aria-label={`Message ${thread.otherUser.name}`} placeholder={`Message ${thread.otherUser.name || 'your connection'}`} value={text} maxLength={2000} onChange={e => setText(e.target.value)} /><Button type="submit" className="send-message" aria-label="Send message" disabled={!text.trim() || busy}><ArrowUp /></Button></form>
   </section>
@@ -104,7 +114,7 @@ export function YouScreen() {
     let active = true
     Promise.all([result(api.myPopped()), result(api.myDropped())]).then(([p, d]) => { if (active) { setPopped(p); setDropped(d); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [api, retry])
+  }, [api, library, retry])
   const events = useDemoEvents()
   const eventItems = (demo ? events : []).filter(item => tab === 'popped' ? item.poppedAt && !item.hidden : item.authorId === user.id).map(item => ({ bubbleId: item.id, title: item.title, category: item.category, placeName: item.placeName, poppedAt: item.poppedAt ?? item.createdAt, loved: item.hearted }))
   const items = [...(tab === 'popped' ? popped : dropped), ...eventItems]

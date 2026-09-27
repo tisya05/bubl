@@ -15,7 +15,7 @@ export function Categories({ value, onChange }: { value?: Category; onChange: (v
     return <button key={category} type="button" aria-pressed={value === category} className={value === category ? 'selected' : ''} onClick={() => onChange(category)} style={{ '--category': CATEGORY_META[category].color, '--tint': CATEGORY_META[category].tint } as CSSProperties}><Icon size={13} /><span>{category}</span></button>
   })}</div>
 }
-export function ScreenHeader({ title, onBack, close = false, children }: { title?: string; onBack: () => void; close?: boolean; children?: ReactNode }) {
+export function ScreenHeader({ title, onBack, close = false, children }: { title?: ReactNode; onBack: () => void; close?: boolean; children?: ReactNode }) {
   return <header className="screen-header"><button type="button" className="round-button" aria-label={close ? 'Close' : 'Back'} onClick={onBack}>{close ? <X /> : <ChevronLeft />}</button><h1>{title}</h1>{children ?? <span className="header-spacer" />}</header>
 }
 export function Avatar({ name, image }: { name?: string | null; image?: string | null }) {

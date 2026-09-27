@@ -91,7 +91,7 @@
 .map-heading .bubl-avatar { background: var(--bubl-accent); }
 .map-hint { width: fit-content; background: var(--bubl-card); padding: 6px 10px; border-radius: 12px; font-size: 11px; margin: 8px auto 0 !important; }
 .map-bubble { position: absolute; transform: translate(-50%, -50%); z-index: 2; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 10px #243b6420; }
-.map-bubble.active { box-shadow: 0 0 0 7px #ff8a5b33, 0 0 0 13px #ff8a5b22; }
+.map-bubble.active { box-shadow: 0 0 0 7px color-mix(in srgb, var(--bubble-color) 22%, transparent), 0 0 0 13px color-mix(in srgb, var(--bubble-color) 12%, transparent); }
 .map-bubble.far { opacity: .68; }
 .map-bubble.far .category-icon { filter: blur(4px); width: 26px; height: 26px; }
 .map-bubble.far svg { visibility: hidden; }
@@ -156,10 +156,12 @@
 .safety-caption { text-align: center; margin: 22px 0 10px !important; }
 .release-screen { padding: 36px 24px 24px; text-align: center; }
 .release-screen h1 { font-size: 36px; margin: 28px 12px 12px; }
-.floating-bubl { position: relative; margin: 26px auto 58px; width: 130px; height: 130px; border: 3px solid var(--bubl-navy); background: #243b641e; border-radius: 50%; display: grid; place-items: center; animation: intro-float 4s ease-in-out infinite; }
-.floating-bubl span { font-size: 70px; line-height: 1; }
+.floating-bubl { position: relative; margin: 60px auto 58px; margin-bottom: 40px; width: 130px; height: 130px; border: 3px solid var(--bubl-navy); background: #243b641e; border-radius: 50%; display: grid; place-items: center; animation: intro-float 4s ease-in-out infinite; }
+.floating-bubl > img, .floating-bubl > video { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.floating-bubl > .category-icon { width: 78px; height: 78px; border: 0; }
+.floating-bubl > .category-icon svg { width: 42px; height: 42px; }
 .floating-bubl::before { content: ''; position: absolute; width: 2px; height: 46px; border-left: 2px dotted var(--bubl-muted); top: 128px; left: 61px; }
-.floating-bubl::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%; top: 169px; background: var(--bubl-accent); }
+.floating-bubl::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid white; border-radius: 50%; top: 169px; background: #db5795; }
 .safety-card { background: var(--bubl-card); border: 1px solid var(--bubl-line); border-radius: 24px; padding: 20px; text-align: left; margin-top: 24px; }
 .safety-card p { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 14px; }
 .safety-card svg { flex-shrink: 0; color: var(--bubl-navy); }
@@ -185,19 +187,43 @@
 .section-label { margin: 24px 4px 12px !important; }
 .incoming-wave { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--bubl-line); background: var(--bubl-card); border-radius: 22px; margin-bottom: 12px; }
 .incoming-wave > div { flex: 1; min-width: 0; }
-.incoming-wave strong { font-size: 15px; }
-.incoming-wave .eyebrow { font-size: 9px; letter-spacing: .5px; margin-top: 3px; }
+/* Wave card text sizes: increase/decrease these values to customize the Chats page. */
+.chats-screen {
+  --wave-name-size: 15px;
+  --wave-action-size: 12px; /* "waved at you" beside the name */
+  --wave-message-size: 12px; /* Messages sent with incoming/outgoing waves */
+  --wave-details-size: 9px; /* Place and category below the name */
+  --wave-waiting-size: 10px; /* "Waiting for a wave back" */
+  --wave-section-size: 10px; /* "You Waved To", "Waved At You", "Chats" */
+}
+.incoming-wave strong { font-size: var(--wave-name-size); font-weight: 700; }
+.incoming-wave .wave-action-text { font-size: var(--wave-action-size); font-weight: 400; white-space: nowrap; }
+.incoming-wave .wave-message { font-size: var(--wave-message-size); font-weight: 400; line-height: 1.45; margin-top: 5px; }
+.incoming-wave .eyebrow { font-size: var(--wave-details-size); font-weight: 400; letter-spacing: .5px; margin-top: 3px; }
+.chats-screen .section-label { font-size: var(--wave-section-size); font-weight: 400; }
+.outgoing-wave small { font-size: var(--wave-waiting-size); font-weight: 400; }
 .incoming-wave button { border-radius: 30px; min-height: 44px; padding: 8px 13px; }
 .incoming-wave .bubl-avatar { background: #eadcf5; }
+.incoming-wave:not(.outgoing-wave) > div { display: flow-root; }
+.incoming-wave:not(.outgoing-wave) .wave-button { float: right; margin: 4px 0 4px 10px; }
 .chat-row { display: flex; align-items: center; width: 100%; gap: 12px; border-bottom: 1px solid var(--bubl-line); padding: 15px 2px; text-align: left; }
-.chat-row .bubl-avatar { outline: 2px solid var(--bubl-accent); outline-offset: 3px; margin-right: 3px; }
+.chat-row .bubl-avatar { outline: none; margin-right: 3px; }
+.chat-row.unread .bubl-avatar { outline: 2px solid #db5795; outline-offset: 3px; }
+.chat-row.unread > span:nth-child(2) > span { font-weight: 800; color: var(--bubl-ink); }
 .chat-row > span:nth-child(2) { flex: 1; min-width: 0; }
 .chat-row strong, .chat-row > span > span { display: block; }
 .chat-row > span > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--bubl-muted); font-size: 14px; margin-top: 3px; }
-.unread-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bubl-accent); }
+.unread-dot { width: 9px; height: 9px; border-radius: 50%; background: #db5795; }
 .thread-screen { height: 100%; }
 .thread-screen .screen-header { border-bottom: 1px solid var(--bubl-line); }
-.thread-pin { display: flex; gap: 14px; align-items: center; background: #ffe1d4; margin: 16px; padding: 14px 16px; border-radius: 22px; }
+.chat-header-person { display: inline-flex; align-items: center; gap: 9px; text-align: left; }
+.chat-header-person .bubl-avatar { width: 34px; height: 34px; font-size: 15px; }
+.chat-header-person > span:last-child { display: flex; flex-direction: column; line-height: 1.15; }
+.chat-header-person strong { font-size: 16px; }
+.chat-header-person small { margin-top: 3px; color: var(--bubl-muted); font-size: 11px; font-weight: 400; }
+.thread-pin { display: flex; gap: 14px; align-items: center; background: #f8d6e7; margin: 16px; padding: 14px 16px; border-radius: 22px; text-align: left; }
+.thread-pin-caption { display: block; font-size: 13px; color: var(--bubl-muted); }
+.bubl-app .wave-button { background: #f8d6e7; color: #243454; border-color: #eeb3d0; }
 .thread-pin p { font-size: 13px; color: var(--bubl-muted); }
 .mutual-label { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 16px !important; }
 .mutual-label svg { color: var(--bubl-accent); }
@@ -256,6 +282,11 @@ html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-be
 .map-marker-layer > * { pointer-events: auto; }
 .map-controls { position: absolute; bottom: calc(var(--sheet-height, 245px) + 18px); right: 16px; z-index: 4; display: flex; flex-direction: column; gap: 6px; }
 .map-controls .round-button { box-shadow: 0 2px 8px #243b6415; }
+.map-popped-check { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 19px; height: 19px; border-radius: 50%; background: #f4f1ea; border: 1px solid #db5795; color: #a7356a; }
+.hide-map-button { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0; color: var(--bubl-muted); }
+.event-edit-dialog label { display: block; font-size: 13px; margin-top: 12px; }
+.event-edit-dialog input { display: block; box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid var(--bubl-line); border-radius: 12px; background: white; padding: 10px; font: inherit; font-size: 16px; }
+.event-edit-dialog input[type="datetime-local"] { width: 88%; max-width: 260px; }
 .map-sound-toggle { position: relative; }
 .map-sound-toggle .sound-slash { position: absolute; stroke: #d64151; stroke-width: 2.5; stroke-linecap: round; fill: none; pointer-events: none; }
 .map-attribution { bottom: calc(var(--sheet-height, 245px) + 2px); }
@@ -347,7 +378,7 @@ html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-be
 .passport-settings span { flex: 1; }
 .passport-settings strong { display: block; font-size: 14px; }
 .passport-settings small { display: block; color: #8D8981; font-size: 13px; margin-top: 2px; }
-.passport-settings .settings-pin { color: #EC5798; width: 22px; fill: #FFCCE0; }
+.passport-settings .settings-pin { color: #265fbb; width: 22px; fill: #cce1ff; }
 .view-you .bottom-nav { background: #EBE6DC; color: #8D8981; }
 @media (prefers-reduced-motion: reduce) { .map-sheet, #bubble-details { transition: none; } }
 .map-sheet { display: flex; flex-direction: column; }
@@ -364,6 +395,18 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .location-suggestions { max-height: 240px; overflow-y: auto; overscroll-behavior: contain; }
 .location-search-status { padding: 12px 14px; font-size: 13px; color: var(--bubl-muted); }
 .bottom-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); padding-left: 6px; padding-right: 6px; }
+.bottom-nav { position: relative; z-index: 10; overflow: visible; }
+.bottom-nav .nav-drop { position: relative; top: 11.5px; color: var(--bubl-muted); }
+.nav-drop-circle {
+  --drop-circle-radius: 20px; /* Bigger value = bigger circle. */
+  --drop-circle-top: -29px; /* More negative = higher; more positive = lower. */
+  position: absolute; top: var(--drop-circle-top); left: 50%; transform: translateX(-50%);
+  width: calc(2 * var(--drop-circle-radius)); height: calc(2 * var(--drop-circle-radius));
+  display: grid; place-items: center; border-radius: 50%; background: var(--bubl-paper); border: 1px solid var(--bubl-line);
+}
+.bottom-nav .nav-drop-circle svg { width: 26px; height: 26px; }
+.view-you .nav-drop-circle { background: #ebe6dc; }
+.nav-drop:active .nav-drop-circle { transform: translateX(-50%) scale(.95); }
 .category-chips { overflow-x: auto; scrollbar-width: none; padding: 3px 1px; }
 .category-chips::-webkit-scrollbar { display: none; }
 .category-chips button { flex: 0 0 auto; padding: 6px 10px; }
@@ -509,3 +552,9 @@ html[data-safari-scroll] .mobile-shell { overflow: clip; }
 html[data-safari-scroll] .bottom-nav {
   position: sticky; bottom: env(safe-area-inset-bottom, 0px); z-index: 10;
 }
+
+.bubl-app .wave-button svg { color: #db5795; }
+
+.mutual-label svg, .pending-wave-icon { color: #3463a3; }
+.pending-wave-icon { flex-shrink: 0; width: 24px; height: 24px; }
+.outgoing-wave small { display: block; margin-top: 6px; color: var(--bubl-muted); }
