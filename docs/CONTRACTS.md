@@ -80,7 +80,7 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 3. **Location comes only from `useUserLocation`.** Nothing else calls `navigator.geolocation`. The in-app toggle switches between GPS and the draggable demo dot (`setDemoLocation`); denied or missing GPS falls back to the demo dot automatically.
 4. **Waves are author and lover only.** A wave is only between a bubble's author and someone who loved it, about that bubble, and either can wave first. Two people who loved the same bubble never see or wave at each other. Authors can't love their own bubble. On the note screen the action is **Wave** (not "Reply"), with an optional note of up to 280 characters.
 5. **One chat per pair of users,** created only when both have waved, readable and writable only by those two. It pins the *first* bubble that connected them and never updates the pin.
-6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
+6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`. Custom photos upload to `POST /api/avatars` (stored via `profiles.avatarKey`; `users.imageUrl` is auth-managed and not writable) and are served at `/api/avatars/:userId` to any signed-in user.
 7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
 ## Notifications

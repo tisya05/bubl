@@ -14,6 +14,7 @@ import { DropScreen } from './DropScreen'
 import { ChatsScreen, SentWavesScreen, ThreadScreen, WaveScreen, WavesScreen, YouScreen } from './SocialScreens'
 import { ProfileScreen } from './ProfileScreen'
 import { loadProfile, saveProfile, type LocalProfile } from '../lib/localProfile'
+import { isAvatarPath } from '../../server/avatar-url'
 import type { LibraryActions } from '../lib/libraryActions'
 import '../mobile.css'
 import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
@@ -50,12 +51,28 @@ export function useOperation() {
 export function MobileApp({ api, demo = false, user: originalUser, onSignOut, library }: { api: Api; demo?: boolean; user: User; onSignOut?: () => void; library?: LibraryActions }) {
   const [profile, setProfile] = useState(() => loadProfile(originalUser))
   const viewportRef = useAppViewport()
-  const user = { ...originalUser, name: profile.name, imageUrl: profile.imageUrl }
+  // Custom avatars come from getMe after mount; keep local name/username but prefer the server photo.
+  const user = {
+    ...originalUser,
+    name: profile.name,
+    imageUrl: isAvatarPath(originalUser.imageUrl) ? originalUser.imageUrl : profile.imageUrl,
+  }
   function updateProfile(next: LocalProfile) {
     saveProfile(originalUser.id, next)
     setProfile(next)
     library?.updateProfile({ ...originalUser, name: next.name, imageUrl: next.imageUrl })
   }
+  useEffect(() => { setProfile(loadProfile(originalUser)) }, [originalUser.id])
+  useEffect(() => {
+    const server = originalUser.imageUrl
+    if (!isAvatarPath(server)) return
+    setProfile(prev => {
+      if (prev.imageUrl === server) return prev
+      const next = { ...prev, imageUrl: server }
+      saveProfile(originalUser.id, next)
+      return next
+    })
+  }, [originalUser.id, originalUser.imageUrl])
   const [params, setParams] = useSearchParams()
   const requested = params.get('view') ?? 'walk'
   const [opened, setOpened] = useState<OpenedBubble | null>(null)
