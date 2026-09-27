@@ -60,7 +60,10 @@ async function systemNotification(a: BublAlert) {
 }
 
 export function alert(a: BublAlert) {
-  playPop();
+  // The pop sound is for popping. Drifting into a bubble while bubl is on screen stays quiet:
+  // the Pop it button appearing is the signal, so a pop you then tap makes exactly one sound.
+  const onScreen = typeof document !== 'undefined' && document.visibilityState === 'visible';
+  if (!(a.kind === 'nearby' && onScreen)) playPop();
   if (typeof navigator !== 'undefined') navigator.vibrate?.(a.kind === 'pop' ? [30, 40, 80] : 120);
   listeners.forEach((l) => l(a));
   if (!a.quiet) void systemNotification(a);

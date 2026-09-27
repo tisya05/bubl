@@ -71,7 +71,11 @@ export function WalkScreen() {
   const allBubbles = [...bubbles, ...eventPreviews].filter(b => !hiddenMapIds.includes(b.id))
   const visible = allBubbles.filter(b => !filter || b.category === filter)
   const sorted = [...visible].sort((a, b) => location ? distanceM(location, a) - distanceM(location, b) : 0)
-  const nearest = sorted.find(b => b.id === selected) ?? sorted[0]
+  // A bubble you're standing in (and haven't popped) always wins over a bubble you selected elsewhere,
+  // so dragging or walking onto one shows Pop it right away.
+  const poppable = (b: BubblePreview) => !!location && !b.popped && !b.mine && !allPoppedIds.includes(b.id) && distanceM(location, b) <= b.popRadiusM
+  const chosen = sorted.find(b => b.id === selected)
+  const nearest = (chosen && poppable(chosen) ? chosen : sorted.find(poppable)) ?? chosen ?? sorted[0]
   const distance = location && nearest ? Math.round(distanceM(location, nearest)) : null
   const eventReason = nearest?.event ? eventAvailability({ ...nearest, event: nearest.event }, location, now) : null
   // Popped if the server says so or it's in this session's popped list. Normal bubbles (and your own)
