@@ -109,6 +109,15 @@ test('subscribe, then nearby pushes only fire inside an unpopped bubble', async 
   const message = await call(request, 'sendMessage', token, { chatId, text: '__test__ hi from push spec' })
   expect(message.body).toMatchObject({ success: true })
 
+  // Dev has this chat open: Maya's message isn't pushed to Dev's phone. (Pushing to the fake
+  // endpoint would get it rejected and deleted, so the row surviving shows the push was skipped.)
+  expect((await call(request, 'savePushSubscription', token, FAKE_SUB)).body).toMatchObject({ success: true })
+  expect((await call(request, 'setActiveChat', token, { endpoint: FAKE_SUB.endpoint, chatId })).body).toMatchObject({ success: true, data: { saved: true } })
+  expect((await call(request, 'sendMessage', mayaToken, { chatId, text: '__test__ while the chat is open' })).body).toMatchObject({ success: true })
+  expect((await call(request, 'setActiveChat', token, { endpoint: FAKE_SUB.endpoint, chatId: null })).body).toMatchObject({ success: true, data: { saved: true } })
+  // Someone else can't touch Dev's phone row.
+  expect((await call(request, 'setActiveChat', mayaToken, { endpoint: FAKE_SUB.endpoint, chatId })).body).toMatchObject({ success: true, data: { saved: false } })
+
   const removed = await call(request, 'removePushSubscription', token, { endpoint: FAKE_SUB.endpoint })
   expect(removed.body.success).toBe(true)
 })

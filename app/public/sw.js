@@ -15,13 +15,19 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'bubl', {
-      body: data.body || '',
-      tag: data.tag,
-      icon: '/bubl/icons/icon-192.png',
-      badge: '/bubl/icons/icon-192.png',
-      data: { url: data.url || '/home' },
-    }),
+    (async () => {
+      // bubl open on screen plays its own pop, so the phone's notification sound stays off.
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const onScreen = windows.some((w) => w.visibilityState === 'visible');
+      await self.registration.showNotification(data.title || 'bubl', {
+        body: data.body || '',
+        tag: data.tag,
+        icon: '/bubl/icons/icon-192.png',
+        badge: '/bubl/icons/icon-192.png',
+        silent: onScreen,
+        data: { url: data.url || '/home' },
+      });
+    })(),
   );
 });
 

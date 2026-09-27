@@ -7,6 +7,7 @@ import { getAuthToken } from 'deepspace'
 import { AUTH_OFFLINE } from './authActions'
 
 let active = false
+let endpoint: string | null = null
 
 /** True once this phone's push subscription is saved: the server sends its notifications. */
 export const pushActive = () => active
@@ -58,12 +59,18 @@ export async function setupPush(): Promise<boolean> {
     }
     subscription ??= await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey })
 
-    const { endpoint, keys } = subscription.toJSON()
-    active = Boolean(await call('savePushSubscription', { endpoint, p256dh: keys?.p256dh, auth: keys?.auth }))
+    const json = subscription.toJSON()
+    active = Boolean(await call('savePushSubscription', { endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth }))
+    endpoint = active ? (json.endpoint ?? null) : null
     return active
   } catch {
     return false
   }
+}
+
+/** Tell the server which chat this phone has open (null = none), so its messages aren't pushed here. */
+export function reportOpenChat(chatId: string | null) {
+  if (active && endpoint) void call('setActiveChat', { endpoint, chatId })
 }
 
 /** Ask the server to push "You drifted into a bubble" to this phone (it checks you're really there). */

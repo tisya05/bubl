@@ -13,6 +13,9 @@ export const pushSubscriptionsSchema: CollectionSchema = {
     { name: 'endpoint', storage: 'text', interpretation: 'plain', required: true },
     { name: 'p256dh', storage: 'text', interpretation: 'plain', required: true },
     { name: 'auth', storage: 'text', interpretation: 'plain', required: true },
+    // The chat this phone has open right now (no message pushes for it), until activeUntil (ms).
+    { name: 'activeChatId', storage: 'text', interpretation: 'plain' },
+    { name: 'activeUntil', storage: 'number', interpretation: 'plain' },
   ],
   ownerField: 'userId',
   permissions: {

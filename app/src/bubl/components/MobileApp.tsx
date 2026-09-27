@@ -5,6 +5,7 @@ import { EventsScreen } from './EventsScreen'
 import { DropIcon, BalloonsIcon } from './AppIcons'
 import { useAppViewport } from '../hooks/useAppViewport'
 import { useBubbleNearby } from '../hooks/useBubbleNearby'
+import { useOpenChat } from '../hooks/useOpenChat'
 import { registerNotificationWorker } from '../lib/alerts'
 import { installSoundUnlock } from '../lib/sounds'
 import type { ActionResult } from 'deepspace/worker'
@@ -70,6 +71,7 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   useEffect(registerNotificationWorker, [])
   useEffect(installSoundUnlock, [])
   useBubbleNearby(api)
+  useOpenChat(view === 'thread' && thread ? thread.chat.id : null)
   const context: MobileContextValue = { api, demo, user, opened, wave, thread, onSignOut, go, notify: setMessage, library, profile, updateProfile,
     async openWithPop(value) {
       setPopping(value.bubble.category)

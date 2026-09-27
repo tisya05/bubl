@@ -45,6 +45,13 @@ describe('nearbyNotice', () => {
     });
   });
 
+  it("uses the bubble's title when the server sends it", () => {
+    expect(nearbyNotice({ category: 'Food', placeName: '40.8, -73.9', title: ' The 2 AM slice ' })).toEqual({
+      title: 'You drifted into a bubble 🫧',
+      body: 'The 2 AM slice',
+    });
+  });
+
   it('leaves out place names that are just coordinates', () => {
     expect(nearbyNotice({ category: 'Park', placeName: '40.80553, -73.96055' }).body).toBe('A park bubble is right here. Tap to pop it.');
     expect(nearbyNotice({ category: 'Misc', placeName: '' }).body).toBe('A bubble is right here. Tap to pop it.');

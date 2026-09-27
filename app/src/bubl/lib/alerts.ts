@@ -18,6 +18,12 @@ export interface BublAlert {
   quiet?: boolean; // sound + vibration only: the screen already shows it (e.g. the pop animation)
 }
 
+// The chat on screen right now: its new messages make no sound and no notification.
+let openChatId: string | null = null;
+export function setOpenChat(chatId: string | null) {
+  openChatId = chatId;
+}
+
 type Listener = (alert: BublAlert) => void;
 const listeners = new Set<Listener>();
 
@@ -66,6 +72,7 @@ export function alert(a: BublAlert) {
   // The pop sound is for popping. Drifting into a bubble while bubl is on screen stays quiet:
   // the Pop it button appearing is the signal, so a pop you then tap makes exactly one sound.
   const onScreen = typeof document !== 'undefined' && document.visibilityState === 'visible';
+  if (a.kind === 'message' && onScreen && a.chatId && a.chatId === openChatId) return;
   if (!(a.kind === 'nearby' && onScreen)) playPop();
   if (typeof navigator !== 'undefined') navigator.vibrate?.(a.kind === 'pop' ? [30, 40, 80] : 120);
   listeners.forEach((l) => l(a));

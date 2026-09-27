@@ -6,6 +6,7 @@
  * - pushNearby: "You drifted into a bubble", pushed back to the caller's own
  *   phones after the server checks they really are inside it. Preview info only
  *   (kind and place name), never sealed content.
+ * - setActiveChat: the chat open on this phone, so its messages aren't pushed there.
  * - pushToUser: used by notify() for loves, waves, matches and messages.
  *
  * Needs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in DeepSpace secrets; without
@@ -19,7 +20,7 @@ import { checkPop } from '../bubl/lib/pop'
 import type { Bubble, Pop } from '../bubl/types'
 import { isPushEndpoint, sendWebPush, type PushSubscriptionKeys, type VapidKeys } from '../server/webpush'
 
-type SubscriptionRow = PushSubscriptionKeys & { userId: string }
+type SubscriptionRow = PushSubscriptionKeys & { userId: string; activeChatId?: string; activeUntil?: number }
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
 
 /** What the service worker shows (public/sw.js). */
@@ -31,6 +32,8 @@ export interface PushPayload {
 }
 
 const DEFAULT_SUBJECT = 'https://bubl-divhacks.app.space'
+// The phone refreshes its open chat every minute; if it stops (closed, crashed), pushes resume after this.
+const ACTIVE_CHAT_MS = 90_000
 const MAX_SUBSCRIPTIONS_PER_USER = 10
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
@@ -42,15 +45,20 @@ export function vapidFrom(env: Env): VapidKeys | null {
   return { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT || DEFAULT_SUBJECT }
 }
 
-/** Pushes to every phone the user subscribed. Never throws; drops dead subscriptions. */
-export async function pushToUser(tools: ActionTools, env: Env, userId: string, payload: PushPayload): Promise<number> {
+/**
+ * Pushes to every phone the user subscribed. Never throws; drops dead subscriptions.
+ * `skipChatId`: leave out phones that have that chat open right now (a new message in it).
+ */
+export async function pushToUser(tools: ActionTools, env: Env, userId: string, payload: PushPayload, skipChatId?: string): Promise<number> {
   const vapid = vapidFrom(env)
   if (!vapid) return 0
   try {
     const subs = await tools.query<SubscriptionRow>('pushSubscriptions', { where: { userId }, limit: MAX_SUBSCRIPTIONS_PER_USER })
     if (!subs.success) return 0
+    const now = Date.now()
+    const targets = subs.data.records.filter((row) => !(skipChatId && row.data.activeChatId === skipChatId && (row.data.activeUntil ?? 0) > now))
     const results = await Promise.all(
-      subs.data.records.map(async (row) => {
+      targets.map(async (row) => {
         const res = await sendWebPush(vapid, row.data, payload).catch(() => ({ ok: false as const, gone: false, status: -1 }))
         if (!res.ok && res.gone) await tools.remove('pushSubscriptions', row.recordId)
         if (!res.ok && !res.gone) console.warn(`[push] push service answered ${res.status}`)
@@ -95,6 +103,19 @@ export const removePushSubscription: ActionHandler<Env> = async ({ userId, param
   const removed = await tools.deleteWhere('pushSubscriptions', { endpoint, userId }, 10)
   if (!removed.success) return removed
   return { success: true, data: { removed: removed.data.deleted } }
+}
+
+/** Params: `{ endpoint, chatId }` (chatId null when no chat is open). Only the caller's own phone. */
+export const setActiveChat: ActionHandler<Env> = async ({ userId, params, tools }) => {
+  const { endpoint, chatId } = params
+  if (!nonEmptyString(endpoint)) return { success: false, error: 'endpoint is required' }
+  if (chatId !== null && !nonEmptyString(chatId)) return { success: false, error: 'chatId must be a chat id or null' }
+  const mine = await tools.query<SubscriptionRow>('pushSubscriptions', { where: { endpoint, userId }, limit: 1 })
+  const row = mine.success ? mine.data.records[0] : undefined
+  if (!row) return { success: true, data: { saved: false } }
+  const updated = await tools.update('pushSubscriptions', row.recordId, chatId ? { activeChatId: chatId, activeUntil: Date.now() + ACTIVE_CHAT_MS } : { activeChatId: '', activeUntil: 0 })
+  if (!updated.success) return updated
+  return { success: true, data: { saved: true } }
 }
 
 /** Params: `{ bubbleId, lat, lng }`. Pushes only if the caller is inside a bubble they haven't popped or written. */
