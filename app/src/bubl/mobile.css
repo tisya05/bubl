@@ -628,3 +628,31 @@ html[data-safari-scroll] .bottom-nav {
 .bubl-banner-close { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--bubl-muted); border-radius: 50%; }
 @keyframes bubl-banner-in { from { transform: translateY(calc(-100% - 24px)); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .bubl-banner { animation: none; } }
+
+/* Start-up permission check (PermissionSheet). */
+.permission-sheet-backdrop { position: absolute; inset: 0; z-index: 150; display: flex; align-items: flex-end; background: #17171c66; }
+.permission-sheet { width: 100%; display: flex; flex-direction: column; gap: 12px; padding: 22px 20px max(20px, env(safe-area-inset-bottom)); border-radius: 28px 28px 0 0; background: var(--bubl-paper); box-shadow: 0 -10px 30px #17171c22; }
+.permission-sheet h2 { margin: 0 0 4px; font-size: 22px; }
+.permission-sheet .permission-card h3 { margin: 0; font-size: 16px; }
+.permission-sheet .permission-card p { margin: 2px 0 0; font-size: 13px; color: var(--bubl-muted); }
+.bubl-app .permission-sheet .permission-allow { width: auto; min-height: 44px; min-width: 84px; flex: none; padding: 10px 18px; font-size: 15px; }
+.permission-sheet .permission-card { margin-bottom: 0; padding: 14px 16px; }
+.permission-sheet .permission-card > div { flex: 1; min-width: 0; }
+.permission-sheet .text-button { align-self: center; min-height: 44px; }
+
+/* iOS 26 Home Screen app: the frame is stretched over the home-indicator strip
+   (useAppViewport sets --app-bottom-gap; 0 everywhere else), so bottom bars keep
+   their content above it while their background reaches the screen edge. */
+.bottom-nav { padding-bottom: var(--app-bottom-gap, 0px); }
+.message-composer { padding-bottom: max(16px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.note-actions { padding-bottom: max(22px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.drop-screen form, .profile-screen form { padding-bottom: max(24px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.waves-list { padding-bottom: max(24px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.note-screen > .privacy-note { padding-bottom: max(30px, calc(env(safe-area-inset-bottom) + 20px), calc(var(--app-bottom-gap, 0px) + 20px)); }
+.permission-sheet { padding-bottom: max(20px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.welcome-screen { padding-bottom: max(20px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+.login-scroll { padding-bottom: max(28px, env(safe-area-inset-bottom), var(--app-bottom-gap, 0px)); }
+
+/* Safari tab: paint the splash's navy under Safari's floating toolbar too. A shadow is
+   drawn outside the page without making it taller, so nothing extra scrolls. */
+html[data-safari-scroll] .bubl-intro { box-shadow: 0 0 0 100vh #252b61; }
