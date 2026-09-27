@@ -70,12 +70,13 @@ export async function checkBubble(
 ): Promise<ModerationVerdict | null> {
   if (!env.GEMINI_API_KEY) return null
 
-  const noteText = input.title ? `Title: ${input.title}\n\nNote: ${input.text}` : `Note: ${input.text}`
+  const note = input.text || '(no note, media only)'
+  const noteText = input.title ? `Title: ${input.title}\n\nNote: ${note}` : `Note: ${note}`
   const mediaBlocks = (input.media ?? []).map(mediaContentBlock)
   // A photo or video Gemini can't take can't be checked, so it can't go live.
   if (mediaBlocks.some((b) => b === null)) return UNVERIFIABLE
   const content = [{ type: 'text', text: noteText }, ...mediaBlocks]
-  const hasVideo = mediaBlocks.some((b) => b?.type === 'video')
+  const hasVideo = mediaBlocks.some((b) => b?.type === 'video' || b?.type === 'audio')
 
   const request = JSON.stringify({
     model: env.GEMINI_MODEL || DEFAULT_MODEL,

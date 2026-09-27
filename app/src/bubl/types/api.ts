@@ -48,6 +48,7 @@ export interface LovedByInput {
 }
 
 // Server loads the bubble text itself, only if the caller has popped it. Generated once, stored, reused.
+// For a voice-note bubble (mediaType 'audio') audioUrl is the author's recording (/api/media/<id>) instead.
 export interface SpeakInput {
   bubbleId: string;
 }
@@ -69,10 +70,10 @@ export interface TranslateResult {
 
 // ---- Drop ----
 
-// Server strips GPS/EXIF metadata and enforces size limits (video max 15 s).
+// Server strips GPS/EXIF metadata and enforces size limits (video max 15 s, voice note max 30 s / 1 MB).
 export interface UploadMediaResult {
   uploadId: string;
-  mediaType: 'photo' | 'video';
+  mediaType: 'photo' | 'video' | 'audio';
 }
 
 // Moderation runs inside dropBubble and cannot be skipped. Empty title or category

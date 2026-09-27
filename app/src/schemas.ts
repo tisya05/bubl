@@ -10,8 +10,9 @@
 import type { CollectionSchema } from 'deepspace/schema'
 import { usersSchema } from './schemas/users-schema'
 import { settingsSchema } from './schemas/admin-schema'
-import { bubblesSchema, bubblePreviewsSchema } from './schemas/bubbles-schema'
+import { bubblesSchema, bubblePreviewsSchema, mediaUploadsSchema } from './schemas/bubbles-schema'
 import { popsSchema, wavesSchema, chatsSchema, messagesSchema } from './schemas/social-schema'
+import { profilesSchema, handlesSchema } from './schemas/profiles-schema'
 import { notificationsSchema } from './schemas/notifications-schema'
 
 export const schemas: CollectionSchema[] = [
@@ -19,9 +20,12 @@ export const schemas: CollectionSchema[] = [
   settingsSchema,
   bubblesSchema,
   bubblePreviewsSchema,
+  mediaUploadsSchema,
   popsSchema,
   wavesSchema,
   chatsSchema,
   messagesSchema,
+  profilesSchema,
+  handlesSchema,
   notificationsSchema,
 ]
