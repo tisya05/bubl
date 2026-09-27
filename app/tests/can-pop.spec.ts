@@ -14,7 +14,7 @@ const hasDemoAccounts = ['Maya', 'Dev'].every((name) =>
 test.skip(!hasDemoAccounts, 'Needs the Maya and Dev test accounts (see npx deepspace test accounts list)')
 
 const LERNER = { lat: 40.8069, lng: -73.964 }
-const BUBBLE_ID = 'test-can-pop'
+const BUBBLE_ID = 'seed-test-can-pop'
 
 function ownerJwt(): string | undefined {
   try {

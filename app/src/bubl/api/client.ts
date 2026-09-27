@@ -6,6 +6,7 @@ import { getAuthToken } from 'deepspace';
 import type { ActionResult } from 'deepspace/worker';
 import type { Api } from '../types';
 import { mockApi } from './mock';
+import { preparePhoto } from './prepare-photo';
 
 // Calls the DeepSpace server action with the same name (src/actions/index.ts).
 async function callAction<T>(name: string, params: object = {}): Promise<ActionResult<T>> {
@@ -20,6 +21,19 @@ async function callAction<T>(name: string, params: object = {}): Promise<ActionR
   return res.json() as Promise<ActionResult<T>>;
 }
 
+// Media goes through our own route (metadata stripping, private storage), not a JSON action.
+async function uploadMedia(file: File): Promise<ActionResult<{ uploadId: string; mediaType: 'photo' | 'video' }>> {
+  const body = new FormData();
+  body.append('file', await preparePhoto(file));
+  const res = await fetch('/api/media/upload', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await getAuthToken()}` },
+    body,
+  });
+  if (!res.ok) return { success: false, error: `Upload failed (${res.status})` };
+  return res.json() as Promise<ActionResult<{ uploadId: string; mediaType: 'photo' | 'video' }>>;
+}
+
 const realApi: Api = {
   nearbyBubbles: (input) => callAction('nearbyBubbles', input),
   canPop: (input) => callAction('canPop', input),
@@ -28,8 +42,7 @@ const realApi: Api = {
   lovedBy: (input) => callAction('lovedBy', input),
   speak: (input) => callAction('speak', input),
   translate: (input) => callAction('translate', input),
-  // TODO (Urvi): files go through DeepSpace R2 uploads, not a JSON action.
-  uploadMedia: async () => ({ success: false, error: 'not implemented: uploadMedia (Urvi)' }),
+  uploadMedia,
   dropBubble: (input) => callAction('dropBubble', input),
   myPopped: () => callAction('myPopped'),
   myDropped: () => callAction('myDropped'),

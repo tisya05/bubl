@@ -22,6 +22,11 @@ const ME: User = { id: 'me', name: initialProfile.name, imageUrl: initialProfile
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
 const AUTHORS: Record<string, User> = {
+  'u-alma': { id: 'u-alma', name: 'Alma Mater', imageUrl: '/bubl/alma-mater.png' },
+  'u-tim': { id: 'u-tim', name: 'Tim the Beaver', imageUrl: '/bubl/tim-beaver.png' },
+  'u-tiger': { id: 'u-tiger', name: 'Princeton Tiger', imageUrl: '/bubl/princeton-tiger.png' },
+  'u-bruno': { id: 'u-bruno', name: 'Bruno the Bear', imageUrl: '/bubl/bruno-bear.png' },
+  'u-roaree': { id: 'u-roaree', name: 'Roaree', imageUrl: '/bubl/roaree.png' },
   'u-maya': { id: 'u-maya', name: 'Maya' },
   'u-diego': { id: 'u-diego', name: 'Diego' },
 };
@@ -122,9 +127,15 @@ const messages: Message[] = [];
 const uploads = new Map<string, { url: string; type: 'photo' | 'video' }>();
 const mediaUrls = new Map<string, string>();
 const STATE_KEY = 'bubl.demo.v2';
+let roareeSeeded = false;
+let campusSamplesSeeded = false;
+let chatReadAt: Record<string, string> = {};
 try {
   const saved = JSON.parse(localStorage.getItem(STATE_KEY) ?? 'null');
   if (saved?.version === 2 && Array.isArray(saved.bubbles)) {
+    roareeSeeded = saved.roareeSeeded === true;
+    campusSamplesSeeded = saved.campusSamplesSeeded === true;
+    chatReadAt = saved.chatReadAt ?? {};
     bubbles.splice(0, bubbles.length, ...saved.bubbles);
     for (const key of saved.pops ?? []) pops.add(key);
     for (const key of saved.hiddenPops ?? []) hiddenPops.add(key);
@@ -133,7 +144,47 @@ try {
   }
 } catch { /* A fresh or storage-restricted browser starts with an empty library. */ }
 function persist() {
-  try { localStorage.setItem(STATE_KEY, JSON.stringify({ version: 2, bubbles, pops: [...pops], hiddenPops: [...hiddenPops], loves: [...loves], waves, chats, messages })); } catch { /* State remains usable for this session if storage is full. */ }
+  try { localStorage.setItem(STATE_KEY, JSON.stringify({ version: 2, roareeSeeded, campusSamplesSeeded, chatReadAt, bubbles, pops: [...pops], hiddenPops: [...hiddenPops], loves: [...loves], waves, chats, messages })); } catch { /* State remains usable for this session if storage is full. */ }
+}
+if (!campusSamplesSeeded) {
+  const now = new Date().toISOString();
+  const sunset = bubbles.find(b => b.title === 'Awesome Sunset') ?? bubble({ id: 'b-alma-sunset', authorId: 'u-alma', ...LERNER_HALL, title: 'Awesome Sunset', text: 'Catch the golden light from Low Steps. Stay a little longer—the sky gets even better.', placeName: 'Low Steps · Columbia University', category: 'Misc' });
+  if (!bubbles.some(b => b.id === sunset.id)) bubbles.push(sunset);
+  pops.add(`me:${sunset.id}`);
+  chats.push({ id: 'chat-alma', participantIds: [ME.id, 'u-alma'], bubbleId: sunset.id, unlockedAt: now });
+  messages.push(
+    { chatId: 'chat-alma', senderId: 'u-alma', text: 'Did you catch that awesome sunset from the steps? 🌅', sentAt: now },
+    { chatId: 'chat-alma', senderId: ME.id, text: 'Yes! The whole campus looked golden.', sentAt: now },
+    { chatId: 'chat-alma', senderId: 'u-alma', text: 'My favorite view. Come back tomorrow—we can watch it together!', sentAt: now },
+  );
+  for (const [id, title, note] of [
+    ['u-tim', 'A quiet study corner', 'Loved this spot! Want to swap campus discoveries?'],
+    ['u-tiger', 'A little campus adventure', 'That was a great find. Sending a wave!'],
+    ['u-bruno', 'Coffee and a stroll', 'Your coffee spot looks amazing!'],
+  ]) {
+    const bubbleId = `b-campus-${id}`;
+    const sampleCategory = id === 'u-tim' ? 'Food' : id === 'u-tiger' ? 'Park' : 'Cafe';
+    bubbles.push(bubble({ id: bubbleId, authorId: id, ...LERNER_HALL, title, text: 'A sample campus discovery. A good place to slow down and say hello.', placeName: 'College Walk · Columbia University', category: sampleCategory }));
+    pops.add(`me:${bubbleId}`); loves.add(`me:${bubbleId}`);
+    waves.push({ fromUserId: id === 'u-bruno' ? ME.id : id, toUserId: id === 'u-bruno' ? id : ME.id, bubbleId, note, createdAt: now });
+  }
+  campusSamplesSeeded = true;
+  persist();
+}
+// Add the requested sample once, including to existing demos. Deletion stays deleted.
+if (!roareeSeeded) {
+  const chatId = 'chat-roaree';
+  const start = Date.now() - 5 * 60_000;
+  if (!chats.some(chat => chat.id === chatId)) {
+    chats.push({ id: chatId, participantIds: [ME.id, 'u-roaree'], bubbleId: 'b-lerner', unlockedAt: new Date(start).toISOString() });
+    messages.push(
+      { chatId, senderId: 'u-roaree', text: 'Hey! Roaree here 🦁 Found any good spots around campus?', sentAt: new Date(start).toISOString() },
+      { chatId, senderId: ME.id, text: 'Just found a bubble near Broadway! Any recommendations?', sentAt: new Date(start + 60_000).toISOString() },
+      { chatId, senderId: 'u-roaree', text: 'Take a walk over to Low Steps. It’s my favorite place to hang out between adventures 💙', sentAt: new Date(start + 120_000).toISOString() },
+    );
+  }
+  roareeSeeded = true;
+  persist();
 }
 async function withMedia(b: Bubble): Promise<Bubble> {
   if (!b.mediaUrl?.startsWith('bubl-media:')) return { ...b };
@@ -269,10 +320,11 @@ export const mockApi: Api = {
     }));
   },
   async myChats() {
-    return ok(chats.filter(c => c.participantIds.includes(ME.id)).map(chat => ({ chat, otherUser: AUTHORS[chat.participantIds.find(id => id !== ME.id)!], lastMessage: messages.filter(m => m.chatId === chat.id).at(-1), unread: false })));
+    return ok(chats.filter(c => c.participantIds.includes(ME.id)).map(chat => ({ chat, otherUser: AUTHORS[chat.participantIds.find(id => id !== ME.id)!], lastMessage: messages.filter(m => m.chatId === chat.id).at(-1), unread: messages.some(m => m.chatId === chat.id && m.senderId !== ME.id && m.sentAt > (chatReadAt[chat.id] ?? '')) })));
   },
   async getMessages({ chatId }) {
     if (!chats.some(c => c.id === chatId && c.participantIds.includes(ME.id))) return fail('This chat is locked. You both need to wave first.');
+    chatReadAt[chatId] = new Date().toISOString();
     return ok([...messages.filter(m => m.chatId === chatId)]);
   },
   async sendMessage({ chatId, text }) {
@@ -285,10 +337,16 @@ export const mockApi: Api = {
 };
 
 export const mockLibrary: LibraryActions = {
+  async outgoingWaves() {
+    return waves.filter(w => w.fromUserId === ME.id && !waves.some(r => r.fromUserId === w.toUserId && r.toUserId === ME.id && r.bubbleId === w.bubbleId)).flatMap(w => {
+      const b = bubbles.find(b => b.id === w.bubbleId), to = AUTHORS[w.toUserId];
+      return b && to ? [{ to, bubbleId: b.id, placeName: b.placeName, note: w.note }] : [];
+    });
+  },
   simulateWaveBack,
   async getSavedBubble(id) {
     const b = bubbles.find(b => b.id === id);
-    if (!b || (b.authorId !== ME.id && (!pops.has(`me:${id}`) || hiddenPops.has(id)))) throw new Error('This bubble is no longer in your collection.');
+    if (!b || (b.authorId !== ME.id && !chats.some(c => c.bubbleId === id && c.participantIds.includes(ME.id)) && (!pops.has(`me:${id}`) || hiddenPops.has(id)))) throw new Error('This bubble is no longer in your collection.');
     return { bubble: await withMedia(b), author: b.authorId === ME.id ? { ...ME } : AUTHORS[b.authorId], loved: loves.has(`me:${id}`) };
   },
   async removePopped(id) { hiddenPops.add(id); persist(); },

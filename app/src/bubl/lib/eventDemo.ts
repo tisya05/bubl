@@ -12,12 +12,17 @@ const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 const iso = (offset: number) => new Date(Date.now() + offset * 3600000).toISOString()
 function seed(): EventItem[] {
   return [
+    { id: 'event-awesome-sunset', title: 'Awesome Sunset', text: 'Catch the golden light from Low Steps. Stay a little longer—the sky gets even better.', placeName: 'Low Steps · Columbia University', ...LERNER_HALL, startsAt: iso(-1), endsAt: iso(3), image: 'social' },
     { id: 'event-demo-social', title: 'A little neighborhood social', text: 'A demo event for trying bubl. Meet at the pin, say hello, and swap your favorite neighborhood spots.', placeName: 'Lerner Hall · Broadway', ...LERNER_HALL, startsAt: iso(-1), endsAt: iso(3), image: 'social' },
     { id: 'event-demo-music', title: 'An afternoon of live music', text: 'A sample event, not a real listing. A little music and a new corner of the city to discover.', placeName: 'Riverside Dr & 116th St', lat: 40.8095, lng: -73.9669, startsAt: iso(24), endsAt: iso(27), image: 'music' },
   ].map(item => ({ id: item.id, title: item.title, text: item.text, placeName: item.placeName, lat: item.lat, lng: item.lng, authorId: 'demo-host', author: { id: 'demo-host', name: 'bubl demo' }, category: 'Events', event: { startsAt: item.startsAt, endsAt: item.endsAt, timeZone }, createdAt: new Date().toISOString(), language: 'en', status: 'live', moderation: 'unchecked', popRadiusM: 60, hearted: false, going: false, mediaType: 'photo', mediaUrl: `/bubl/event-${item.image}.svg` }))
 }
 let state: EventItem[] = seed()
 try { const saved = JSON.parse(localStorage.getItem(key) ?? 'null'); if (Array.isArray(saved)) state = saved } catch { /* Keep the demo usable when storage is unavailable. */ }
+if (!state.some(item => item.title === 'Awesome Sunset')) {
+  const sunset = seed().find(item => item.title === 'Awesome Sunset')
+  if (sunset) state = [sunset, ...state]
+}
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
 const snapshot = () => state
 export function useDemoEvents() { return useSyncExternalStore(subscribe, snapshot) }
@@ -41,6 +46,15 @@ export function eventAvailability(event: Pick<EventItem, 'lat' | 'lng' | 'popRad
   return null
 }
 export const demoEvents = {
+  async edit(id: string, draft: EventDraft, userId: string) {
+    const existing = state.find(item => item.id === id);
+    if (!existing || existing.authorId !== userId) throw new Error('Only your own events can be edited.');
+    if (!draft.title.trim() || !draft.placeName.trim()) throw new Error('Add an event name and location.');
+    const start = Date.parse(draft.event.startsAt), end = Date.parse(draft.event.endsAt);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) throw new Error('The end must be after the start.');
+    if (!Number.isFinite(draft.lat) || !Number.isFinite(draft.lng) || Math.abs(draft.lat) > 85 || Math.abs(draft.lng) > 180) throw new Error('Choose a valid location.');
+    update(id, item => ({ ...item, title: draft.title.trim(), text: draft.text.trim(), placeName: draft.placeName.trim(), lat: draft.lat, lng: draft.lng, event: draft.event }));
+  },
   async create(draft: EventDraft, author: User) {
     if (!draft.title.trim() || !draft.placeName.trim()) throw new Error('Add an event name and location.')
     const start = Date.parse(draft.event.startsAt), end = Date.parse(draft.event.endsAt)

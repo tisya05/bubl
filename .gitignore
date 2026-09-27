@@ -1,5 +1,8 @@
 CLAUDE.md
 deepspace.pdf
+seed/.uploads.*.json
+seed/media/*
+!seed/media/.gitkeep
 app/dist-ui/
 app/test-results/
 app/playwright-report/

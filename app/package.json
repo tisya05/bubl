@@ -18,6 +18,8 @@
     "test:mobile": "playwright test --config tests/mobile.config.ts",
     "build": "vite build",
     "login": "deepspace auth login",
+    "seed:import": "node scripts/seed.ts import",
+    "demo:reset": "node scripts/seed.ts reset",
     "deploy": "deepspace deploy",
     "undeploy": "deepspace app undeploy",
     "add": "deepspace add",
