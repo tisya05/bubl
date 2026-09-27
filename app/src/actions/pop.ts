@@ -10,21 +10,16 @@ import { RECORD_NOT_FOUND, type ActionHandler, type ActionTools } from 'deepspac
 import type { Env } from '../../worker'
 import { checkPop } from '../bubl/lib/pop'
 import type { Bubble, CanPopResult, Pop, User } from '../bubl/types'
+import { publicUser } from './profile'
 
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
-type UserRow = { name?: string; imageUrl?: string }
 type PopRow = Pick<Pop, 'userId' | 'bubbleId'>
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
 
-// Seed authors may not have an account yet, so fall back to a neutral name.
-async function loadAuthor(tools: ActionTools, authorId: string): Promise<User> {
-  const res = await tools.get<UserRow>('users', authorId)
-  if (!res.success) return { id: authorId, name: 'A local' }
-  const { name, imageUrl } = res.data.record.data
-  return { id: authorId, name: name || 'A local', imageUrl }
-}
+// Authors without a handle yet show as a neutral name.
+const loadAuthor = (tools: ActionTools, authorId: string): Promise<User> => publicUser(tools, authorId, 'A local')
 
 // Idempotent: popping the same bubble again keeps the first pop (and its loved flag).
 async function recordPop(tools: ActionTools, userId: string, bubbleId: string) {

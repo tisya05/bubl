@@ -60,3 +60,25 @@ export const resetDemo: ActionHandler<Env> = async ({ userId, tools, env }) => {
     return { success: false, error: `Reset stopped partway: ${(err as Error).message}` }
   }
 }
+
+const DEMO_PROFILES = [
+  { userId: 'sYL8FvOhT463FM0ZH9ajemFvfXqu7XGo', handle: 'maya' },
+  { userId: 'OHHViJa9Fu4tyKzF8ZnRO7OqDgvTm3qx', handle: 'dev' },
+  { userId: 'GN08sDkS4Kj0h9JXL6pB2x4OFQBLXQiW', handle: 'sam' },
+]
+
+/** Owner-only: gives Maya, Dev and Sam handles and finished onboarding, so demo sign-in lands on the map. */
+export const setupDemoProfiles: ActionHandler<Env> = async ({ userId, tools, env }) => {
+  if (userId !== env.OWNER_USER_ID) return { success: false, error: 'Forbidden: owner only' }
+  for (const { userId: id, handle } of DEMO_PROFILES) {
+    const claimed = await tools.create('handles', { userId: id }, handle)
+    if (!claimed.success) return claimed
+    const saved = await tools.create(
+      'profiles',
+      { handle, notificationsEnabled: true, locationEnabled: true, onboardedAt: new Date().toISOString() },
+      id,
+    )
+    if (!saved.success) return saved
+  }
+  return { success: true, data: { profiles: DEMO_PROFILES.map((p) => `@${p.handle}`) } }
+}

@@ -54,6 +54,15 @@ All of them require a signed-in user.
 | `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. No read receipts: `unread` means the other person sent the last message |
 | `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first |
 | `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
+| `getMe` | Urvi | none | `{ userId, handle, notificationsEnabled, locationEnabled, onboarded }` | Splash: signed out (401 / no session) → sign-in screen; `onboarded: false` → handle, then notifications; `onboarded: true` → map. `handle` is `null` until claimed |
+| `claimHandle` | Urvi | `handle` | `{ ok: true, me }` or `{ ok: false, reason }` | 3 to 20 chars, lowercase letters, numbers and `_` (input is lowercased, a leading `@` dropped). Unique; `reason` is safe to show ("That handle is taken"). Claiming a new one frees the old one |
+| `savePreferences` | Urvi | `notificationsEnabled`, `locationEnabled` (booleans) | same as `getMe` | Needs a handle first. The first save marks onboarding done |
+
+**Auth (Urvi).** DeepSpace only supports Google (or GitHub) sign-in for new users: email sign-up is disabled and there's no phone sign-in, so the phone option is UI only. Everywhere a person is shown to someone else (`canPop` author, `lovedBy`, waves, chats) their name is `@handle` (or "A local" / "bubl user" before they pick one), never their Google name or email.
+- **Google:** send the browser to `/api/auth/social-redirect?provider=google`. It flashes a "Signing in…" page, goes to Google, and comes back to `/home` signed in. No DeepSpace sign-in screen.
+- **Staying signed in:** the session cookie lasts 30 days, so on launch just call `getMe`. Signed-out calls fail with 401.
+- **Demo sign-in:** `POST /api/demo/sign-in` with `{ as: 'maya' | 'dev' | 'sam' }` sets the same session cookie (their passwords are server secrets). Those three are already onboarded (`@maya`, `@dev`, `@sam`).
+- **Sign out:** `POST /api/auth/sign-out`.
 
 **Server-only pieces (not in `Api`, never called from the client):**
 

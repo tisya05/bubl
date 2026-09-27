@@ -27,6 +27,7 @@ import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
 import { registerMediaRoutes } from './src/server/media-routes.js'
+import { registerDemoAuthRoutes } from './src/server/demo-auth-routes.js'
 import {
   registerAuthAndIntegrationRoutes,
   registerPlatformProxyRoutes,
@@ -123,6 +124,10 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   GEMINI_API_KEY?: string
   /** Optional Gemini model override; defaults to gemini-3.5-flash-lite. */
   GEMINI_MODEL?: string
+  /** Passwords for POST /api/demo/sign-in (Maya, Dev, Sam). Unset = demo sign-in off. */
+  DEMO_PASSWORD_MAYA?: string
+  DEMO_PASSWORD_DEV?: string
+  DEMO_PASSWORD_SAM?: string
 }
 
 export type AppContext = { Bindings: Env }
@@ -143,6 +148,7 @@ registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
 registerMediaRoutes(app, resolveAuth)
+registerDemoAuthRoutes(app)
 // The in-app assistant stores chat history in `ai-chats` / `ai-messages`,
 // which only the copilot overlay declares. When present, registerAgent enables
 // both that website AI and the user's local Codex/Claude/etc. assistant.

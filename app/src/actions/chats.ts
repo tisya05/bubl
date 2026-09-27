@@ -8,6 +8,7 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Chat, ChatSummary, Message, User } from '../bubl/types'
+import { publicUser } from './profile'
 
 const MAX_MESSAGE_CHARS = 1000
 const MESSAGE_PAGE = 200
@@ -38,11 +39,6 @@ async function chatForMember(tools: ActionTools, userId: string, chatId: unknown
   return res.data.record
 }
 
-async function publicUser(tools: ActionTools, userId: string): Promise<User> {
-  const res = await tools.get<{ name?: string; imageUrl?: string }>('users', userId)
-  const data = res.success ? res.data.record.data : {}
-  return { id: userId, name: data.name ?? 'bubl user', imageUrl: data.imageUrl }
-}
 
 /**
  * The caller's chats, most recent activity first. With no read receipts,

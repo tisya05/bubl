@@ -9,6 +9,7 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Bubble, BubblePreview, IncomingWave, Pop, User, Wave } from '../bubl/types'
+import { publicUser } from './profile'
 
 const MAX_NOTE_CHARS = 280
 
@@ -88,12 +89,10 @@ export const incomingWaves: ActionHandler<Env> = async ({ userId, tools }) => {
   const pending = received.data.records.filter((r) => !wavedBack.has(`${r.data.fromUserId}:${r.data.bubbleId}`))
   const items = await Promise.all(
     pending.map(async (r): Promise<IncomingWave> => {
-      const [sender, preview] = await Promise.all([
-        tools.get<{ name?: string; imageUrl?: string }>('users', r.data.fromUserId),
+      const [from, preview] = await Promise.all([
+        publicUser(tools, r.data.fromUserId),
         tools.get<Omit<BubblePreview, 'id'>>('bubble_previews', r.data.bubbleId),
       ])
-      const senderData = sender.success ? sender.data.record.data : {}
-      const from: User = { id: r.data.fromUserId, name: senderData.name ?? 'bubl user', imageUrl: senderData.imageUrl }
       const place = preview.success ? preview.data.record.data : undefined
       return {
         from,

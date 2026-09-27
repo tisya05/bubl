@@ -8,6 +8,7 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Bubble, Pop, User } from '../bubl/types'
+import { publicUser } from './profile'
 
 type PopRow = Omit<Pop, 'id'>
 
@@ -21,12 +22,6 @@ async function authorOf(tools: ActionTools, bubbleId: string): Promise<string | 
 async function findPop(tools: ActionTools, userId: string, bubbleId: string) {
   const res = await tools.query<PopRow>('pops', { where: { userId, bubbleId }, limit: 1 })
   return res.success ? res.data.records[0] : undefined
-}
-
-async function publicUser(tools: ActionTools, userId: string): Promise<User> {
-  const res = await tools.get<{ name?: string; imageUrl?: string }>('users', userId)
-  const data = res.success ? res.data.record.data : {}
-  return { id: userId, name: data.name ?? 'bubl user', imageUrl: data.imageUrl }
 }
 
 /** Sets Pop.loved. Requires the caller's Pop; authors can't love their own bubble. */

@@ -264,6 +264,10 @@ async function importSeeds(target: string, dryRun: boolean) {
     imported += res.data.imported
   }
   console.log(`Imported ${imported} bubble(s) into ${target}.`)
+
+  const profiles = await post(target, token, '/api/actions/setupDemoProfiles', {})
+  if (profiles.success) console.log(`Demo accounts ready: ${profiles.data.profiles.join(', ')}.`)
+  else console.warn(`Demo profiles not set up (owner only): ${profiles.error}`)
 }
 
 async function reset(target: string) {
