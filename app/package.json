@@ -12,6 +12,10 @@
   },
   "scripts": {
     "dev": "deepspace dev start",
+    "dev:ui": "vite --config vite.ui.config.ts --host 127.0.0.1 --port 5174",
+    "dev:phone": "npm run build:ui && vite preview --config vite.ui.config.ts --host 0.0.0.0 --port 5175",
+    "build:ui": "vite build --config vite.ui.config.ts",
+    "test:mobile": "playwright test --config tests/mobile.config.ts",
     "build": "vite build",
     "login": "deepspace auth login",
     "deploy": "deepspace deploy",

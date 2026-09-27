@@ -5,6 +5,7 @@ import { routes } from '@generouted/react-router/lazy'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { installStaleChunkRecovery } from './stale-chunk-recovery'
 import './styles.css'
+import './bubl/lib/safariScroll'
 
 const router = createBrowserRouter(routes)
 installStaleChunkRecovery(router)

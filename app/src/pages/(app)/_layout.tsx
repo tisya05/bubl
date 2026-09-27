@@ -16,7 +16,7 @@
  */
 
 import { Suspense, type ReactNode } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { DeepSpaceAuthProvider, useAuthStatus } from 'deepspace'
 import { RecordProvider, RecordScope } from 'deepspace'
 import Navigation from '../../components/Navigation'
@@ -26,11 +26,13 @@ import { schemas } from '../../schemas'
 import { NotificationCenter } from '@/bubl/components/NotificationCenter'
 
 export default function AppLayout() {
+  const isMobileHome = useLocation().pathname === '/home'
+  if (import.meta.env.VITE_UI_ONLY) return <Outlet />
   return (
     <DeepSpaceAuthProvider>
       <AuthBoot>
         <div className="flex h-screen flex-col bg-background overflow-hidden">
-          <Navigation />
+          {!isMobileHome && <Navigation />}
           <main className="flex-1 overflow-y-auto min-h-0">
             <Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground">Loading...</div>}>
               <Outlet />
