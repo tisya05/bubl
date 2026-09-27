@@ -47,7 +47,7 @@ async function chatFor(tools: ActionTools, a: string, b: string, bubbleId: strin
 }
 
 /** Params: `{ toUserId, bubbleId, note? }`. Returns `{ matched, chatId? }`. */
-export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) => {
+export const sendWave: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const { toUserId, bubbleId, note } = params
   if (!nonEmptyString(toUserId) || !nonEmptyString(bubbleId)) {
     return { success: false, error: 'toUserId and bubbleId are required' }
@@ -73,7 +73,7 @@ export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) =>
     const created = await tools.create('waves', wave)
     if (!created.success) return created
     const from = await publicUser(tools, userId)
-    await notify(tools, toUserId, waveNotice({ id: userId, name: from.name }, { id: bubbleId, placeName }, cleanNote || undefined))
+    await notify(tools, toUserId, waveNotice({ id: userId, name: from.name }, { id: bubbleId, placeName }, cleanNote || undefined), env)
   }
 
   if (!(await findWave(tools, toUserId, userId, bubbleId))) return { success: true, data: { matched: false } }
@@ -82,8 +82,8 @@ export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) =>
   if (!chat.success) return chat
   if (!already) {
     const [me, them] = await Promise.all([publicUser(tools, userId), publicUser(tools, toUserId)])
-    await notify(tools, userId, matchNotice({ id: toUserId, name: them.name }, chat.chatId, bubbleId))
-    await notify(tools, toUserId, matchNotice({ id: userId, name: me.name }, chat.chatId, bubbleId))
+    await notify(tools, userId, matchNotice({ id: toUserId, name: them.name }, chat.chatId, bubbleId), env)
+    await notify(tools, toUserId, matchNotice({ id: userId, name: me.name }, chat.chatId, bubbleId), env)
   }
   return { success: true, data: { matched: true, chatId: chat.chatId } }
 }

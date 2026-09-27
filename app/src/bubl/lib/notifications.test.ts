@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loveNotice, matchNotice, messageNotice, waveNotice } from './notifications';
+import { loveNotice, matchNotice, messageNotice, nearbyNotice, waveNotice } from './notifications';
 
 const maya = { id: 'u-maya', name: 'Maya' };
 const bubble = { id: 'b1', placeName: 'Broadway & 116th St' };
@@ -34,5 +34,26 @@ describe('notification text', () => {
 
   it('leaves out "at" when a bubble has no place name', () => {
     expect(loveNotice(maya, { id: 'b2', placeName: '' }).body).toBe('Your bubble got some love. Wave back?');
+  });
+});
+
+describe('nearbyNotice', () => {
+  it('says what kind of bubble and where', () => {
+    expect(nearbyNotice({ category: 'Food', placeName: 'Broadway & 116th St' })).toEqual({
+      title: 'You drifted into a bubble 🫧',
+      body: 'A food bubble at Broadway & 116th St is right here. Tap to pop it.',
+    });
+  });
+
+  it("uses the bubble's title when the server sends it", () => {
+    expect(nearbyNotice({ category: 'Food', placeName: '40.8, -73.9', title: ' The 2 AM slice ' })).toEqual({
+      title: 'You drifted into a bubble 🫧',
+      body: 'The 2 AM slice',
+    });
+  });
+
+  it('leaves out place names that are just coordinates', () => {
+    expect(nearbyNotice({ category: 'Park', placeName: '40.80553, -73.96055' }).body).toBe('A park bubble is right here. Tap to pop it.');
+    expect(nearbyNotice({ category: 'Misc', placeName: '' }).body).toBe('A bubble is right here. Tap to pop it.');
   });
 });

@@ -152,6 +152,8 @@ export interface Api {
   loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
   lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
   speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
+  // A fixed line in the same voice, for walking mode: 'photo' / 'video' = "This bubble also has a photo…".
+  speakLine(input: { line: 'photo' | 'video' }): Promise<ActionResult<SpeakResult>>;
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;

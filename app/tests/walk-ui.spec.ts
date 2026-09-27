@@ -14,8 +14,9 @@ test.skip(
   'Needs the Maya and Dev test accounts (see npx deepspace test accounts list)',
 )
 
-// ~700 m north of Lerner, well away from the other test bubbles there.
-const SPOT = { lat: 40.8132, lng: -73.964 }
+// North of Lerner, at a random spot in a ~400 m square each run, so a bubble left
+// unpopped by an earlier (failed) run is very unlikely to sit inside this one's pop radius.
+const SPOT = { lat: 40.8135 + Math.random() * 0.0035, lng: -73.966 + Math.random() * 0.0045 }
 const BUBBLE = {
   // Fresh every run, so Dev hasn't popped it yet.
   id: `seed-test-walk-ui-${Date.now()}`,
@@ -66,14 +67,16 @@ test('walk to a bubble, pop it once, then only reopen it', async ({ users, reque
   // ~150 m further north: shows the distance, no Pop button, and nothing sealed on screen.
   await standAt(page, SPOT.lat + 150 / 111_195, SPOT.lng)
   await expect(page.getByText(/m away · Broadway & 122nd St/)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByRole('button', { name: 'Pop it' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Pop it', exact: true })).toBeHidden()
   await expect(page.getByText('__test__ Walk UI bubble')).toHaveCount(0)
 
   // Standing on it: pop through the real button.
   await standAt(page, SPOT.lat, SPOT.lng)
   await expect(page.getByText("You're standing in a bubble")).toBeVisible({ timeout: 15_000 })
+  // The in-app banner says so too.
+  await expect(page.locator('.bubl-banner')).toContainText('You drifted into a bubble')
   const popped = page.waitForResponse((r) => r.url().endsWith('/api/actions/canPop'))
-  await page.getByRole('button', { name: 'Pop it' }).click()
+  await page.getByRole('button', { name: 'Pop it', exact: true }).click()
   expect(await (await popped).json()).toMatchObject({ success: true, data: { ok: true, bubble: { id: BUBBLE.id } } })
 
   // The note opens with the sealed content.
@@ -91,7 +94,7 @@ test('walk to a bubble, pop it once, then only reopen it', async ({ users, reque
   await page.getByRole('button', { name: 'Back' }).click()
   await expect(page.getByText('You popped this')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('button', { name: 'Open note' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Pop it' })).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Pop it', exact: true })).toBeHidden()
 
   // And it reopens from anywhere, without a new pop.
   await standAt(page, SPOT.lat + 300 / 111_195, SPOT.lng)

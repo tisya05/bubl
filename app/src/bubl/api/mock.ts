@@ -324,6 +324,9 @@ export const mockApi: Api = {
   async speak() {
     return ok({ audioUrl: '' });
   },
+  async speakLine() {
+    return ok({ audioUrl: '' });
+  },
   async uploadMedia(file) {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return fail('Choose a photo or video.');
     const uploadId = newId();

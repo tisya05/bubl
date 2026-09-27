@@ -15,6 +15,7 @@ import { popsSchema, wavesSchema, chatsSchema, messagesSchema, chatReadsSchema }
 import { profilesSchema, handlesSchema } from './schemas/profiles-schema'
 import { notificationsSchema } from './schemas/notifications-schema'
 import { eventsSchema } from './schemas/events-schema'
+import { pushSubscriptionsSchema } from './schemas/push-schema'
 
 export const schemas: CollectionSchema[] = [
   usersSchema,
@@ -31,4 +32,5 @@ export const schemas: CollectionSchema[] = [
   handlesSchema,
   notificationsSchema,
   eventsSchema,
+  pushSubscriptionsSchema,
 ]
