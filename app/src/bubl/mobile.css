@@ -412,6 +412,9 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .category-chips button { flex: 0 0 auto; padding: 6px 10px; }
 .drop-screen .category-chips { flex-wrap: wrap; overflow: visible; }
 .drop-screen .category-chips button { flex: 1 0 28%; }
+.note-lovers { flex-shrink: 0; max-height: 40%; overflow-y: auto; padding: 8px 20px 0; }
+.note-lovers .section-label { margin: 4px 4px 10px !important; }
+.note-lovers .incoming-wave:last-child { margin-bottom: 0; }
 .note-screen > .privacy-note { flex-shrink: 0; padding: 18px 22px max(30px, calc(env(safe-area-inset-bottom) + 20px)); margin: 0; background: var(--bubl-paper); }
 .location-map { margin: 24px 0; border: 1px solid var(--bubl-line); border-radius: 20px; overflow: hidden; background: #e4e7dc; }
 .location-map-image { height: 180px; position: relative; overflow: hidden; isolation: isolate; }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { NEARBY_QUERY_RADIUS_M } from '../config'
 import { distanceM } from '../lib/geo'
 import { setDemoLocation, setLocationSource, useUserLocation } from '../hooks/useUserLocation'
-import type { BubblePreview, Category } from '../lib/uiModels'
+import type { BubblePreview, Category, User } from '../lib/uiModels'
 import { Avatar, Categories, CategoryIcon, Empty, ScreenHeader } from './MobileUI'
 import { useDemoEvents, demoEvents, eventAvailability } from '../lib/eventDemo'
 import { LocationMap } from './LocationMap'
@@ -121,6 +121,13 @@ export function NoteScreen() {
   const audio = useRef<HTMLAudioElement | null>(null)
   useEffect(() => { if (audio.current) audio.current.muted = !soundEnabled }, [soundEnabled])
   useEffect(() => () => { audio.current?.pause() }, [])
+  const [lovers, setLovers] = useState<User[]>([])
+  const ownBubbleId = opened && !opened.bubble.event && opened.bubble.authorId === user.id ? opened.bubble.id : undefined
+  useEffect(() => {
+    let active = true
+    if (ownBubbleId) result(api.lovedBy({ bubbleId: ownBubbleId })).then(data => { if (active) setLovers(data) }).catch(() => {})
+    return () => { active = false }
+  }, [api, ownBubbleId])
   if (!opened) return null
   const { author } = opened
   const bubble = liveEvents.find(item => item.id === opened.bubble.id) ?? opened.bubble
@@ -138,6 +145,7 @@ export function NoteScreen() {
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
     </div>
     {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline wave-button" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
-    {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
+    {own && !bubble.event && lovers.length > 0 && <div className="note-lovers"><p className="eyebrow section-label">Loved this · {lovers.length}</p>{lovers.map(lover => <div className="incoming-wave" key={lover.id}><Avatar name={lover.name} image={lover.imageUrl} /><div><p className="wave-person"><strong>{lover.name || 'A local'}</strong><span className="wave-action-text"> loved this spot</span></p><Button className="wave-button" onClick={() => waveAt({ user: lover, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div></div>)}</div>}
+    {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : lovers.length ? 'Wave first, or wait for them in Chats.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
   </section>
 }

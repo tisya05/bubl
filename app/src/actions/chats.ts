@@ -7,7 +7,9 @@
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import type { Chat, ChatSummary, Message, User } from '../bubl/types'
+import type { Bubble, Chat, ChatBubble, ChatSummary, Message } from '../bubl/types'
+import { messageNotice } from '../bubl/lib/notifications'
+import { notify } from './notify'
 import { publicUser } from './profile'
 
 const MAX_MESSAGE_CHARS = 1000
@@ -85,6 +87,18 @@ export const getMessages: ActionHandler<Env> = async ({ userId, params, tools })
   return { success: true, data: res.data.records.map((r) => toMessage(r.data)).reverse() }
 }
 
+/** The pinned bubble's title and place, only for the chat's two users. Params: `{ chatId }`. */
+export const chatBubble: ActionHandler<Env> = async ({ userId, params, tools }) => {
+  const chat = await chatForMember(tools, userId, params.chatId)
+  if (!chat) return { success: false, error: 'Chat not found' }
+
+  const bubble = await tools.get<Pick<Bubble, 'title' | 'placeName' | 'category'>>('bubbles', chat.data.bubbleId)
+  if (!bubble.success) return { success: false, error: 'Bubble not found' }
+  const b = bubble.data.record.data
+  const data: ChatBubble = { bubbleId: chat.data.bubbleId, title: b.title, placeName: b.placeName, category: b.category }
+  return { success: true, data }
+}
+
 /** Params: `{ chatId, text }` (1 to 1000 characters). */
 export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools }) => {
   const chat = await chatForMember(tools, userId, params.chatId)
@@ -103,5 +117,10 @@ export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools })
   }
   const created = await tools.create('messages', message)
   if (!created.success) return created
+  const otherId = chat.data.userIds.find((id) => id !== userId)
+  if (otherId) {
+    const from = await publicUser(tools, userId)
+    await notify(tools, otherId, messageNotice({ id: userId, name: from.name }, chat.recordId, text))
+  }
   return { success: true, data: toMessage(message) }
 }

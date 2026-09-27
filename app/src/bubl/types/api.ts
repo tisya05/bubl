@@ -8,10 +8,12 @@ import type {
   Bubble,
   BubblePreview,
   Category,
+  ChatBubble,
   ChatSummary,
   DroppedItem,
   IncomingWave,
   Message,
+  OutgoingWave,
   PoppedItem,
   User,
 } from './models';
@@ -110,6 +112,10 @@ export interface GetMessagesInput {
   chatId: string;
 }
 
+export interface ChatBubbleInput {
+  chatId: string;
+}
+
 export interface SendMessageInput {
   chatId: string;
   text: string;
@@ -135,7 +141,9 @@ export interface Api {
 
   sendWave(input: SendWaveInput): Promise<ActionResult<SendWaveResult>>;
   incomingWaves(): Promise<ActionResult<IncomingWave[]>>;
+  outgoingWaves(): Promise<ActionResult<OutgoingWave[]>>;
   myChats(): Promise<ActionResult<ChatSummary[]>>;
+  chatBubble(input: ChatBubbleInput): Promise<ActionResult<ChatBubble>>;
   getMessages(input: GetMessagesInput): Promise<ActionResult<Message[]>>;
   sendMessage(input: SendMessageInput): Promise<ActionResult<Message>>;
 }
