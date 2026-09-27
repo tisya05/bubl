@@ -126,15 +126,15 @@ test('seed import: bad rows block the batch, re-import upserts, expired and out-
     bubbles: [
       { ...base, id: 'seed-test-upsert', ...LERNER },
       { ...base, id: 'seed-test-expired', ...LERNER, expiresAt: '2020-01-01T00:00:00.000Z' },
-      // ~1.5 km north of Lerner: outside the 1 km cap even if the client asks for more.
-      { ...base, id: 'seed-test-beyond-cap', lat: LERNER.lat + 0.0135, lng: LERNER.lng },
+      // ~33 km north of Lerner: outside the 25 km cap even if the client asks for more.
+      { ...base, id: 'seed-test-beyond-cap', lat: LERNER.lat + 0.3, lng: LERNER.lng },
     ],
   }
   for (let i = 0; i < 2; i++) {
     expect(await (await callAction(request, 'importSeedBubbles', jwt, good)).json()).toMatchObject({ success: true })
   }
 
-  const near = await callAction(dev.page.request, 'nearbyBubbles', await tokenFor(dev), { ...LERNER, radiusM: 5000 })
+  const near = await callAction(dev.page.request, 'nearbyBubbles', await tokenFor(dev), { ...LERNER, radiusM: 50_000 })
   const ids = ((await near.json()) as { data: { id: string }[] }).data.map((b) => b.id)
   expect(ids.filter((id) => id === 'seed-test-upsert')).toHaveLength(1)
   expect(ids).not.toContain('seed-test-batch-good')

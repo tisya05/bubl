@@ -10,7 +10,8 @@ import { CATEGORY_META } from '../lib/uiCategories'
 
 const BASE_ZOOM = 16
 const WORLD = 256 * 2 ** BASE_ZOOM
-const clampZoom = (zoom: number) => Math.min(19, Math.max(13, zoom))
+// 11 fits the whole city on a phone, so every bubble can be seen at once.
+const clampZoom = (zoom: number) => Math.min(19, Math.max(11, zoom))
 export function project(lat: number, lng: number) {
   const sin = Math.sin(Math.min(85.05, Math.max(-85.05, lat)) * Math.PI / 180)
   return { x: (lng + 180) / 360 * WORLD, y: (.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * WORLD }
@@ -133,8 +134,10 @@ export function StreetMap({ bubbles, location, selected, onSelect, focus, popped
     <div className="map-marker-layer">{bubbles.map(bubble => {
       const p = project(bubble.lat, bubble.lng)
       const near = location && distanceM(location, bubble) <= NEAR_ICON_M
+      // Two looks only: sealed (blurred dot / icon) or opened (a ring with a dot). Opened = you popped it or you wrote it.
       const isPopped = !!bubble.popped || poppedIds.includes(bubble.id)
-      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${isPopped ? 'popped' : ''} ${bubble.mine ? 'mine' : ''} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top, '--bubble-color': CATEGORY_META[bubble.category].color } as CSSProperties} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${isPopped ? ', already popped' : bubble.mine ? ', yours' : ''}`}>{isPopped ? <span className="popped-mark" style={{ '--category': CATEGORY_META[bubble.category].color } as CSSProperties}><i /></span> : <CategoryIcon category={bubble.category} />}</button>
+      const opened = isPopped || !!bubble.mine
+      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${opened ? 'popped' : ''} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top, '--bubble-color': CATEGORY_META[bubble.category].color } as CSSProperties} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${bubble.mine ? ', yours' : isPopped ? ', already popped' : ''}`}>{opened ? <span className="popped-mark" style={{ '--category': CATEGORY_META[bubble.category].color } as CSSProperties}><i /></span> : <CategoryIcon category={bubble.category} />}</button>
     })}
     {user && <div data-demo-pin className={`you-pin ${location?.source === 'demo' ? 'draggable' : ''}`} style={{ left: user.x * scale - left, top: user.y * scale - top }} role={location?.source === 'demo' ? 'slider' : 'img'} aria-label={location?.source === 'demo' ? 'Your demo location. Drag or use arrow keys to move.' : 'Your location'} tabIndex={location?.source === 'demo' ? 0 : undefined} aria-valuetext={`${location?.lat.toFixed(5)}, ${location?.lng.toFixed(5)}`} onKeyDown={event => {
       if (location?.source !== 'demo' || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return

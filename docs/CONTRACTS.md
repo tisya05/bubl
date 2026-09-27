@@ -39,7 +39,7 @@ All of them require a signed-in user.
 
 | Function | Owner | Input | Output | Notes |
 | --- | --- | --- | --- | --- |
-| `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 1000 m |
+| `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 25 km: the map shows every bubble in the city (far ones blurred); content stays sealed until you are inside a pop radius |
 | `canPop` | Tisya | `userLat`, `userLng`, `bubbleId` | `{ ok: true, bubble, author }` or `{ ok: false, reason }` | `reason`: `'too_far'` (with `distanceM`), `'not_found'`, `'expired'`. Success creates the caller's `Pop` (one per user and bubble; popping again is a no-op). `lovedBy` and `loveBubble` depend on it |
 | `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`; refused for the bubble's own author. Loving twice is a no-op |
 | `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` (a lover gets the author from `canPop`) |
@@ -68,7 +68,7 @@ All of them require a signed-in user.
 
 - `saveBubble(bubble: Bubble)` (Urvi): the one DeepSpace write the seed import and `dropBubble` use.
 - `mediaForDrop(tools, userId, uploadId)` (Urvi, `app/src/server/media-routes.ts`): `dropBubble` calls it with the input's `uploadId`. It checks the caller owns an unused upload and returns `{ ok, mediaUrl, mediaType, storageKey, contentType }` to put on the bubble (`storageKey` lets `dropBubble` send a voice note to Gemini via `readStoredMediaBase64`); `saveBubble` then links the upload to the bubble.
-- Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
+- Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 25 km cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
 
 Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic that doesn't.
 
