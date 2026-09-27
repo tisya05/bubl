@@ -8,10 +8,12 @@ import type {
   Bubble,
   BubblePreview,
   Category,
+  ChatBubble,
   ChatSummary,
   DroppedItem,
   IncomingWave,
   Message,
+  OutgoingWave,
   PoppedItem,
   User,
 } from './models';
@@ -32,9 +34,19 @@ export interface CanPopInput {
   bubbleId: string;
 }
 export type CanPopResult =
-  | { ok: true; bubble: Bubble; author: User }
+  | { ok: true; bubble: Bubble; author: User; alreadyPopped?: boolean }
   | { ok: false; reason: 'too_far'; distanceM: number }
   | { ok: false; reason: 'not_found' | 'expired' };
+
+// Reopen a note you already popped (or wrote), from anywhere. For "Open note" and the You tab.
+export interface OpenPoppedInput {
+  bubbleId: string;
+}
+export interface OpenPoppedResult {
+  bubble: Bubble;
+  author: User;
+  loved: boolean;
+}
 
 // Sets Pop.loved. Requires an existing Pop. Refused for the bubble's own author.
 export interface LoveBubbleInput {
@@ -48,6 +60,7 @@ export interface LovedByInput {
 }
 
 // Server loads the bubble text itself, only if the caller has popped it. Generated once, stored, reused.
+// For a voice-note bubble (mediaType 'audio') audioUrl is the author's recording (/api/media/<id>) instead.
 export interface SpeakInput {
   bubbleId: string;
 }
@@ -55,27 +68,17 @@ export interface SpeakResult {
   audioUrl: string;
 }
 
-// Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
-export interface TranslateInput {
-  bubbleId: string;
-  targetLanguage: string;
-}
-export interface TranslateResult {
-  title: string;
-  text: string;
-  sourceLanguage: string;
-}
 
 // ---- Drop ----
 
-// Server strips GPS/EXIF metadata and enforces size limits (video max 15 s).
+// Server strips GPS/EXIF metadata and enforces size limits (video max 15 s, voice note max 30 s / 1 MB).
 export interface UploadMediaResult {
   uploadId: string;
-  mediaType: 'photo' | 'video';
+  mediaType: 'photo' | 'video' | 'audio';
 }
 
 // Moderation runs inside dropBubble and cannot be skipped. Empty title or category
-// fall back to Grok's suggestions. If Grok fails, the bubble is saved with moderation 'unchecked'.
+// fall back to Gemini's suggestions. If Gemini is unavailable, the bubble is saved with moderation 'unchecked'.
 export interface DropBubbleInput {
   title?: string;
   text: string;
@@ -108,6 +111,10 @@ export interface GetMessagesInput {
   chatId: string;
 }
 
+export interface ChatBubbleInput {
+  chatId: string;
+}
+
 export interface SendMessageInput {
   chatId: string;
   text: string;
@@ -120,10 +127,10 @@ export interface SendMessageInput {
 export interface Api {
   nearbyBubbles(input: NearbyBubblesInput): Promise<ActionResult<BubblePreview[]>>;
   canPop(input: CanPopInput): Promise<ActionResult<CanPopResult>>;
+  openPopped(input: OpenPoppedInput): Promise<ActionResult<OpenPoppedResult>>;
   loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
   lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
   speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
-  translate(input: TranslateInput): Promise<ActionResult<TranslateResult>>;
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;
@@ -133,7 +140,9 @@ export interface Api {
 
   sendWave(input: SendWaveInput): Promise<ActionResult<SendWaveResult>>;
   incomingWaves(): Promise<ActionResult<IncomingWave[]>>;
+  outgoingWaves(): Promise<ActionResult<OutgoingWave[]>>;
   myChats(): Promise<ActionResult<ChatSummary[]>>;
+  chatBubble(input: ChatBubbleInput): Promise<ActionResult<ChatBubble>>;
   getMessages(input: GetMessagesInput): Promise<ActionResult<Message[]>>;
   sendMessage(input: SendMessageInput): Promise<ActionResult<Message>>;
 }

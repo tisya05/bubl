@@ -25,7 +25,7 @@ Four people. Urvi stays on the DeepSpace backend (the critical path) and hands e
 | Urvi | DeepSpace only: DeepSpace setup in the scaffold, auth, tables, storage, the wave rule, chat, deploy, connecting the domain, the one `saveBubble` call the seed import uses | None; backend only |
 | Stephanie | Map with category bubbles, pop animation, note screen | Splash, onboarding, PWA install, in-bubble banner |
 | Shreya | App shell: bottom nav (Walk, Drop, Chats, You), routing, sign-in screen | Wave screen, Chats tab, chat thread, You tab |
-| Tisya | AI functions (Grok, Gemini, ElevenLabs), canPop proximity check, demo mode, seed data trip, pitch and Devpost. Moved from Urvi: base scaffold (Vite + React + TS), seed import script, .tech domain registration and DNS, server logic that doesn't touch DeepSpace | Drop screen |
+| Tisya | AI functions (Gemini moderation, ElevenLabs), canPop proximity check, demo mode, seed data trip, pitch and Devpost. Moved from Urvi: base scaffold (Vite + React + TS), seed import script, .tech domain registration and DNS, server logic that doesn't touch DeepSpace | Drop screen |
 
 ## Bottlenecks
 
@@ -77,7 +77,7 @@ Four people push to one repo overnight, so `main` must always build and demo. No
 | P1.3 Read-aloud | `tisya-speak` |
 | P1.4 Loves, waves, chat unlock | `urvi-wave-rule`, `shreya-wave-screen` |
 | P1.5 Chats | `urvi-chats`, `shreya-chats` |
-| P2.1 Translation | `tisya-translate` |
+| ~~P2.1 Translation~~ (deferred) | none |
 | P2.2 to P2.4 | `shreya-you-tab`, `stephanie-onboarding`, `stephanie-pwa` |
 | P3.1 Photon agent | `tisya-photon` |
 | P3.3 Report and block | `urvi-report-block` |
@@ -118,11 +118,11 @@ P0 has to work for any demo. Finish each tier before starting the next.
 | P0.6 | Deploy to app.space early (Urvi); claim .tech domain and DNS (Tisya), connect it to the deploy (Urvi) | Urvi, Tisya | DeepSpace, .Tech |
 | P0.7 | Basic sign-in with DeepSpace auth (the fastest method it offers). Every server function needs a user; `canPop` records a Pop per user | Urvi (auth), Shreya (screen) | DeepSpace |
 | P0.8 | App shell: bottom nav (Walk, Drop, Chats, You) and routing between screens | Shreya | UX score |
-| P1.2 | Drop flow: compose screen, category picker, media upload, Grok moderation and suggested category | Tisya, Urvi | SpaceXAI (long shot), DeepSpace |
+| P1.2 | Drop flow: compose screen, category picker, media upload, Gemini moderation (hate speech, offensive language, swearing, PII) with suggested title and category | Tisya, Urvi | MLH Gemini, DeepSpace |
 | P1.3 | Read-aloud on pop: ElevenLabs audio generated once and saved | Tisya | ElevenLabs, Wow Factor |
 | P1.4 | Loves, waves, chat unlock enforced on the server; wave screen | Urvi (server), Shreya (screen) | DeepSpace, Concept score |
 | P1.5 | Chats tab and chat thread | Urvi (messaging), Shreya (screens) | DeepSpace |
-| P2.1 | Translation on pop with Gemini | Tisya | Gemini, Value to Community |
+| P2.1 | ~~Translation on pop with Gemini~~ **Deferred: not planned for now** | Tisya | |
 | P2.2 | You tab: popped card grid and dropped list | Shreya | UX score |
 | P2.3 | Splash and onboarding | Stephanie | UX score |
 | P2.4 | PWA install, "you drifted into a bubble" banner, vibration | Stephanie | Wow Factor |
@@ -156,7 +156,7 @@ Tisya collects 20 to 30 bubbles within a 10 to 15 minute walk of Lerner, Sat 4 t
 - **Categories:** spread across Food, Cafe, Park, Street and Misc.
 - **Formats:** about 10 videos, 10 photos, and some text-only notes.
 - **Video spec:** 15 seconds or less, vertical, 720p, so uploads stay small.
-- **Languages:** 3 or 4 notes written by teammates or friends in their own languages, for Gemini translation.
+- **Languages:** optional; translation is deferred, so notes in other languages are no longer needed.
 - **B-roll:** walking and opening the app, for the demo video.
 - **Coordinates:** turn on camera location so every photo and video stores its coordinates.
 - **Rules:** no faces without asking, no filming anyone's home.
@@ -177,10 +177,10 @@ One main track, plus as many sponsor and MLH prizes as we want ([Devpost](https:
 | Grand prize (1st to 3rd) | Automatic; a smooth demo | Possible |
 | DeepSpace (winner and runner-up) | Backend, auth, storage, chat, deploy on DeepSpace | Good |
 | MLH ElevenLabs | Read-aloud on pop | Good |
-| MLH Gemini | Translation on pop | Good if multilingual seed notes exist |
+| MLH Gemini | Moderation on every drop (hate speech, offensive language, swearing, PII), plus suggested title, category and language | Good |
 | MLH .Tech domain | App live on a .tech domain | Good |
 | Most Popular (Nord Security) | QR code on the table, live app on judges' phones | Depends on the demo |
-| SpaceXAI | Grok moderation; they want it built with Cursor and aimed at big societal problems | Long shot |
+| SpaceXAI | Dropped: moderation moved to Gemini. They want Grok Imagine or Voice, built with Cursor, aimed at big societal problems | Not entering |
 | Photon ($400 + interview) | Integrate Spectrum; an agent, not just notifications. Free plan: DMs only (no group chats), only texts registered users, needs a Node/Bun runtime | Stretch only |
 
 ## Judging and pitch

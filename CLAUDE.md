@@ -15,7 +15,7 @@ bubl is a mobile-first PWA where locals pin notes (text, photos, short videos) t
 Core loop:
 1. **Walk.** A map shows nearby bubbles, color-coded by category. Far bubbles are blurred soft dots in their category color. Bubbles within ~100 m become solid and show a category icon. Contents stay sealed.
 2. **Pop.** Within 15 m, the user gets an in-app "you drifted into a bubble" banner, taps, sees a bubble-pop animation, and the note opens.
-3. **Drop.** Users leave their own bubble at their current location: text, photo, or video (max 15 s), a category, and how long it floats (1 week, 1 month, forever). Every drop is moderated by Grok before it goes live. **Every live bubble is visible to everyone** (map previews are public; there is no "only people you know" / `whoCanPop` gate). Contents still stay sealed until `canPop` passes on distance.
+3. **Drop.** Users leave their own bubble at their current location: text, photo, or video (max 15 s), a category, and how long it floats (1 week, 1 month, forever). Every drop is moderated by Gemini before it goes live. **Every live bubble is visible to everyone** (map previews are public; there is no "only people you know" / `whoCanPop` gate). Contents still stay sealed until `canPop` passes on distance.
 4. **Wave.** A wave is only between the **bubble author (A)** and a person who **popped and loved** that bubble (B). **Either side may wave first.** After B loves, A and B can see each other's **display names** for that bubble (so each can wave). Other lovers (C) cannot see that B loved it, cannot wave at B, and can only wave at A about that bubble. Authors cannot love their own bubble. On the note screen the action is **Wave** (not "Reply here"), with an **optional short note** (max ~280 chars). A chat unlocks **only when A and B have both waved**. Nobody can message anyone before that.
 5. **Chat.** One DM thread per user pair (not one chat per bubble). The thread pins the **first** connecting bubble (simpler; do not update the pin later).
 
@@ -31,9 +31,9 @@ Hackathon track: **Know Your City** ("anti-tourist track": NYC block by block, h
 
 | Person | Owns |
 | --- | --- |
-| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, deploy, .tech domain, seed import. Frontend: wave screen, Chats tab, chat thread. |
+| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, deploy, .tech domain, seed data (collecting spots + import). Frontend: wave screen, Chats tab, chat thread. |
 | Stephanie | Map with category bubbles, pop animation, note screen. Also splash, onboarding, You tab, PWA install. |
-| Tisya (me) | `checkBubble`, `translate`, `speak`, `canPop`, demo mode, Drop screen, seed data, pitch. |
+| Tisya | `dropBubble` (Gemini moderation inside), `speak`, `canPop`, demo mode, Drop screen, pitch. |
 
 Everyone codes against the **shared contracts in section 5**. If a contract needs to change, tell me first so I can tell the team.
 
@@ -46,8 +46,8 @@ Everyone codes against the **shared contracts in section 5**. If a contract need
 - **Location:** browser Geolocation API (`watchPosition`), distances with Turf.js or a small haversine function.
 - **Backend:** **DeepSpace** SDK (sponsor): auth, real-time data, role-based permissions, file storage, channel messaging/DMs, scheduled jobs, deploy to an `app.space` address with a custom domain.
 - **AI:**
-  - **Grok (xAI API)** for moderation + suggested category on drop. Use a model that accepts text + image input and returns structured JSON (e.g. `grok-4.7`; confirm the current model name in xAI docs).
-  - **Gemini API** for translating a note into the reader's language on pop.
+  - **Gemini API** (`gemini-3.5-flash-lite`) for moderation + suggested title, category and language on drop, via the Interactions API with a JSON schema. Key: `GEMINI_API_KEY` in the DeepSpace secrets store. (Grok was dropped.)
+  - **Gemini API** translation: deferred, not planned for now.
   - **ElevenLabs** text-to-speech to read a note aloud on pop.
 - **Optional stretch:** Photon Spectrum (iMessage agent). Only after everything else works.
 
@@ -58,6 +58,8 @@ All API keys live in server-side environment variables. Never ship a key to the 
 ---
 
 ## 4. Design system (match the mockups)
+
+**Frontend update (Sep 26):** The intro follows the linked Figma file (`eQNyTTRhLVipvxw4rxTUTF`, page `0:1`): indigo `#252B61`, original white-and-pink vector logo, gently floating pink bubble artwork, Caprasimo “explore your city”, and Capriola “tap anywhere to continue”. The whole intro opens `/welcome`. Subsequent mobile screens follow `mockup/` (ignoring its splash), retaining Navy Sherbet and the current public-bubble / author-to-lover wave rules. Respect reduced motion. `/demo` uses local sample data only; `npm run dev:ui` previews the frontend without starting or configuring any backend. The user explicitly requested frontend-only work; do not implement backend changes for these screens.
 
 Mockups: https://claude.ai/artifact/MmVhwKnRz4RaVwmRoPjXkS
 
@@ -161,7 +163,7 @@ speak(input: { bubbleId: string; text: string })
   => Promise<{ audioUrl: string }>   // generate once, store, reuse
 ```
 
-For video drops, Grok does not take video input. Extract 1 to 2 frames on the client and send them as images.
+For video drops, the moderation model does not take video input. Extract 1 to 2 frames on the client and send them as images.
 
 ---
 
@@ -185,7 +187,7 @@ Finish each tier before starting the next.
 11. Chats tab + chat thread (DeepSpace messaging).
 
 **P2: good to have**
-12. `translate` on pop (Gemini).
+12. ~~`translate` on pop (Gemini)~~ deferred, not planned for now.
 13. You tab: Popped card grid with category tints, Dropped list.
 14. Splash + onboarding.
 15. PWA install, "drifted into a bubble" banner, vibration.
@@ -210,7 +212,7 @@ Finish each tier before starting the next.
 
 ## 8. Seed data format
 
-Tisya collects 20 to 30 spots around Morningside Heights. The shared sheet uses these columns, and we need an import script that turns it into `Bubble` rows (running each through the same media processing, including metadata stripping):
+Urvi collects 20 to 30 spots around Morningside Heights. The shared sheet uses these columns, and we need an import script that turns it into `Bubble` rows (running each through the same media processing, including metadata stripping):
 
 ```csv
 title,note_text,category,latitude,longitude,media_file,language,author
@@ -223,9 +225,9 @@ title,note_text,category,latitude,longitude,media_file,language,author
 - Know Your City track (main), grand prize, Most Popular
 - **DeepSpace** (backend, auth, storage, chat, deploy)
 - **MLH ElevenLabs** (read-aloud)
-- **MLH Gemini** (translation)
+- **MLH Gemini** (moderation on every drop)
 - **MLH .Tech domain**
-- **SpaceXAI** (Grok moderation; long shot)
+- ~~SpaceXAI~~ not entering: moderation moved to Gemini
 - **Photon** (stretch only)
 
 Judging: Concept 30%, Functionality 30%, Wow Factor 20%, UX and Design 10%, Value to Community 10%. The three wow moments are the pop animation, a note read aloud, and the mutual wave.

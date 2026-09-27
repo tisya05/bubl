@@ -39,26 +39,37 @@ All of them require a signed-in user.
 
 | Function | Owner | Input | Output | Notes |
 | --- | --- | --- | --- | --- |
-| `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 1000 m |
+| `nearbyBubbles` | Urvi | `lat`, `lng`, `radiusM` | `BubblePreview[]` | Excludes expired and rejected bubbles. Server caps `radiusM` at 25 km: the map shows every bubble in the city (far ones blurred); content stays sealed until you are inside a pop radius |
 | `canPop` | Tisya | `userLat`, `userLng`, `bubbleId` | `{ ok: true, bubble, author }` or `{ ok: false, reason }` | `reason`: `'too_far'` (with `distanceM`), `'not_found'`, `'expired'`. Success creates the caller's `Pop` (one per user and bubble; popping again is a no-op). `lovedBy` and `loveBubble` depend on it |
-| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`. Refused for the bubble's own author |
-| `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` |
-| `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused |
-| `translate` | Tisya | `bubbleId`, `targetLanguage` | `{ title, text, sourceLanguage }` | Server loads the bubble itself, only if the caller has popped it. Cached per bubble and language |
-| `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Strips GPS/EXIF, enforces size limits (video max 15 s). Media URLs must be unguessable |
-| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Grok moderation runs inside and can't be skipped. Empty title/category use Grok's suggestions. If Grok fails, saves with `moderation: 'unchecked'`. For video, send 1 to 2 client-extracted frames as `frameBase64` |
-| `myPopped` | Urvi | none | `PoppedItem[]` | You tab |
-| `myDropped` | Urvi | none | `DroppedItem[]` | You tab |
-| `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` | `{ matched, chatId? }` | Only author and lover of that bubble, either direction. Optional note, max 280 chars. `matched` when the other already waved; the server then creates the pair's `Chat` (or reuses it) |
-| `incomingWaves` | Urvi | none | `IncomingWave[]` | |
-| `myChats` | Urvi | none | `ChatSummary[]` | |
-| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users |
-| `sendMessage` | Urvi | `chatId`, `text` | `Message` | Only the chat's two users |
+| `loveBubble` | Urvi | `bubbleId` | `{ loved: true }` | Sets `Pop.loved`. Requires an existing `Pop`; refused for the bubble's own author. Loving twice is a no-op |
+| `lovedBy` | Urvi | `bubbleId` | `User[]` | Only for the bubble's author: who loved it. Everyone else gets `[]` (a lover gets the author from `canPop`) |
+| `speak` | Tisya | `bubbleId` | `{ audioUrl }` | Server loads the text itself, only if the caller has popped it. Generated once, stored, reused. For a voice-note bubble (`mediaType: 'audio'`) it returns the author's recording (`/api/media/<id>`) instead of an ElevenLabs voice |
+| `uploadMedia` | Urvi | `File` | `{ uploadId, mediaType }` | Not an action: multipart `POST /api/media/upload`. JPEG, PNG, WebP (max 5 MB) or MP4/MOV (max 12 MB, 15 s), or a voice note: M4A/MP4 audio (Safari), WebM or Ogg (Chrome/Android), MP3 (max 1 MB, 30 s; `mediaType: 'audio'`). Strips GPS/EXIF/XMP, video metadata and MP3 ID3 tags. The bubble's `mediaUrl` is `/api/media/<uploadId>`, served only to the uploader, the author, and people who popped it. The client (`uploadMedia`) converts HEIC and photos over 4 MB to JPEG first, where the browser can decode them (HEIC: Safari) |
+| `dropBubble` | Tisya | `DropBubbleInput` | `{ ok: true, bubble }` or `{ ok: false, reasons }` | Checks run in order: input validation, a PII pre-check (emails, phone numbers, SSNs, card numbers; works even without Gemini), then Gemini moderation (hate speech, offensive language, swearing, PII such as private names or home addresses; images too). Rejected drops are never saved; `reasons` are safe to show the author. Empty title/category use Gemini's suggestions; Gemini also sets `language`. If Gemini is unreachable (no `GEMINI_API_KEY`, network error, 10 s timeout, error status) the bubble is saved with `moderation: 'unchecked'`; if Gemini answers but gives no usable verdict (likely its own safety filter), the drop is rejected. Text max 1000 chars, title max 60. `uploadId` comes from `uploadMedia` and must be the caller's own unused upload (checked by `mediaForDrop`); for video, send 1 to 2 client-extracted frames as `frameBase64`; a voice note needs no frames (Gemini listens to the stored file on the server). `text` may be empty when there is an `uploadId` |
+| `myPopped` | Urvi | none | `PoppedItem[]` | You tab. The caller's pops, newest first |
+| `myDropped` | Urvi | none | `DroppedItem[]` | You tab. The caller's live drops, newest first. `popCount` excludes the author's own pop |
+| `removePopped` | Tisya | `{ bubbleId }` | `{ removed: true }` | You tab trash. Deletes the caller's own pop, so the stamp leaves their list (and the bubble is sealed again) |
+| `deleteDropped` | Tisya | `{ bubbleId }` | `{ deleted: true }` | You tab trash. Author only; seeded demo bubbles refused. Removes the bubble, its preview, pops and media |
+| `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
+| `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
+| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. `unread` when the other person sent something after the caller last opened the thread |
+| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first. Marks the chat read for the caller |
+| `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
+| `getMe` | Urvi | none | `{ userId, handle, notificationsEnabled, locationEnabled, onboarded }` | Splash: signed out (401 / no session) → sign-in screen; `onboarded: false` → handle, then notifications; `onboarded: true` → map. `handle` is `null` until claimed |
+| `claimHandle` | Urvi | `handle` | `{ ok: true, me }` or `{ ok: false, reason }` | 3 to 20 chars, lowercase letters, numbers and `_` (input is lowercased, a leading `@` dropped). Unique; `reason` is safe to show ("That handle is taken"). Claiming a new one frees the old one |
+| `savePreferences` | Urvi | `notificationsEnabled`, `locationEnabled` (booleans) | same as `getMe` | Needs a handle first. The first save marks onboarding done |
+
+**Auth (Urvi).** DeepSpace only supports Google (or GitHub) sign-in for new users: email sign-up is disabled and there's no phone sign-in, so the phone option is UI only. Everywhere a person is shown to someone else (`canPop` author, `lovedBy`, waves, chats) their name is `@handle` (or "A local" / "bubl user" before they pick one), never their Google name or email.
+- **Google:** send the browser to `/api/auth/social-redirect?provider=google`. It flashes a "Signing in…" page, goes to Google, and comes back to `/home` signed in. No DeepSpace sign-in screen.
+- **Staying signed in:** the session cookie lasts 30 days, so on launch just call `getMe`. Signed-out calls fail with 401.
+- **Demo sign-in:** `POST /api/demo/sign-in` with `{ as: 'maya' | 'dev' | 'sam' }` sets the same session cookie (their passwords are server secrets). Those three are already onboarded (`@maya`, `@dev`, `@sam`).
+- **Sign out:** `POST /api/auth/sign-out`.
 
 **Server-only pieces (not in `Api`, never called from the client):**
 
 - `saveBubble(bubble: Bubble)` (Urvi): the one DeepSpace write the seed import and `dropBubble` use.
-- Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 1000 m cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
+- `mediaForDrop(tools, userId, uploadId)` (Urvi, `app/src/server/media-routes.ts`): `dropBubble` calls it with the input's `uploadId`. It checks the caller owns an unused upload and returns `{ ok, mediaUrl, mediaType, storageKey, contentType }` to put on the bubble (`storageKey` lets `dropBubble` send a voice note to Gemini via `readStoredMediaBase64`); `saveBubble` then links the upload to the bubble.
+- Pure helpers in `app/src/bubl/lib/` (Tisya): the `nearbyBubbles` filter (distance, expired, rejected, 25 km cap), the expiry check, and GPS/EXIF stripping. Urvi's DeepSpace functions load data and call these.
 
 Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic that doesn't.
 
@@ -66,13 +77,21 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 
 ## Rules the types don't enforce
 
-1. **Sealed content stays on the server.** The map only gets `BubblePreview` (id, position, place name, category, pop radius). `title`, `text`, `mediaUrl` and `audioUrl` reach the client only in a successful `canPop` result. `speak` and `translate` take a `bubbleId`, never text from the client.
+1. **Sealed content stays on the server.** The map only gets `BubblePreview` (id, position, place name, category, pop radius). `title`, `text`, `mediaUrl` and `audioUrl` reach the client only in a successful `canPop` result. `speak` takes a `bubbleId`, never text from the client.
 2. **The pop radius is per bubble:** 15 m by default, 60 m for the Lerner demo bubble. Use `popRadiusM` from the preview for the in-bubble banner, and `distanceM` from `app/src/bubl/lib/geo.ts` for the math.
 3. **Location comes only from `useUserLocation`.** Nothing else calls `navigator.geolocation`. The in-app toggle switches between GPS and the draggable demo dot (`setDemoLocation`); denied or missing GPS falls back to the demo dot automatically.
 4. **Waves are author and lover only.** A wave is only between a bubble's author and someone who loved it, about that bubble, and either can wave first. Two people who loved the same bubble never see or wave at each other. Authors can't love their own bubble. On the note screen the action is **Wave** (not "Reply"), with an optional note of up to 280 characters.
 5. **One chat per pair of users,** created only when both have waved, readable and writable only by those two. It pins the *first* bubble that connected them and never updates the pin.
-6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
+6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`. Custom photos upload to `POST /api/avatars` (stored via `profiles.avatarKey`; `users.imageUrl` is auth-managed and not writable) and are served at `/api/avatars/:userId` to any signed-in user.
 7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
+
+## Notifications
+
+In-app only for now (sound, vibration, a banner; a system notification too if the app is in the background and the user allowed it). Nothing arrives while the app is closed: that needs Web Push, not built.
+
+- **Your own events** (client): call `alert({ kind: 'pop', title: 'pop.', body: bubble.title, bubbleId })` from `@/bubl/lib/alerts` when a pop succeeds. It plays the pop sound. Walking mode already does this; the Walk screen's manual pop should too. "You drifted into a bubble" fires by itself.
+- **Other people's actions** (server): after the action succeeds, one line, e.g. `await notify(tools, authorId, loveNotice({ id: userId, name: await displayName(tools, userId) }, { id: bubbleId, placeName }))`. Helpers: `notify`/`displayName` in `src/actions/notify.ts`; `loveNotice`, `waveNotice`, `matchNotice`, `messageNotice` in `@/bubl/lib/notifications`. Rows go to the recipient's private `notifications` table; `notify` never throws and never notifies you about yourself.
+- **Mounting:** `<NotificationCenter />` is already in `src/pages/(app)/_layout.tsx`. Screens that need the list or an unread badge use `useNotifications()` (`notifications`, `unreadCount`, `markRead`, `markAllRead`). System notifications need `enableSystemNotifications()` from a tap (e.g. a settings toggle).
 
 ## Sign-in is P0
 
@@ -82,15 +101,22 @@ Every server function needs a user identity (`canPop` records a `Pop` per user),
 
 - `canPop` trusts client coordinates, so GPS can be spoofed. The server check keeps sealed content off the client; it doesn't stop a determined spoofer.
 - No rate limiting yet.
-- GPS/EXIF metadata stripping is a TODO for after the MVP.
+- HEIC photos are only converted to JPEG in browsers that can decode them (Safari).
+- The Gemini key lives in the DeepSpace secrets store (`npx deepspace secrets set GEMINI_API_KEY=...`), never in code or `.dev.vars`. Without it, drops still work but are saved `unchecked`.
 
-## Seed data CSV
+## Seed data (Urvi)
+
+`seed/bubbles.csv`, with photos and videos in `seed/media/`:
 
 ```csv
 title,note_text,category,latitude,longitude,place_name,media_file,language,author
 ```
 
-`place_name` is cross streets, e.g. `Broadway & 116th St`.
+- `place_name` is cross streets, e.g. `Broadway & 116th St`. Coordinates must be in NYC.
+- `author` is `maya`, `dev` or `sam` (the demo accounts). `language` defaults to `en`. `media_file` is a file name in `seed/media/` or empty (photo, video, or a .m4a/.mp3/.webm/.ogg voice note). `note_text` may be empty when there is a `media_file`. HEIC and photos over 4 MB are converted to JPEG automatically (macOS).
+- Every row becomes bubble `seed-<title-slug>`: 15 m pop radius, never expires.
+- `cd app && npm run seed:import` (add `-- --dry-run` to only check the CSV). Re-running updates in place and skips already-uploaded media.
+- `cd app && npm run demo:reset` between judges: wipes all pops, loves, waves, chats, messages and bubbles dropped during the demo. Seed bubbles stay. Owner only.
 
 ## Working together
 

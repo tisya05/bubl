@@ -5,21 +5,19 @@
  */
 
 import { Link } from 'react-router-dom'
+import '@/bubl/mobile.css'
 
 export default function Landing() {
   return (
-    <div
-      data-testid="static-landing"
-      className="flex min-h-screen flex-col items-center justify-center bg-[#243B64] px-6 text-center"
-    >
-      <h1 className="mb-2 text-6xl font-bold tracking-tight text-[#F4F1EA]">bubl</h1>
-      <p className="mb-10 text-lg text-[#FF8A5B]">pop ur bubl.</p>
-      <Link
-        to="/home"
-        className="inline-flex min-h-11 items-center rounded-full bg-[#FF8A5B] px-6 text-sm font-medium text-[#17171C] transition-opacity hover:opacity-90"
-      >
-        Enter the app
-      </Link>
-    </div>
+    <Link to="/login" className="bubl-intro" aria-label="Explore your city. Tap anywhere to continue" data-testid="static-landing">
+      <div className="intro-stage" aria-hidden="true">
+        <img className="intro-bubbles" src="/bubl/intro-bubbles.svg" alt="" width="304" height="698" />
+        <div className="intro-copy">
+          <img src="/bubl/logo.svg" alt="" width="390" height="227" />
+          <h1>explore your city</h1>
+          <p>tap anywhere to continue</p>
+        </div>
+      </div>
+    </Link>
   )
 }

@@ -16,14 +16,14 @@ export interface Bubble {
   title: string;           // sealed
   text: string;            // sealed: only returned after canPop passes
   mediaUrl?: string;       // sealed; unguessable URL, GPS metadata stripped
-  mediaType?: 'photo' | 'video';
+  mediaType?: 'photo' | 'video' | 'audio'; // audio = the author's voice note (max 30 s)
   language: string;        // e.g. 'en', 'es'
   audioUrl?: string;       // cached ElevenLabs audio
   popRadiusM: number;      // 15 by default, 60 for the Lerner demo bubble
   expiresAt?: string;      // ISO date, undefined = forever
   createdAt: string;
   status: 'live' | 'rejected';
-  moderation: 'passed' | 'unchecked';  // 'unchecked' = Grok failed, saved anyway
+  moderation: 'passed' | 'unchecked';  // 'unchecked' = Gemini unavailable, saved anyway
   poppedCount?: number;    // optional denormalized counts, returned after canPop
   lovedCount?: number;
 }
@@ -36,6 +36,8 @@ export interface BubblePreview {
   placeName: string;
   category: Category;
   popRadiusM: number;      // so the client shows the in-bubble banner at the right distance
+  popped?: boolean;        // the viewer already popped it: show "Open note", don't pop or announce again
+  mine?: boolean;          // the viewer dropped it
 }
 
 // Created by a successful canPop, one per user and bubble. Authors can't love their own bubble.
@@ -75,6 +77,23 @@ export interface Message {
   sentAt: string;
 }
 
+// ---- Notifications ----
+
+export type NotificationKind = 'love' | 'wave' | 'match' | 'message';
+
+// A row in the recipient's private `notifications` table, delivered live while the app is open.
+export interface BublNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  bubbleId?: string;
+  chatId?: string;
+  fromUserId?: string;
+  read: boolean;
+  createdAt: string;
+}
+
 // ---- List items for the You and Chats tabs ----
 
 export interface PoppedItem {
@@ -99,11 +118,30 @@ export interface DroppedItem {
 
 export interface IncomingWave {
   from: User;
-  note?: string;
   bubbleId: string;
   placeName: string;
   category: Category;
-  createdAt: string;
+  note?: string;           // the waver's optional note
+  createdAt: string;       // day only (midnight UTC), not the exact time
+}
+
+export interface OutgoingWave {
+  to: User;
+  bubbleId: string;
+  placeName: string;
+  category: Category;
+  note?: string;
+  createdAt: string;       // day only (midnight UTC), not the exact time
+}
+
+// The bubble a chat is pinned to, as seen by the chat's two users.
+export interface ChatBubble {
+  bubbleId: string;
+  title: string;
+  placeName: string;
+  category: Category;
+  // Optional notes from the mutual waves about this bubble (oldest first).
+  waveNotes?: { fromUserId: string; note: string }[];
 }
 
 export interface ChatSummary {
