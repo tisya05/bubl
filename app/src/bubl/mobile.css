@@ -542,7 +542,8 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .login-demo-accounts { display: flex; justify-content: center; gap: 22px; }
 .login-demo-accounts button { display: grid; justify-items: center; gap: 6px; min-width: 56px; font-size: 13px; font-weight: 700; color: #5e5a52; }
 .login-demo-accounts button:disabled { opacity: .5; }
-.login-demo-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: white; font-size: 18px; box-shadow: 0 0 0 3px #fbf9f4, 0 0 0 4px #ddd6c8; }
+.login-demo-avatar { width: 44px; height: 44px; border-radius: 50%; display: block; box-shadow: 0 0 0 3px #fbf9f4, 0 0 0 4px #ddd6c8; position: relative; overflow: hidden; }
+.login-demo-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .avatar-maya { background: #FF8A5B; }
 .avatar-dev { background: #5B8FD9; }
 .avatar-sam { background: #6BAF7A; }
