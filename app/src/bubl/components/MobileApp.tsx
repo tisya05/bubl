@@ -65,7 +65,6 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   const screens: Record<View, ReactNode> = { walk: <WalkScreen />, drop: <DropScreen />, chats: <ChatsScreen />, you: <YouScreen />, note: <NoteScreen />, wave: <WaveScreen />, thread: <ThreadScreen />, profile: <ProfileScreen />, events: <EventsScreen /> }
   const showNav = ['walk', 'chats', 'you', 'events'].includes(view)
   return <MobileContext.Provider value={context}><main ref={viewportRef} className={`bubl-app mobile-shell view-${view}`}>
-    {demo && <div className="demo-strip"><span>Demo walk · sample content</span><a href="/welcome">Exit demo</a></div>}
     <div className="mobile-content" key={view}>{screens[view]}</div>
     {showNav && <nav className="bottom-nav" aria-label="Main navigation">{([
       ['walk', 'Walk', Compass], ['drop', 'Drop', DropIcon], ['events', 'Events', BalloonsIcon], ['chats', 'Chats', MessageSquare], ['you', 'You', UserRound],

@@ -316,7 +316,11 @@ html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-be
 .map-sheet:not(.collapsed) #bubble-details { max-height: calc(55dvh - 115px); overflow-y: auto; overscroll-behavior: contain; padding-bottom: 2px; }
 .wave-art { background: #F2E0E7; }
 .wave-art svg { width: 130px; height: 130px; fill: none; transform: rotate(-8deg); }
-.passport-screen { background: #EBE6DC; color: #243454; padding: 26px 18px 24px; }
+.passport-screen {
+  --you-top-padding: 42px; /* Adjust this to move the profile section up/down. */
+  background: #EBE6DC; color: #243454;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--you-top-padding)) 18px 24px;
+}
 .passport-screen .bubble-grid { gap: 22px 18px; }
 .passport-screen .collection-card { position: relative; padding: 8px; border-radius: 0; background: white; isolation: isolate;
   mask: linear-gradient(#000 0 0) center / calc(100% - 12px) calc(100% - 12px) no-repeat,
