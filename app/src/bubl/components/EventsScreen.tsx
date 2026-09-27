@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, Check, Clock3, Heart, MapPin, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { demoEvents, eventAvailability, eventImage, toEventItem, useDemoEvents, type EventItem, type EventPrice } from '../lib/eventDemo'
@@ -16,7 +17,7 @@ export function EventWhen({ event }: { event: EventSchedule }) {
   return <div className="event-when"><span><CalendarDays size={16} />{date(event.startsAt)}{!sameDay && ` – ${date(event.endsAt)}`}</span><span><Clock3 size={16} />{time(event.startsAt)} – {time(event.endsAt)}<small>{event.timeZone.replaceAll('_', ' ')}</small></span></div>
 }
 
-export function EventCard({ item, now, variant = 'feed' }: { item: EventItem; now: number; variant?: 'feed' | 'note' }) {
+export function EventCard({ item, now, variant = 'feed', focused }: { item: EventItem; now: number; variant?: 'feed' | 'note'; focused?: boolean }) {
   const { open, openWithPop, go, user, api } = useMobile()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(variant === 'note')
@@ -32,7 +33,7 @@ export function EventCard({ item, now, variant = 'feed' }: { item: EventItem; no
   const canDeleteOwn = item.authorId === user.id
   const onNote = variant === 'note'
   return (
-    <article className={`event-card ${onNote ? 'event-card-note' : ''}`}>
+    <article id={`event-card-${item.id}`} className={`event-card ${onNote ? 'event-card-note' : ''} ${focused ? 'event-card-focused' : ''}`}>
       <div className="event-cover">
         <img src={image ?? '/bubl/event-social.svg'} alt={item.title} loading="lazy" onError={event => { event.currentTarget.src = '/bubl/event-social.svg' }} />
         <span className="event-cover-label"><BalloonsIcon />{now >= Date.parse(item.event.endsAt) ? 'Ended' : now < Date.parse(item.event.startsAt) ? 'Coming up' : 'Happening now'}</span>
@@ -84,6 +85,8 @@ export function EventCard({ item, now, variant = 'feed' }: { item: EventItem; no
 
 export function EventsScreen() {
   const { go, api } = useMobile()
+  const [params] = useSearchParams()
+  const focusId = params.get('bubble')
   const events = useDemoEvents()
   const [filter, setFilter] = useState<'all' | 'going' | 'hearted'>('all')
   const [price, setPrice] = useState<'all' | EventPrice>('all')
@@ -106,6 +109,19 @@ export function EventsScreen() {
     .filter(item => !date || item.event.startsAt.slice(0, 10) === date)
     .filter(item => !time || new Date(item.event.startsAt).toTimeString().slice(0, 5) === time)
     .sort((a, b) => Number(!!b.remote) - Number(!!a.remote) || Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt))
+
+  // Scroll the Events list once when Walk hands off a bubble id. Do not depend on
+  // `visible` (new array every render) or scrollIntoView — both freeze Safari.
+  const focusedInList = Boolean(focusId && visible.some(item => item.id === focusId))
+  useEffect(() => {
+    if (!focusId || !focusedInList) return
+    const card = document.getElementById(`event-card-${focusId}`)
+    const scroller = card?.closest('.social-screen')
+    if (!card || !(scroller instanceof HTMLElement)) return
+    const top = card.offsetTop - Math.max(0, (scroller.clientHeight - card.clientHeight) / 2)
+    const frame = requestAnimationFrame(() => scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' }))
+    return () => cancelAnimationFrame(frame)
+  }, [focusId, focusedInList])
 
   const clearFilters = () => { setPrice('all'); setDate(''); setTime(''); setLocation('') }
 
@@ -143,7 +159,7 @@ export function EventsScreen() {
       </div>
       <button type="button" className="text-button event-refresh" disabled={refreshing} onClick={refresh}>{refreshing ? 'Refreshing…' : 'Refresh events now'}</button>
       {refreshMessage && <p className="events-refresh-message">{refreshMessage}</p>}
-      {visible.map(item => <EventCard key={item.id} item={item} now={now} />)}
+      {visible.map(item => <EventCard key={item.id} item={item} now={now} focused={item.id === focusId} />)}
       {!visible.length && (
         <Empty icon={<BalloonsIcon />} title={filter === 'all' ? 'Something good is on its way.' : 'Your next plan starts here.'}>
           {filter === 'all' ? 'Events will appear here when the feed is connected.' : 'Save an event with Heart or Going to find it here.'}

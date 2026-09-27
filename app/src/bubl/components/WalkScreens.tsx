@@ -19,7 +19,7 @@ import { result, useMobile, useOperation } from './MobileApp'
 import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
 export function WalkScreen() {
-  const { api, demo, user, open, openWithPop, go, notify, library, opened } = useMobile()
+  const { api, demo, user, open, go, notify, opened } = useMobile()
   const location = useUserLocation()
   const events = useDemoEvents()
   const [poppedIds, setPoppedIds] = useState<string[]>([])
@@ -86,18 +86,24 @@ export function WalkScreen() {
   const allBubbles = [...bubbles, ...eventPreviews].filter(b => !hiddenMapIds.includes(b.id))
   const visible = allBubbles.filter(b => !filter || b.category === filter)
   const sorted = [...visible].sort((a, b) => location ? distanceM(location, a) - distanceM(location, b) : 0)
-  // A bubble you're standing in (and haven't popped) always wins over a bubble you selected elsewhere,
-  // so dragging or walking onto one shows Pop it right away.
-  const poppable = (b: BubblePreview) => !!location && !b.popped && !b.mine && !allPoppedIds.includes(b.id) && distanceM(location, b) <= b.popRadiusM
+  // Standing in a bubble you can actually open wins. Future/ended events are in range but not
+  // poppable yet, so they must not steal the sheet from a live bubble next to you.
+  const poppable = (b: BubblePreview) => {
+    if (!location || b.popped || b.mine || allPoppedIds.includes(b.id) || distanceM(location, b) > b.popRadiusM) return false
+    if (b.event && eventAvailability({ ...b, event: b.event }, location, now)) return false
+    return true
+  }
   const chosen = sorted.find(b => b.id === selected)
   const nearest = (chosen && poppable(chosen) ? chosen : sorted.find(poppable)) ?? chosen ?? sorted[0]
+  const nearestEvent = nearest ? events.find(item => item.id === nearest.id) : undefined
   const distance = location && nearest ? Math.round(distanceM(location, nearest)) : null
   const eventReason = nearest?.event ? eventAvailability({ ...nearest, event: nearest.event }, location, now) : null
   // Popped if the server says so or it's in this session's popped list. Normal bubbles (and your own)
   // then only reopen, from anywhere, with no pop or sound; events keep their own reopen flow.
   const alreadyPopped = !!nearest && (!!nearest.popped || allPoppedIds.includes(nearest.id))
   const done = Boolean(nearest && !nearest.event && nearest.category !== 'Events' && (alreadyPopped || nearest.mine))
-  const canReopen = alreadyPopped && nearest?.category === 'Events'
+  const isEvent = Boolean(nearest?.event || nearest?.category === 'Events')
+  const canReopen = alreadyPopped && isEvent
   const canOpen = !done && !eventReason && nearest && distance !== null && distanceM(location!, nearest) <= nearest.popRadiusM
   async function reopen() {
     if (!nearest) return
@@ -106,8 +112,15 @@ export function WalkScreen() {
   async function pop() {
     if (!nearest || !location) return
     await run(async () => {
-      if (canReopen) { open(await demoEvents.saved(nearest.id, user.id)); return }
-      if (nearest.category === 'Events') { await openWithPop(await demoEvents.pop(nearest.id, location)); return }
+      // Events: pop (if needed), then land on the Events tab card — not the note screen.
+      if (isEvent) {
+        if (!canReopen) await demoEvents.pop(nearest.id, location)
+        setPopping(true)
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, POP_TRANSITION_MS))
+        setPopping(false)
+        go('events', nearest.id)
+        return
+      }
       const data = await result(api.canPop({ bubbleId: nearest.id, userLat: location.lat, userLng: location.lng }))
       if (!data.ok) { notify(data.reason === 'too_far' ? `Keep walking — you're ${data.distanceM} m away.` : 'This bubble is no longer floating.'); return }
       setBubbles(list => list.map(b => b.id === nearest.id ? { ...b, popped: true } : b))
@@ -135,9 +148,10 @@ export function WalkScreen() {
         <p>{nearest.mine ? 'You left this here. Open it to see what others will find.' : "You've already popped this one. Open it anytime, from here or Your bubbles."}</p>
         <Button className="bubl-outline" loading={busy} onClick={reopen}>Open note</Button>
       </> : nearest ? <>
-        <div className="nearest-title"><CategoryIcon category={nearest.category} /><div><p className="eyebrow">{canOpen ? "You're standing in a bubble" : `Nearest bubble · ${nearest.category}`}</p><h2>{canOpen ? nearest.placeName : `${distance} m away · ${nearest.placeName}`}</h2></div></div>
-        <p>{alreadyPopped ? 'You’ve already popped this bubble.' : eventReason ? eventReason : canOpen ? 'Someone left a little piece of this place. Go on, pop it.' : "Colors tell you what kind of spot it is. What's inside stays sealed until you get close."}</p>
+        <div className="nearest-title"><CategoryIcon category={nearest.category} /><div><p className="eyebrow">{canOpen ? (isEvent ? "You're standing in an event" : "You're standing in a bubble") : `Nearest bubble · ${nearest.category}`}</p><h2>{nearestEvent?.title ? (canOpen || alreadyPopped ? nearestEvent.title : `${distance} m away · ${nearestEvent.title}`) : (canOpen ? nearest.placeName : `${distance} m away · ${nearest.placeName}`)}</h2>{nearestEvent && <p className="map-event-place">{nearest.placeName}</p>}</div></div>
+        <p>{alreadyPopped ? 'You’ve already popped this bubble.' : eventReason ? eventReason : canOpen ? (isEvent ? 'Pop it to open the event card.' : 'Someone left a little piece of this place. Go on, pop it.') : "Colors tell you what kind of spot it is. What's inside stays sealed until you get close."}</p>
         {canReopen || canOpen ? <Button className="bubl-primary" loading={busy} onClick={pop}>{canReopen ? 'Open again' : 'Pop it'} <Sparkles size={18} /></Button> : <><progress max={500} value={Math.max(0, 500 - (distance ?? 500))} /><div className="distance-labels"><span>You</span><span>Pops at {nearest.popRadiusM} m</span></div>{demo && <button className="text-button" onClick={() => setDemoLocation(nearest.lat, nearest.lng)}>Demo: walk to this bubble</button>}</>}
+        {isEvent && <button className="text-button" onClick={() => go('events', nearest.id)}>See on Events</button>}
       </> : <><h2>{loading ? 'Finding your next discovery…' : 'A little quiet around here'}</h2><p>{filter ? 'Try another category or keep walking.' : 'Be the first to leave a bubble at this spot.'}</p><Button className="bubl-primary" onClick={() => go('drop')}>Drop a bubble</Button></>}
       {nearest && <><button className="text-button hide-map-button" onClick={() => { const next = [...hiddenMapIds, nearest.id]; setHiddenMapIds(next); localStorage.setItem('bubl.hidden-map.v1', JSON.stringify(next)); setSelected(undefined) }}><EyeOff size={16} />Hide from map</button><ReportButton id={nearest.id} label={`${nearest.category} bubble at ${nearest.placeName}`} /></>}
       </div>

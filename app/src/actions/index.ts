@@ -7,7 +7,7 @@ import { loveBubble, lovedBy } from './love'
 import { incomingWaves, outgoingWaves, sendWave } from './waves'
 import { chatBubble, getMessages, myChats, sendMessage } from './chats'
 import { deleteDropped, myDropped, myPopped, removePopped } from './you'
-import { resetDemo, setupDemoProfiles } from './demo'
+import { pruneSeedBubbles, resetDemo, setupDemoProfiles } from './demo'
 import { speak, speakLine } from './speak'
 import { openPopped } from './viewer'
 import { claimHandle, getMe, savePreferences } from './profile'
@@ -33,6 +33,7 @@ export const actions: Record<string, ActionHandler<Env>> = {
   removePopped,
   deleteDropped,
   resetDemo,
+  pruneSeedBubbles,
   setupDemoProfiles,
   speak,
   speakLine,

@@ -7,6 +7,8 @@
  *   npm run demo:reset                  # wipe pops, waves, chats, demo drops
  *   add `-- --target http://localhost:5173` to either to hit a local server
  *
+ * After import, leftover seed-* bubbles that are not in the CSV are pruned.
+ *
  * HEIC and photos over 4 MB are converted to JPEG first (macOS `sips`).
  *
  * CSV columns: title,note_text,category,latitude,longitude,place_name,media_file,language,author
@@ -264,6 +266,13 @@ async function importSeeds(target: string, dryRun: boolean) {
     imported += res.data.imported
   }
   console.log(`Imported ${imported} bubble(s) into ${target}.`)
+
+  const keepIds = rows.map((r) => r.id)
+  const pruned = await post(target, token, '/api/actions/pruneSeedBubbles', { keepIds })
+  if (!pruned.success) throw new Error(`Prune failed: ${pruned.error}`)
+  const removed = (pruned.data.bubbles as number) ?? 0
+  if (removed > 0) console.log(`Pruned ${removed} leftover seed bubble(s) not in the CSV.`)
+  else console.log('No leftover seed bubbles to prune.')
 
   const profiles = await post(target, token, '/api/actions/setupDemoProfiles', {})
   if (profiles.success) console.log(`Demo accounts ready: ${profiles.data.profiles.join(', ')}.`)

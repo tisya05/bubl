@@ -4,6 +4,9 @@
  * Wipes every pop, love, wave, chat and message, plus bubbles dropped during
  * the demo (anything whose id doesn't start with `seed-`), their previews and
  * their media. Seed bubbles and seed media stay.
+ *
+ * `pruneSeedBubbles` (npm run seed:import) removes leftover seed-* test bubbles
+ * that are not in the keep list from seed/bubbles.csv.
  */
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
@@ -12,8 +15,11 @@ import { deleteStoredMedia } from '../server/media-routes'
 
 const BATCH = 500
 const isSeed = (id: string) => id.startsWith('seed-')
+const SEED_ID = /^seed-[A-Za-z0-9_-]{1,60}$/
 
 type UploadRow = { storageKey: string; bubbleId?: string }
+type PopRow = { bubbleId: string }
+type WaveRow = { bubbleId: string }
 
 /** Removes every record in `collection` that `keep` doesn't protect. Returns how many were removed. */
 async function removeAll<T extends Record<string, unknown>>(
@@ -59,6 +65,45 @@ export const resetDemo: ActionHandler<Env> = async ({ userId, tools, env }) => {
     return { success: true, data: counts }
   } catch (err) {
     return { success: false, error: `Reset stopped partway: ${(err as Error).message}` }
+  }
+}
+
+/**
+ * Owner only: delete seed-* bubbles (and their previews, pops, waves, media)
+ * whose ids are not in `keepIds`. Non-seed drops are left alone.
+ * Params: `{ keepIds: string[] }` — the ids from the current seed/bubbles.csv.
+ */
+export const pruneSeedBubbles: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
+  if (userId !== env.OWNER_USER_ID) return { success: false, error: 'Forbidden: owner only' }
+
+  const keepIds = params.keepIds
+  if (!Array.isArray(keepIds) || keepIds.length === 0) {
+    return { success: false, error: 'keepIds must be a non-empty array of seed ids' }
+  }
+  if (keepIds.length > 100) return { success: false, error: 'At most 100 keepIds' }
+  const bad = keepIds.find((id) => typeof id !== 'string' || !SEED_ID.test(id))
+  if (bad !== undefined) return { success: false, error: `keepIds must look like seed-<name> (got ${String(bad)})` }
+
+  const keep = new Set(keepIds as string[])
+  const keepSeed = (id: string) => !isSeed(id) || keep.has(id)
+  const keepSeedRef = (bubbleId: string) => !isSeed(bubbleId) || keep.has(bubbleId)
+
+  try {
+    const counts = {
+      waves: await removeAll<WaveRow>(tools, 'waves', (_, w) => keepSeedRef(w.bubbleId)),
+      pops: await removeAll<PopRow>(tools, 'pops', (_, p) => keepSeedRef(p.bubbleId)),
+      bubbles: await removeAll(tools, 'bubbles', (id) => keepSeed(id)),
+      previews: await removeAll(tools, 'bubble_previews', (id) => keepSeed(id)),
+      media: await removeAll<UploadRow>(
+        tools,
+        'media_uploads',
+        (_, u) => u.bubbleId !== undefined && keepSeedRef(u.bubbleId),
+        (u) => deleteStoredMedia(env, u.storageKey),
+      ),
+    }
+    return { success: true, data: counts }
+  } catch (err) {
+    return { success: false, error: `Prune stopped partway: ${(err as Error).message}` }
   }
 }
 
