@@ -383,9 +383,8 @@ for (const standalone of [false, true]) {
       await page.goto(route)
       await expect(page.locator('.mobile-shell')).toBeVisible()
       if (!standalone) {
-        await expect.poll(() => page.locator('.mobile-shell').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBe(852)
-        await page.evaluate(() => window.scrollTo({ top: 852, behavior: 'instant' }))
-        await expect.poll(() => page.evaluate(() => scrollY)).toBe(852)
+        await expect.poll(() => page.locator('.mobile-shell').evaluate(el => el.getBoundingClientRect().top + scrollY)).toBe(0)
+        await expect.poll(() => page.evaluate(() => scrollY)).toBe(0)
         if (await page.locator('.bottom-nav').count()) expect(await page.locator('.bottom-nav').evaluate(el => el.getBoundingClientRect().bottom)).toBe(852)
         continue
       }

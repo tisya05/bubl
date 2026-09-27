@@ -478,12 +478,9 @@ html:has(.bubl-app), body:has(.bubl-app), #root:has(.bubl-app) { background-colo
 html:has(.login-screen, .view-you), body:has(.login-screen, .view-you), #root:has(.login-screen, .view-you) { background-color: #ebe6dc; }
 html:has(.login-handle), body:has(.login-handle), #root:has(.login-handle) { background-color: #ead3de; }
 html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { background-color: #252b61; }
-/* Safari experiment: one blank screen followed by the app in document flow. */
+/* Keep Safari's app in document flow. */
 html[data-safari-scroll], html[data-safari-scroll] body, html[data-safari-scroll] #root {
   height: auto; min-height: 100%; overflow: visible; overscroll-behavior-y: auto;
-}
-html[data-safari-scroll] #root::before {
-  content: ''; display: block; height: 100vh; background: inherit;
 }
 html[data-safari-scroll] :is(.mobile-shell, .bubl-intro) {
   position: relative; inset: auto !important; height: 100dvh !important; min-height: 0;
