@@ -4,9 +4,9 @@ A mobile-first PWA where you discover NYC by physically walking near notes ("bub
 
 ## Overview
 
-bubl replaces the tourist-guide way of seeing a city with a walking-first, locals-first one. Anyone can drop a short note — text, a photo, a 15-second video, or a voice memo — at their exact location, tag it with a category, and set how long it stays up. Other users see it on a map only as a color-coded, distance-blurred dot; the title, text, and media stay sealed on the server until a user's GPS is within the bubble's **pop radius** (15 m by default, 60 m for the seeded demo bubble near Lerner Hall, since indoor GPS drifts 20–50 m).
+bubl replaces the tourist-guide way of seeing a city with a walking-first, locals-first one. Anyone can drop a short note — text, a photo, a 15-second video, or a use speech-to-text — at their exact location, tag it with a category, and set how long it stays up. Other users see it on a map only as a color-coded, distance-blurred dot; the title, text, and media stay sealed on the server until a user's GPS is within the bubble's **pop radius** (15 m by default).
 
-Popping a bubble is the core "aha" moment: it's a physical act, not a database query. From there, the product layers in a lightweight social loop — if you loved a spot and its author waves back at you, a private chat unlocks between exactly the two of you.
+Popping a bubble is the core moment: it's a physical act, not a database query. From there, the product layers in a lightweight social loop — if you loved a spot and its author waves back at you, a private chat unlocks between exactly the two of you.
 
 Built during **DivHacks 2026** (Columbia University) for the "Know Your City" track.
 
@@ -14,7 +14,7 @@ Built during **DivHacks 2026** (Columbia University) for the "Know Your City" tr
 
 - **Walk (map).** Every live bubble in the city renders on the map, colored and iconed by category. Far bubbles are blurred dots; anything within ~100 m becomes a solid marker with its category icon. Sealed content (title, note, media) never reaches the client until a pop succeeds.
 - **Pop.** A server-side distance check (`canPop`) is the only way to unlock a bubble's content. A successful pop is recorded once per user per bubble and triggers an in-app "you drifted into a bubble" alert (sound, vibration, banner).
-- **Drop.** Compose a note with an optional photo, video (≤15 s), or voice recording (≤30 s), a category, and an expiry (or forever). Every drop is checked by Gemini before it goes live — for hate speech, PII (emails, phone numbers, SSNs, card numbers), and offensive language — with a PII pre-check that runs even if Gemini is unreachable. If moderation can't be reached at all, the drop still saves, flagged `unchecked`, so a demo never blocks on a third-party outage.
+- **Drop.** Compose a note with an optional photo or video (≤15 s), a category, and an expiry (or forever). Every drop is checked by Gemini before it goes live — for hate speech, PII (emails, phone numbers, SSNs, card numbers), and offensive language — with a PII pre-check that runs even if Gemini is unreachable. If moderation can't be reached at all, the drop still saves, flagged `unchecked`, so a demo never blocks on a third-party outage. 
 - **Read aloud.** Any popped bubble can be read aloud via ElevenLabs text-to-speech (through DeepSpace's integration proxy), generated once and cached on the bubble. A voice-note bubble instead plays back the author's own recording.
 - **Love → Wave → Chat.** Only a bubble's author and someone who popped-and-loved it can see each other's handles and wave. A private one-on-one chat is created only once both sides have waved, and it's pinned to the bubble that connected them.
 - **You tab.** Your own popped bubbles and dropped bubbles, with the ability to remove a pop (unseal the bubble again) or delete your own drop.
@@ -170,12 +170,12 @@ npm run demo:reset             # wipes pops/loves/waves/chats/messages and demo-
 
 ## Team
 
-| Person | Owns |
+| Person | Responsibility |
 | --- | --- |
-| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, deploy, seed data (collecting spots + import). Frontend: wave screen, Chats tab, chat thread. |
-| Stephanie | Map with category bubbles, pop animation, note screen. Also splash, onboarding, You tab, PWA install. |
-| Tisya | `dropBubble` (Gemini moderation), `speak` (ElevenLabs read-aloud), `canPop`, demo mode, Drop screen, pitch. |
-
+| Urvi -> responsible for backend , contributed on events page, and light frontend dev | 
+|Tisya -> responsible for backend, focused on APIs, contribution to events page| 
+|Shreya-> responsible for frontend, Logo, UI & Design, contribution to frontend and backend for events page| 
+|Stephanie -> responsible for frontend , UI & Design, integrated animated features, worked on backend for some actions| 
 ## Deployment
 
 The app deploys to Cloudflare Workers via the DeepSpace CLI:
