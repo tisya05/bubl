@@ -441,6 +441,13 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .login-card .google-login { width: 100%; display: flex; gap: 12px; align-items: center; justify-content: center; background: white; border: 1px solid #ddd6c8; min-height: 58px; border-radius: 18px; font: inherit; font-weight: 750; color: #243454; white-space: normal; }
 .login-divider { display: flex; gap: 14px; align-items: center; margin: 22px 0; color: #92897d; font-size: 14px; }
 .login-divider span { flex: 1; height: 1px; background: #ddd6c8; }
+.login-demo-accounts { display: flex; justify-content: center; gap: 22px; }
+.login-demo-accounts button { display: grid; justify-items: center; gap: 6px; min-width: 56px; font-size: 13px; font-weight: 700; color: #5e5a52; }
+.login-demo-accounts button:disabled { opacity: .5; }
+.login-demo-avatar { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: white; font-size: 18px; box-shadow: 0 0 0 3px #fbf9f4, 0 0 0 4px #ddd6c8; }
+.avatar-maya { background: #FF8A5B; }
+.avatar-dev { background: #5B8FD9; }
+.avatar-sam { background: #6BAF7A; }
 .login-card .bubl-primary { border-radius: 18px; }
 .login-demo-note { font-size: 12px; line-height: 1.5; color: #827b74; margin: 16px 0 !important; }
 .login-choice .login-demo-note { text-align: center; margin-bottom: 0 !important; }
