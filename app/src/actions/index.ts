@@ -4,9 +4,9 @@ import { importSeedBubbles, nearbyBubbles } from './bubbles'
 import { dropBubble } from './drop'
 import { canPop } from './pop'
 import { loveBubble, lovedBy } from './love'
-import { incomingWaves, sendWave } from './waves'
-import { getMessages, myChats, sendMessage } from './chats'
-import { myDropped, myPopped } from './you'
+import { incomingWaves, outgoingWaves, sendWave } from './waves'
+import { chatBubble, getMessages, myChats, sendMessage } from './chats'
+import { deleteDropped, myDropped, myPopped, removePopped } from './you'
 import { resetDemo, setupDemoProfiles } from './demo'
 import { speak } from './speak'
 import { openPopped } from './viewer'
@@ -22,11 +22,15 @@ export const actions: Record<string, ActionHandler<Env>> = {
   lovedBy,
   sendWave,
   incomingWaves,
+  outgoingWaves,
   myChats,
+  chatBubble,
   getMessages,
   sendMessage,
   myPopped,
   myDropped,
+  removePopped,
+  deleteDropped,
   resetDemo,
   setupDemoProfiles,
   speak,

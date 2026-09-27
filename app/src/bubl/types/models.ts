@@ -125,6 +125,25 @@ export interface IncomingWave {
   createdAt: string;       // day only (midnight UTC), not the exact time
 }
 
+export interface OutgoingWave {
+  to: User;
+  bubbleId: string;
+  placeName: string;
+  category: Category;
+  note?: string;
+  createdAt: string;       // day only (midnight UTC), not the exact time
+}
+
+// The bubble a chat is pinned to, as seen by the chat's two users.
+export interface ChatBubble {
+  bubbleId: string;
+  title: string;
+  placeName: string;
+  category: Category;
+  // Optional notes from the mutual waves about this bubble (oldest first).
+  waveNotes?: { fromUserId: string; note: string }[];
+}
+
 export interface ChatSummary {
   chat: Chat;
   otherUser: User;

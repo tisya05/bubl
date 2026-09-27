@@ -1,5 +1,5 @@
 /**
- * Wave actions: sendWave and incomingWaves.
+ * Wave actions: sendWave, incomingWaves, outgoingWaves.
  *
  * A wave is only between a bubble's author and someone who popped and loved
  * it; either side may wave first. When both have waved about the same bubble,
@@ -8,10 +8,10 @@
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import type { Bubble, BubblePreview, IncomingWave, Pop, User, Wave } from '../bubl/types'
-import { publicUser } from './profile'
+import type { Bubble, BubblePreview, IncomingWave, OutgoingWave, Pop, Wave } from '../bubl/types'
 import { matchNotice, waveNotice } from '../bubl/lib/notifications'
 import { notify } from './notify'
+import { publicUser } from './profile'
 
 const MAX_NOTE_CHARS = 280
 
@@ -59,38 +59,31 @@ export const sendWave: ActionHandler<Env> = async ({ userId, params, tools, env 
 
   const bubble = await tools.get<Pick<Bubble, 'authorId' | 'placeName'>>('bubbles', bubbleId)
   if (!bubble.success) return { success: false, error: 'Bubble not found' }
-  const authorId = bubble.data.record.data.authorId
+  const { authorId, placeName } = bubble.data.record.data
 
   const lover = userId === authorId ? toUserId : toUserId === authorId ? userId : undefined
   if (!lover || !(await hasLoved(tools, lover, bubbleId))) {
     return { success: false, error: 'Waves are only between a bubble’s author and someone who loved it' }
   }
 
-  const placeName = bubble.data.record.data.placeName ?? ''
-  let newWave = false
-  if (!(await findWave(tools, userId, toUserId, bubbleId))) {
+  const already = await findWave(tools, userId, toUserId, bubbleId)
+  if (!already) {
     const wave: WaveRow = { fromUserId: userId, toUserId, bubbleId, userIds: [userId, toUserId] }
     if (cleanNote) wave.note = cleanNote
     const created = await tools.create('waves', wave)
     if (!created.success) return created
-    newWave = true
+    const from = await publicUser(tools, userId)
+    await notify(tools, toUserId, waveNotice({ id: userId, name: from.name }, { id: bubbleId, placeName }, cleanNote || undefined), env)
   }
 
-  const me = newWave ? await publicUser(tools, userId, 'Someone') : undefined
-  if (!(await findWave(tools, toUserId, userId, bubbleId))) {
-    if (me) await notify(tools, toUserId, waveNotice(me, { id: bubbleId, placeName }, cleanNote || undefined), env)
-    return { success: true, data: { matched: false } }
-  }
+  if (!(await findWave(tools, toUserId, userId, bubbleId))) return { success: true, data: { matched: false } }
 
   const chat = await chatFor(tools, userId, toUserId, bubbleId)
   if (!chat.success) return chat
-  // The wave back that unlocks the chat: tell both people (feed + phone).
-  if (me) {
-    const them = await publicUser(tools, toUserId, 'Someone')
-    await Promise.all([
-      notify(tools, toUserId, matchNotice(me, chat.chatId, bubbleId), env),
-      notify(tools, userId, matchNotice(them, chat.chatId, bubbleId), env),
-    ])
+  if (!already) {
+    const [me, them] = await Promise.all([publicUser(tools, userId), publicUser(tools, toUserId)])
+    await notify(tools, userId, matchNotice({ id: toUserId, name: them.name }, chat.chatId, bubbleId), env)
+    await notify(tools, toUserId, matchNotice({ id: userId, name: me.name }, chat.chatId, bubbleId), env)
   }
   return { success: true, data: { matched: true, chatId: chat.chatId } }
 }
@@ -113,6 +106,36 @@ export const incomingWaves: ActionHandler<Env> = async ({ userId, tools }) => {
       const place = preview.success ? preview.data.record.data : undefined
       return {
         from,
+        bubbleId: r.data.bubbleId,
+        placeName: place?.placeName ?? '',
+        category: place?.category ?? 'Misc',
+        note: r.data.note,
+        createdAt: toDay(r.createdAt),
+      }
+    }),
+  )
+  items.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  return { success: true, data: items }
+}
+
+/** Waves the caller sent that haven't been waved back yet. */
+export const outgoingWaves: ActionHandler<Env> = async ({ userId, tools }) => {
+  const sent = await tools.query<WaveRow>('waves', { where: { fromUserId: userId }, limit: 500 })
+  if (!sent.success) return sent
+  const received = await tools.query<WaveRow>('waves', { where: { toUserId: userId }, limit: 500 })
+  if (!received.success) return received
+  const wavedBack = new Set(received.data.records.map((r) => `${r.data.fromUserId}:${r.data.bubbleId}`))
+
+  const pending = sent.data.records.filter((r) => !wavedBack.has(`${r.data.toUserId}:${r.data.bubbleId}`))
+  const items = await Promise.all(
+    pending.map(async (r): Promise<OutgoingWave> => {
+      const [to, preview] = await Promise.all([
+        publicUser(tools, r.data.toUserId),
+        tools.get<Omit<BubblePreview, 'id'>>('bubble_previews', r.data.bubbleId),
+      ])
+      const place = preview.success ? preview.data.record.data : undefined
+      return {
+        to,
         bubbleId: r.data.bubbleId,
         placeName: place?.placeName ?? '',
         category: place?.category ?? 'Misc',
