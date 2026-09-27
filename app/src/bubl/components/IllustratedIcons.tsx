@@ -1,8 +1,8 @@
 export function WaveIllustration() {
   return <svg viewBox="0 0 128 128" fill="none" aria-hidden="true">
     <g stroke="#27365D" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="m47 88-17-27c-5-8 3-14 9-7l10 13-15-37c-3-8 7-12 10-4l13 29-8-37c-2-8 9-10 11-2l8 37-1-33c0-9 11-9 11 0l1 37 6-23c2-8 12-5 10 3l-7 39c-2 15-10 24-22 25-8 1-14-4-19-13Z" fill="#FFD1AB" />
-      <path d="M51 69c5-10 16-13 25-7M65 64c-8 6-8 13-6 19" stroke="#C68B73" strokeWidth="2" />
+      <path d="m47 88-17-27c-5-8 3-14 9-7l10 13-15-37c-3-8 7-12 10-4l13 29-8-37c-2-8 9-10 11-2l8 37-1-33c0-9 11-9 11 0l1 37 6-23c2-8 12-5 10 3l-7 39c-2 15-10 24-22 25-8 1-14-4-19-13Z" fill="#F8B9D6" />
+      <path d="M51 69c5-10 16-13 25-7M65 64c-8 6-8 13-6 19" stroke="#C96C9B" strokeWidth="2" />
       <path d="m48 94 32-5 6 22-34 6Z" fill="#A9BFE2" />
       <path d="m53 101 28-5" stroke="#7896C3" />
       <path d="M18 39c-2-8-1-14 2-20M11 40c-3-12-2-19 3-27m89 37c4-5 6-11 6-17m1 22c5-7 8-15 7-23" stroke="#D78AAA" />

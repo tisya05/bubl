@@ -14,7 +14,7 @@ import { loadProfile, saveProfile, type LocalProfile } from '../lib/localProfile
 import type { LibraryActions } from '../lib/libraryActions'
 import '../mobile.css'
 
-export interface OpenedBubble { bubble: Bubble; author: User; loved?: boolean; fromLibrary?: boolean; fromEvents?: boolean }
+export interface OpenedBubble { bubble: Bubble; author: User; loved?: boolean; fromLibrary?: boolean; fromEvents?: boolean; fromChat?: boolean }
 export interface WaveTarget { user: User; bubbleId: string; category: Bubble['category']; placeName: string }
 type View = 'walk' | 'drop' | 'chats' | 'you' | 'note' | 'wave' | 'thread' | 'profile' | 'events'
 interface MobileContextValue {
