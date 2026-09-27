@@ -28,9 +28,7 @@ export async function notify(tools: ActionTools, recipientId: string, draft: Not
   } catch (err) {
     console.warn(`[notify] could not notify: ${err instanceof Error ? err.message : 'unknown error'}`)
   }
-  // A new message isn't pushed to a phone that has that chat open.
-  const skipChatId = draft.kind === 'message' ? draft.chatId : undefined
-  if (env) await pushToUser(tools, env, recipientId, { title: draft.title, body: draft.body, url: urlFor(draft), tag: draft.chatId ?? draft.bubbleId ?? draft.kind }, skipChatId)
+  if (env) await pushToUser(tools, env, recipientId, { title: draft.title, body: draft.body, url: urlFor(draft), tag: draft.chatId ?? draft.bubbleId ?? draft.kind })
 }
 
 /** A user's display name for notification text, falling back to a neutral one. */

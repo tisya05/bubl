@@ -6,7 +6,8 @@
  * - pushNearby: "You drifted into a bubble", pushed back to the caller's own
  *   phones after the server checks they really are inside it. Preview info only
  *   (kind and place name), never sealed content.
- * - setActiveChat: the chat open on this phone, so its messages aren't pushed there.
+ * - setAppOpen: bubl is on screen on this phone, so nothing is pushed there (the
+ *   app shows its own banner instead); refreshed while open, expires on its own.
  * - pushToUser: used by notify() for loves, waves, matches and messages.
  *
  * Needs VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in DeepSpace secrets; without
@@ -20,7 +21,7 @@ import { checkPop } from '../bubl/lib/pop'
 import type { Bubble, Pop } from '../bubl/types'
 import { isPushEndpoint, sendWebPush, type PushSubscriptionKeys, type VapidKeys } from '../server/webpush'
 
-type SubscriptionRow = PushSubscriptionKeys & { userId: string; activeChatId?: string; activeUntil?: number }
+type SubscriptionRow = PushSubscriptionKeys & { userId: string; openUntil?: number }
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
 
 /** What the service worker shows (public/sw.js). */
@@ -32,8 +33,8 @@ export interface PushPayload {
 }
 
 const DEFAULT_SUBJECT = 'https://bubl-divhacks.app.space'
-// The phone refreshes its open chat every minute; if it stops (closed, crashed), pushes resume after this.
-const ACTIVE_CHAT_MS = 90_000
+// The app refreshes "I'm open" every 30 s; if it stops (closed, crashed), pushes resume after this.
+const OPEN_MS = 60_000
 const MAX_SUBSCRIPTIONS_PER_USER = 10
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
@@ -46,17 +47,17 @@ export function vapidFrom(env: Env): VapidKeys | null {
 }
 
 /**
- * Pushes to every phone the user subscribed. Never throws; drops dead subscriptions.
- * `skipChatId`: leave out phones that have that chat open right now (a new message in it).
+ * Pushes to every phone the user subscribed where bubl isn't on screen (those show an
+ * in-app banner). Never throws; drops dead subscriptions.
  */
-export async function pushToUser(tools: ActionTools, env: Env, userId: string, payload: PushPayload, skipChatId?: string): Promise<number> {
+export async function pushToUser(tools: ActionTools, env: Env, userId: string, payload: PushPayload): Promise<number> {
   const vapid = vapidFrom(env)
   if (!vapid) return 0
   try {
     const subs = await tools.query<SubscriptionRow>('pushSubscriptions', { where: { userId }, limit: MAX_SUBSCRIPTIONS_PER_USER })
     if (!subs.success) return 0
     const now = Date.now()
-    const targets = subs.data.records.filter((row) => !(skipChatId && row.data.activeChatId === skipChatId && (row.data.activeUntil ?? 0) > now))
+    const targets = subs.data.records.filter((row) => (row.data.openUntil ?? 0) <= now)
     const results = await Promise.all(
       targets.map(async (row) => {
         const res = await sendWebPush(vapid, row.data, payload).catch(() => ({ ok: false as const, gone: false, status: -1 }))
@@ -105,15 +106,14 @@ export const removePushSubscription: ActionHandler<Env> = async ({ userId, param
   return { success: true, data: { removed: removed.data.deleted } }
 }
 
-/** Params: `{ endpoint, chatId }` (chatId null when no chat is open). Only the caller's own phone. */
-export const setActiveChat: ActionHandler<Env> = async ({ userId, params, tools }) => {
-  const { endpoint, chatId } = params
-  if (!nonEmptyString(endpoint)) return { success: false, error: 'endpoint is required' }
-  if (chatId !== null && !nonEmptyString(chatId)) return { success: false, error: 'chatId must be a chat id or null' }
+/** Params: `{ endpoint, open }`. Only the caller's own phone. */
+export const setAppOpen: ActionHandler<Env> = async ({ userId, params, tools }) => {
+  const { endpoint, open } = params
+  if (!nonEmptyString(endpoint) || typeof open !== 'boolean') return { success: false, error: 'endpoint and open are required' }
   const mine = await tools.query<SubscriptionRow>('pushSubscriptions', { where: { endpoint, userId }, limit: 1 })
   const row = mine.success ? mine.data.records[0] : undefined
   if (!row) return { success: true, data: { saved: false } }
-  const updated = await tools.update('pushSubscriptions', row.recordId, chatId ? { activeChatId: chatId, activeUntil: Date.now() + ACTIVE_CHAT_MS } : { activeChatId: '', activeUntil: 0 })
+  const updated = await tools.update('pushSubscriptions', row.recordId, { openUntil: open ? Date.now() + OPEN_MS : 0 })
   if (!updated.success) return updated
   return { success: true, data: { saved: true } }
 }

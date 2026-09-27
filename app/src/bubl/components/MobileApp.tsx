@@ -6,6 +6,8 @@ import { DropIcon, BalloonsIcon } from './AppIcons'
 import { useAppViewport } from '../hooks/useAppViewport'
 import { useBubbleNearby } from '../hooks/useBubbleNearby'
 import { useOpenChat } from '../hooks/useOpenChat'
+import { useAppOpen } from '../hooks/useAppOpen'
+import { NotificationBanner } from './NotificationBanner'
 import { registerNotificationWorker } from '../lib/alerts'
 import { installSoundUnlock } from '../lib/sounds'
 import type { ActionResult } from 'deepspace/worker'
@@ -89,6 +91,7 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   useEffect(installSoundUnlock, [])
   useBubbleNearby(api)
   useOpenChat(view === 'thread' && thread ? thread.chat.id : null)
+  useAppOpen()
   const context: MobileContextValue = { api, demo, user, opened, wave, thread, onSignOut, go, notify: setMessage, library, profile, updateProfile,
     async openWithPop(value) {
       setPopping(value.bubble.category)
@@ -104,6 +107,7 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
       ['walk', 'Walk', Compass], ['events', 'Events', BalloonsIcon], ['drop', 'Drop', DropIcon], ['chats', 'Chats', MessageSquare], ['you', 'You', UserRound],
     ] as const).map(([tab, label, Icon]) => <button key={tab} className={tab === 'drop' ? 'nav-drop' : undefined} aria-current={view === tab ? 'page' : undefined} onClick={() => go(tab)}>{tab === 'drop' ? <span className="nav-drop-circle"><Icon /></span> : <Icon />}<span>{label}</span><i /></button>)}</nav>}
     {popping && <PopTransition category={popping} />}
+    <NotificationBanner />
     {message && <div className="bubl-toast" role="status"><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')}><X size={18} /></button></div>}
   </main></MobileContext.Provider>
 }

@@ -19,7 +19,7 @@ import { result, useMobile, useOperation } from './MobileApp'
 import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
 export function WalkScreen() {
-  const { api, demo, user, open, openWithPop, go, notify, library } = useMobile()
+  const { api, demo, user, open, openWithPop, go, notify, library, opened } = useMobile()
   const location = useUserLocation()
   const events = useDemoEvents()
   const [poppedIds, setPoppedIds] = useState<string[]>([])
@@ -37,7 +37,8 @@ export function WalkScreen() {
     setPoppedIds(ids => ids.includes(id) ? ids : [...ids, id])
   }), [])
   const [params] = useSearchParams()
-  const [selected, setSelected] = useState<string | undefined>(params.get('bubble') ?? undefined)
+  // Coming back from a note, the card shows that bubble again.
+  const [selected, setSelected] = useState<string | undefined>(params.get('bubble') ?? opened?.bubble.id ?? undefined)
   const [hiddenMapIds, setHiddenMapIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('bubl.hidden-map.v1') ?? '[]') } catch { return [] } })
   const [filter, setFilter] = useState<Category>()
   const [loading, setLoading] = useState(true)

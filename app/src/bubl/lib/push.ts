@@ -17,6 +17,7 @@ async function call<T>(name: string, params: object = {}): Promise<T | null> {
     const token = await getAuthToken().catch(() => null)
     const res = await fetch(`/api/actions/${name}`, {
       method: 'POST',
+      keepalive: true, // still delivered if the app is being closed
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(params),
     })
@@ -62,18 +63,20 @@ export async function setupPush(): Promise<boolean> {
     const json = subscription.toJSON()
     active = Boolean(await call('savePushSubscription', { endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth }))
     endpoint = active ? (json.endpoint ?? null) : null
+    if (active) reportAppOpen(document.visibilityState === 'visible')
     return active
   } catch {
     return false
   }
 }
 
-/** Tell the server which chat this phone has open (null = none), so its messages aren't pushed here. */
-export function reportOpenChat(chatId: string | null) {
-  if (active && endpoint) void call('setActiveChat', { endpoint, chatId })
+/** Tell the server whether bubl is on screen here: while it is, nothing is pushed (the in-app banner shows instead). */
+export function reportAppOpen(open: boolean) {
+  if (active && endpoint) void call('setAppOpen', { endpoint, open })
 }
 
 /** Ask the server to push "You drifted into a bubble" to this phone (it checks you're really there). */
 export function requestNearbyPush(bubbleId: string, you: { lat: number; lng: number }) {
-  if (active) void call('pushNearby', { bubbleId, lat: you.lat, lng: you.lng })
+  // On screen, the in-app banner already says it.
+  if (active && document.visibilityState !== 'visible') void call('pushNearby', { bubbleId, lat: you.lat, lng: you.lng })
 }
