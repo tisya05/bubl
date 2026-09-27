@@ -28,6 +28,9 @@ let source: LocationSource = typeof window === 'undefined' ? 'gps' : savedSource
 let gpsLocation: UserLocation | null = null;
 let demoLocation: UserLocation = { ...LERNER_HALL, accuracyM: 5, source: 'demo' };
 let watchId: number | null = null;
+// The phone refused location (not the same as choosing the demo dot): the start-up check asks again.
+let gpsDenied = false;
+export const gpsWasDenied = () => gpsDenied;
 const listeners = new Set<() => void>();
 
 const emit = () => listeners.forEach((l) => l());
@@ -40,6 +43,7 @@ function startGps() {
   }
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
+      gpsDenied = false;
       gpsLocation = {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -49,7 +53,10 @@ function startGps() {
       emit();
     },
     // Permission denied or no fix (e.g. judges indoors): fall back to the demo dot.
-    () => setLocationSource('demo'),
+    (err) => {
+      if (err.code === 1) gpsDenied = true;
+      setLocationSource('demo');
+    },
     { enableHighAccuracy: true, maximumAge: 5_000 },
   );
 }

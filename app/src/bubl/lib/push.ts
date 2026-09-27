@@ -70,6 +70,22 @@ export async function setupPush(): Promise<boolean> {
   }
 }
 
+/** Stop pushes to this phone: unsubscribe and forget the subscription on the server. */
+export async function disablePush(): Promise<void> {
+  try {
+    const registration = await navigator.serviceWorker?.getRegistration()
+    const subscription = await registration?.pushManager.getSubscription()
+    if (subscription) {
+      await call('removePushSubscription', { endpoint: subscription.endpoint })
+      await subscription.unsubscribe()
+    }
+  } catch {
+    // Nothing to undo.
+  }
+  active = false
+  endpoint = null
+}
+
 /** Tell the server whether bubl is on screen here: while it is, nothing is pushed (the in-app banner shows instead). */
 export function reportAppOpen(open: boolean) {
   if (active && endpoint) void call('setAppOpen', { endpoint, open })

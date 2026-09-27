@@ -8,6 +8,7 @@ import { useBubbleNearby } from '../hooks/useBubbleNearby'
 import { useOpenChat } from '../hooks/useOpenChat'
 import { useAppOpen } from '../hooks/useAppOpen'
 import { NotificationBanner } from './NotificationBanner'
+import { PermissionSheet } from './PermissionSheet'
 import { registerNotificationWorker } from '../lib/alerts'
 import { installSoundUnlock } from '../lib/sounds'
 import type { ActionResult } from 'deepspace/worker'
@@ -108,6 +109,7 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
     ] as const).map(([tab, label, Icon]) => <button key={tab} className={tab === 'drop' ? 'nav-drop' : undefined} aria-current={view === tab ? 'page' : undefined} onClick={() => go(tab)}>{tab === 'drop' ? <span className="nav-drop-circle"><Icon /></span> : <Icon />}<span>{label}</span><i /></button>)}</nav>}
     {popping && <PopTransition category={popping} />}
     <NotificationBanner />
+    <PermissionSheet />
     {message && <div className="bubl-toast" role="status"><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')}><X size={18} /></button></div>}
   </main></MobileContext.Provider>
 }

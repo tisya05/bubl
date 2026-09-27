@@ -59,10 +59,29 @@ test('walk to a bubble, pop it once, then only reopen it', async ({ users, reque
   })
   expect(await seed.json()).toMatchObject({ success: true })
 
+  // Tidy up: pop any walk-UI test bubble an earlier (failed) run left unpopped around here, so it
+  // can't take over the card (a bubble you're standing in always wins).
+  const token = ((await (await dev.page.request.post('/api/auth/token')).json()) as { token: string }).token
+  const act = (name: string, data: object) => request.post(`/api/actions/${name}`, { headers: { Authorization: `Bearer ${token}` }, data })
+  for (const dLat of [0, 150, 300]) {
+    const near = (await (await act('nearbyBubbles', { lat: SPOT.lat + dLat / 111_195, lng: SPOT.lng, radiusM: 400 })).json()) as {
+      data?: { id: string; lat: number; lng: number; popped?: boolean }[]
+    }
+    for (const b of near.data ?? []) {
+      if (b.id.startsWith('seed-test-walk-ui-') && b.id !== BUBBLE.id && !b.popped) await act('canPop', { bubbleId: b.id, userLat: b.lat, userLng: b.lng })
+    }
+  }
+
   const page = dev.page
   // Select this run's bubble (older test bubbles sit at the same spot).
   await page.goto(`/home?bubble=${BUBBLE.id}`)
   await expect(page.locator('.walk-screen')).toBeVisible({ timeout: 20_000 })
+  // Start-up check: notifications aren't allowed in this browser, so bubl asks (with a real Allow button).
+  const sheet = page.getByRole('dialog', { name: 'bubl works best with these on' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByRole('button', { name: 'Allow' })).toBeVisible()
+  await sheet.getByRole('button', { name: 'Not now' }).click()
+  await expect(sheet).toBeHidden()
 
   // ~150 m further north: shows the distance, no Pop button, and nothing sealed on screen.
   await standAt(page, SPOT.lat + 150 / 111_195, SPOT.lng)
