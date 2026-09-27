@@ -156,7 +156,6 @@
 .note-text { font-size: 21px; font-weight: 550; line-height: 1.4; margin-bottom: 18px !important; overflow-wrap: anywhere; white-space: pre-wrap; }
 .note-tools { display: flex; gap: 8px; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; }
 .note-tools button { min-height: 44px; border-radius: 30px; }
-.language-picker select { min-height: 44px; max-width: 120px; border: 1px solid var(--bubl-line); border-radius: 22px; background: var(--bubl-card); padding: 6px 10px; }
 .note-actions { display: flex; gap: 10px; margin-top: auto; padding: 22px 20px max(22px, env(safe-area-inset-bottom)); }
 .note-actions .bubl-primary { flex: 1; }
 .drop-screen form { padding: 0 16px 24px; }

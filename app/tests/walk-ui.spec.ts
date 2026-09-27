@@ -79,7 +79,6 @@ test('walk to a bubble, pop it once, then only reopen it', async ({ users, reque
   // The note opens with the sealed content.
   await expect(page.getByRole('heading', { name: BUBBLE.title })).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText(BUBBLE.text)).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Translate note' })).toHaveCount(0)
 
   // Listen: real ElevenLabs audio comes back (generated once, then cached for later runs).
   const spoken = page.waitForResponse((r) => r.url().endsWith('/api/actions/speak'))
