@@ -4,6 +4,9 @@
  * their passwords stay in secrets (DEMO_PASSWORD_MAYA, _DEV, _SAM) and never
  * reach the browser. The session cookie it sets is the same one Google
  * sign-in sets, so the user stays signed in the same way.
+ *
+ * Demo account avatars for the login page are served by
+ * GET /api/media/demo-avatar/:as (see media-routes.ts).
  */
 
 import type { Hono } from 'hono'
@@ -11,9 +14,21 @@ import { authWorkerFetch } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
 
 export const DEMO_ACCOUNTS = {
-  maya: { email: 'bubl-demo-author@deepspace.test', secret: 'DEMO_PASSWORD_MAYA' },
-  dev: { email: 'bubl-demo-visitor@deepspace.test', secret: 'DEMO_PASSWORD_DEV' },
-  sam: { email: 'bubl-test-sam@deepspace.test', secret: 'DEMO_PASSWORD_SAM' },
+  maya: {
+    email: 'bubl-demo-author@deepspace.test',
+    secret: 'DEMO_PASSWORD_MAYA',
+    userId: 'sYL8FvOhT463FM0ZH9ajemFvfXqu7XGo',
+  },
+  dev: {
+    email: 'bubl-demo-visitor@deepspace.test',
+    secret: 'DEMO_PASSWORD_DEV',
+    userId: 'OHHViJa9Fu4tyKzF8ZnRO7OqDgvTm3qx',
+  },
+  sam: {
+    email: 'bubl-test-sam@deepspace.test',
+    secret: 'DEMO_PASSWORD_SAM',
+    userId: 'GN08sDkS4Kj0h9JXL6pB2x4OFQBLXQiW',
+  },
 } as const
 
 type DemoName = keyof typeof DEMO_ACCOUNTS

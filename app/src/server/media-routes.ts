@@ -1,5 +1,7 @@
 /**
  * Bubble media: POST /api/media/upload and GET /api/media/:uploadId.
+ * Profile photos: POST/DELETE /api/media/profile, GET /api/media/profile/:userId,
+ * and public GET /api/media/demo-avatar/:as for the login demo buttons.
  *
  * Why not the SDK's /api/files directly: 'self' files are readable only by the
  * uploader, and 'app' files can be listed by any signed-in user, which would
@@ -14,6 +16,7 @@ import { platformWorkerFetch, resolveSessionReadAuth } from 'deepspace/worker'
 import type { ActionTools, VerifyResult } from 'deepspace/worker'
 import type { AppContext, Env } from '../../worker.js'
 import { createActionTools } from './action-routes.js'
+import { avatarUrlFor } from './avatar-url.js'
 import { detectMedia, oggDurationS, stripJpeg, stripMp3, stripPng, stripVideo, stripWebp, type MediaKind } from './media-strip.js'
 
 const MEDIA_OWNER_ID = 'bubl-media-store'
@@ -24,9 +27,23 @@ const MAX_VIDEO_SECONDS = 15.5 // 15 s plus encoder rounding
 const MAX_AUDIO_BYTES = 1024 * 1024
 const MAX_AUDIO_SECONDS = 30.5
 
+/** Demo account userIds — keep in sync with demo-auth-routes DEMO_ACCOUNTS. */
+const DEMO_AVATAR_USERS = {
+  maya: 'sYL8FvOhT463FM0ZH9ajemFvfXqu7XGo',
+  dev: 'OHHViJa9Fu4tyKzF8ZnRO7OqDgvTm3qx',
+  sam: 'GN08sDkS4Kj0h9JXL6pB2x4OFQBLXQiW',
+} as const
+
 type ResolveAuth = (req: Request, env: Env) => Promise<VerifyResult | null>
 type MediaType = MediaKind['mediaType']
 type UploadRow = { ownerId: string; storageKey: string; mediaType: MediaType; contentType: string; bubbleId?: string }
+type ProfileRow = {
+  handle?: string
+  notificationsEnabled?: number | boolean
+  locationEnabled?: number | boolean
+  onboardedAt?: string
+  avatarKey?: string
+}
 
 export const mediaUrlFor = (uploadId: string) => `/api/media/${uploadId}`
 const UPLOAD_ID_IN_URL = /^\/api\/media\/([A-Za-z0-9_-]+)$/
@@ -52,7 +69,110 @@ async function canView(tools: ActionTools, userId: string, upload: UploadRow): P
   return bubble.success && bubble.data.record.data.authorId === userId
 }
 
+async function serveAvatarFile(env: Env, reqUrl: string, avatarKey: string, cacheControl: string): Promise<Response> {
+  const file = await platformWorkerFetch(
+    env,
+    new Request(new URL(`/internal/files/${avatarKey}?scope=self`, reqUrl), { headers: storageHeaders(env) }),
+  )
+  if (!file.ok || !file.body) return Response.json({ error: 'Not found' }, { status: 404 })
+  return new Response(file.body, {
+    headers: {
+      'Content-Type': file.headers.get('Content-Type') ?? 'image/jpeg',
+      'Cache-Control': cacheControl,
+      'X-Content-Type-Options': 'nosniff',
+    },
+  })
+}
+
 export function registerMediaRoutes(app: Hono<AppContext>, resolveAuth: ResolveAuth): void {
+  // Profile photo routes must be registered before /api/media/:uploadId so "profile" is not
+  // treated as an upload id. users.imageUrl is auth-managed; custom photos use profiles.avatarKey.
+
+  app.post('/api/media/profile', async (c) => {
+    const auth = await resolveAuth(c.req.raw, c.env)
+    if (!auth) return c.json({ error: 'Unauthorized' }, 401)
+
+    const form = await c.req.formData().catch(() => undefined)
+    const file = form?.get('file')
+    if (!file || typeof file === 'string') return c.json(fail('Send the file as multipart field "file"'))
+    if (file.size > MAX_PHOTO_BYTES) return c.json(fail('Photos must be at most 5 MB'))
+
+    const raw = new Uint8Array(await file.arrayBuffer())
+    const kind = detectMedia(raw)
+    if (!kind || kind.mediaType !== 'photo') return c.json(fail('Only JPEG, PNG, or WebP photos are supported'))
+
+    let clean: Uint8Array
+    try {
+      if (kind.contentType === 'image/jpeg') clean = stripJpeg(raw)
+      else if (kind.contentType === 'image/png') clean = stripPng(raw)
+      else clean = stripWebp(raw)
+    } catch {
+      return c.json(fail('Could not read this photo'))
+    }
+
+    const body = new FormData()
+    body.append('file', new Blob([new Uint8Array(clean)], { type: kind.contentType }), 'avatar')
+    const stored = await platformWorkerFetch(
+      c.env,
+      new Request(new URL('/internal/files/upload?scope=self', c.req.url), { method: 'POST', headers: storageHeaders(c.env), body }),
+    )
+    const storedBody = (await stored.json().catch(() => ({}))) as { success?: boolean; key?: string }
+    if (!stored.ok || !storedBody.key) {
+      console.error(`[profile] storage upload failed status=${stored.status}`)
+      return c.json(fail('Upload failed, try again'))
+    }
+
+    const tools = createActionTools(c.env, auth.userId, '')
+    const profile = await tools.get<ProfileRow>('profiles', auth.userId)
+    const previous = profile.success ? profile.data.record.data : undefined
+    const saved = await tools.create('profiles', { ...previous, avatarKey: storedBody.key }, auth.userId)
+    if (!saved.success) {
+      await deleteStoredMedia(c.env, storedBody.key)
+      console.error(`[profile] profiles save failed: ${saved.error}`)
+      return c.json(fail('Upload failed, try again'))
+    }
+    if (previous?.avatarKey && previous.avatarKey !== storedBody.key) {
+      await deleteStoredMedia(c.env, previous.avatarKey)
+    }
+    return c.json({ success: true, data: { imageUrl: avatarUrlFor(auth.userId, storedBody.key) } })
+  })
+
+  app.delete('/api/media/profile', async (c) => {
+    const auth = await resolveAuth(c.req.raw, c.env)
+    if (!auth) return c.json({ error: 'Unauthorized' }, 401)
+    const tools = createActionTools(c.env, auth.userId, '')
+    const profile = await tools.get<ProfileRow>('profiles', auth.userId)
+    const previous = profile.success ? profile.data.record.data : undefined
+    if (previous?.avatarKey) {
+      const { avatarKey: _removed, ...rest } = previous
+      await tools.create('profiles', { ...rest, avatarKey: '' }, auth.userId)
+      await deleteStoredMedia(c.env, previous.avatarKey)
+    }
+    return c.json({ success: true, data: { imageUrl: null } })
+  })
+
+  app.get('/api/media/profile/:userId', async (c) => {
+    const auth = (await resolveAuth(c.req.raw, c.env)) ?? (await resolveSessionReadAuth(c.req.raw, c.env))
+    if (!auth) return c.json({ error: 'Unauthorized' }, 401)
+    const tools = createActionTools(c.env, auth.userId, '')
+    const profile = await tools.get<ProfileRow>('profiles', c.req.param('userId'))
+    const avatarKey = profile.success ? profile.data.record.data.avatarKey : undefined
+    if (!avatarKey) return c.json({ error: 'Not found' }, 404)
+    return serveAvatarFile(c.env, c.req.url, avatarKey, 'private, max-age=60')
+  })
+
+  // Public: login page demo buttons (maya/dev/sam) before anyone is signed in.
+  app.get('/api/media/demo-avatar/:as', async (c) => {
+    const name = c.req.param('as').toLowerCase() as keyof typeof DEMO_AVATAR_USERS
+    const userId = DEMO_AVATAR_USERS[name]
+    if (!userId) return c.json({ error: 'Not found' }, 404)
+    const tools = createActionTools(c.env, userId, '')
+    const profile = await tools.get<ProfileRow>('profiles', userId)
+    const avatarKey = profile.success ? profile.data.record.data.avatarKey : undefined
+    if (!avatarKey) return c.json({ error: 'Not found' }, 404)
+    return serveAvatarFile(c.env, c.req.url, avatarKey, 'public, max-age=60')
+  })
+
   app.post('/api/media/upload', async (c) => {
     const auth = await resolveAuth(c.req.raw, c.env)
     if (!auth) return c.json({ error: 'Unauthorized' }, 401)

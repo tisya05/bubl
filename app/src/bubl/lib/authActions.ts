@@ -2,7 +2,14 @@ import { authClient, clearAuthToken, getAuthToken } from 'deepspace'
 
 export const AUTH_OFFLINE = Boolean(import.meta.env.VITE_UI_ONLY) || import.meta.env.VITE_USE_MOCK === 'true'
 
-export interface Me { userId: string; handle: string | null; notificationsEnabled: boolean; locationEnabled: boolean; onboarded: boolean }
+export interface Me {
+  userId: string
+  handle: string | null
+  notificationsEnabled: boolean
+  locationEnabled: boolean
+  onboarded: boolean
+  imageUrl?: string | null
+}
 type Result<T> = { success: true; data: T } | { success: false; error: string; status?: number }
 
 async function call<T>(name: string, params: object = {}): Promise<Result<T>> {

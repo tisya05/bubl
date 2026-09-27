@@ -1,5 +1,8 @@
 /**
- * Onboarding state, written only by server actions (profile.ts).
+ * Onboarding state, written only by server actions (profile.ts) and avatar
+ * routes. DeepSpace `users.imageUrl` is system-managed (auth provider), so a
+ * custom photo lives on `profiles.avatarKey` and is served at
+ * `/api/avatars/<userId>`.
  *
  * `profiles`: recordId is the userId. `handles`: recordId is the lowercase
  * handle, so a handle can belong to one user only. Nobody reads either
@@ -17,6 +20,7 @@ export const profilesSchema: CollectionSchema = {
     { name: 'notificationsEnabled', storage: 'number', interpretation: { kind: 'boolean' }, default: 0 },
     { name: 'locationEnabled', storage: 'number', interpretation: { kind: 'boolean' }, default: 0 },
     { name: 'onboardedAt', storage: 'text', interpretation: { kind: 'datetime' } },
+    { name: 'avatarKey', storage: 'text', interpretation: 'plain' },
   ],
   permissions: { viewer: noAccess, member: noAccess, admin: noAccess },
 }
