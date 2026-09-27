@@ -13,7 +13,8 @@ import { ReportButton } from './ReportButton'
 import { EventWhen } from './EventsScreen'
 import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
-import { alert } from '../lib/alerts'
+import { alert, subscribeAlerts } from '../lib/alerts'
+import { useWalkingMode } from '../hooks/useWalkingMode'
 import { result, useMobile, useOperation } from './MobileApp'
 import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
@@ -27,6 +28,14 @@ export function WalkScreen() {
   const [now, setNow] = useState(Date.now())
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [])
   const [bubbles, setBubbles] = useState<BubblePreview[]>([])
+  const walking = useWalkingMode()
+  // Walking voice pops bubbles by itself: show them as popped right away.
+  useEffect(() => subscribeAlerts(a => {
+    if (a.kind !== 'pop' || !a.bubbleId) return
+    const id = a.bubbleId
+    setBubbles(list => list.map(b => b.id === id ? { ...b, popped: true } : b))
+    setPoppedIds(ids => ids.includes(id) ? ids : [...ids, id])
+  }), [])
   const [params] = useSearchParams()
   const [selected, setSelected] = useState<string | undefined>(params.get('bubble') ?? undefined)
   const [hiddenMapIds, setHiddenMapIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('bubl.hidden-map.v1') ?? '[]') } catch { return [] } })
@@ -110,6 +119,7 @@ export function WalkScreen() {
     <div ref={header} className="map-overlay"><div className="map-heading"><div><p className="eyebrow">{demo ? 'Morningside Heights' : 'Your neighborhood'}</p><h1>{loading ? 'Finding nearby bubbles…' : `${allBubbles.length} bubbles around you`}</h1></div><button aria-label="Your bubbles" onClick={() => go('you')}><Avatar name={user.name} image={user.imageUrl} /></button></div>
       <Categories value={filter} onChange={value => setFilter(filter === value ? undefined : value)} />
       {location?.source === 'demo' && <p className="map-hint">Demo location · drag the blue dot to explore</p>}
+      {walking.on && <p className="map-hint" role="status">{walking.error ?? (walking.playing ? `🔊 Reading “${walking.playing.title}”` : '🔊 Walking voice on · bubbles pop and read aloud')}</p>}
     </div>
     <div ref={sheet} className={`map-sheet ${collapsed ? 'collapsed' : ''} ${dragHeight !== null ? 'dragging' : ''}`} style={{ height: dragHeight ?? (collapsed ? 96 : expandedHeight) }}>
       <button className="sheet-grip" aria-label={collapsed ? 'Expand bubble details' : 'Collapse bubble details'} aria-expanded={!collapsed} aria-controls="bubble-details" onPointerDown={event => { dragStart.current = event.clientY; startHeight.current = sheet.current?.offsetHeight ?? expandedHeight; dragged.current = false; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => { if (dragStart.current === null) return; const delta = event.clientY - dragStart.current; if (Math.abs(delta) > 4) dragged.current = true; setDragHeight(Math.max(96, Math.min(expandedHeight, startHeight.current - delta))) }} onPointerUp={event => { if (dragStart.current !== null && dragged.current) { const delta = event.clientY - dragStart.current; setCollapsed(Math.abs(delta) > 24 ? delta > 0 : (dragHeight ?? startHeight.current) < (expandedHeight + 96) / 2) } dragStart.current = null; setDragHeight(null) }} onPointerCancel={() => { dragStart.current = null; setDragHeight(null) }} onClick={() => { if (dragged.current) { dragged.current = false; return } setCollapsed(value => !value) }}><span className="sheet-handle" /></button>

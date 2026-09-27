@@ -1,5 +1,6 @@
 /**
  * speak: a bubble read aloud by an ElevenLabs voice, for walking mode.
+ * speakLine: a fixed line in the same voice ("This bubble also has a photo…").
  *
  * Only for someone who popped the bubble (or its author), so the audio can't
  * leak sealed content. Generated once through DeepSpace's ElevenLabs
@@ -24,6 +25,15 @@ async function hasPopped(tools: ActionTools, userId: string, bubbleId: string): 
   const res = await tools.query('pops', { where: { userId, bubbleId }, limit: 1 })
   return res.success && res.data.records.length > 0
 }
+
+/** Fixed lines walking mode says after a note, in the same voice. */
+export const SPOKEN_LINES = {
+  photo: 'This bubble also has a photo. Open bubl to see it.',
+  video: 'This bubble also has a video. Open bubl to watch it.',
+} as const
+type SpokenLine = keyof typeof SPOKEN_LINES
+// The lines never change, so each Worker instance generates them at most once.
+const lineCache = new Map<SpokenLine, string>()
 
 /** What the voice says: the title, a pause, then the note. */
 export const spokenText = (title: string, text: string) => `${title.trim()}. ${text.trim()}`.slice(0, MAX_TTS_CHARS)
@@ -57,5 +67,19 @@ export const speak: ActionHandler<Env> = async ({ userId, params, tools }) => {
 
   // Cache for everyone. If the write fails, still return the audio this time.
   await tools.update('bubbles', bubbleId, { audioUrl })
+  return { success: true, data: { audioUrl } satisfies SpeakResult }
+}
+
+/** Params: `{ line: 'photo' | 'video' }`. A fixed line read aloud (no bubble content), e.g. after a note with a photo. */
+export const speakLine: ActionHandler<Env> = async ({ params, tools }) => {
+  const line = params.line as SpokenLine
+  if (!Object.hasOwn(SPOKEN_LINES, line)) return { success: false, error: 'line must be photo or video' }
+  const cached = lineCache.get(line)
+  if (cached) return { success: true, data: { audioUrl: cached } satisfies SpeakResult }
+
+  const tts = await tools.integration<TtsResult>('elevenlabs/generate-speech', { text: SPOKEN_LINES[line], ...TTS })
+  const audioUrl = tts.success ? tts.data?.audioUrl : undefined
+  if (typeof audioUrl !== 'string' || !audioUrl.startsWith('data:audio/')) return { success: false, error: 'Read-aloud is unavailable right now' }
+  lineCache.set(line, audioUrl)
   return { success: true, data: { audioUrl } satisfies SpeakResult }
 }

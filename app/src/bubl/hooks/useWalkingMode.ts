@@ -1,5 +1,7 @@
-// Walking mode: while it's on, every bubble you walk into pops by itself and
-// its note is read aloud (ElevenLabs via api.speak), one after another.
+// Walking mode (the speaker button on the map): while it's on, every bubble you
+// walk into pops by itself, without opening the note, and is read aloud
+// (ElevenLabs via api.speak), one after another. If it has a photo or video,
+// the voice then says so ("This bubble also has a photo. Open bubl to see it.").
 //
 // Web apps pause when you leave them or lock the phone, so walking mode keeps
 // the screen awake (Screen Wake Lock) for "pocket mode": the UI shows a black
@@ -25,7 +27,8 @@ export interface WalkingState {
   error: string | null;
 }
 
-type Queued = { bubble: Bubble; audioUrl: string };
+type Queued = { bubble: Bubble; audioUrls: string[] };
+type MediaLine = 'photo' | 'video';
 
 // A 1-sample silent WAV, played during the tap to unlock audio on iOS.
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQIAAAAAAA==';
@@ -36,6 +39,8 @@ const fired = new Set<string>();
 let previews: BubblePreview[] = [];
 let lastFetch: { at: number; where: { lat: number; lng: number } } | null = null;
 let queue: Queued[] = [];
+let current: string[] = []; // the rest of the bubble being read (the note, then its photo/video line)
+const lines = new Map<MediaLine, Promise<string | null>>();
 let audio: HTMLAudioElement | null = null;
 let wakeLock: WakeLockSentinel | null = null;
 let stopWatching: (() => void) | null = null;
@@ -57,20 +62,43 @@ async function keepScreenAwake() {
 // The wake lock is dropped whenever the page is hidden, so take it again on return.
 const onVisibility = () => void keepScreenAwake();
 
+// "This bubble also has a photo/video…", generated once and reused.
+function mediaLine(line: MediaLine): Promise<string | null> {
+  let url = lines.get(line);
+  if (!url) {
+    url = api.speakLine({ line }).then((res) => (res.success && res.data.audioUrl ? res.data.audioUrl : null)).catch(() => null);
+    lines.set(line, url);
+    void url.then((u) => { if (!u) lines.delete(line); }); // try again next time
+  }
+  return url;
+}
+
+function playUrl(url: string) {
+  if (!audio) return;
+  audio.src = url;
+  audio.play().catch(() => {
+    current = [];
+    set({ playing: null, error: 'Tap the speaker off and on again to allow audio' });
+  });
+}
+
 function playNext() {
   if (!audio || state.playing || queue.length === 0) return;
-  const { bubble, audioUrl } = queue.shift()!;
+  const { bubble, audioUrls } = queue.shift()!;
   set({ playing: { bubbleId: bubble.id, title: bubble.title, placeName: bubble.placeName } });
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({ title: bubble.title, artist: bubble.placeName, album: 'bubl' });
   }
-  audio.src = audioUrl;
-  audio.play().catch(() => {
-    set({ playing: null, error: 'Tap walking mode off and on again to allow audio' });
-  });
+  current = audioUrls.slice(1);
+  playUrl(audioUrls[0]);
 }
 
 function onEnded() {
+  const next = current.shift();
+  if (next) {
+    playUrl(next);
+    return;
+  }
   set({ playing: null });
   playNext();
 }
@@ -85,9 +113,11 @@ async function popAndSpeak(preview: BubblePreview, you: UserLocation) {
   alert({ kind: 'pop', title: 'pop.', body: pop.data.bubble.title, bubbleId: preview.id });
   set({ lastPopped: pop.data.bubble });
 
-  const spoken = await api.speak({ bubbleId: preview.id });
+  const bubble = pop.data.bubble;
+  const media = bubble.mediaUrl && (bubble.mediaType === 'photo' || bubble.mediaType === 'video') ? bubble.mediaType : null;
+  const [spoken, line] = await Promise.all([api.speak({ bubbleId: preview.id }), media ? mediaLine(media) : null]);
   if (!spoken.success || !spoken.data.audioUrl || !state.on) return;
-  queue.push({ bubble: pop.data.bubble, audioUrl: spoken.data.audioUrl });
+  queue.push({ bubble, audioUrls: line ? [spoken.data.audioUrl, line] : [spoken.data.audioUrl] });
   playNext();
 }
 
@@ -130,6 +160,7 @@ export function stopWalkingMode() {
   void wakeLock?.release().catch(() => {});
   wakeLock = null;
   queue = [];
+  current = [];
   fired.clear();
   audio?.pause();
   if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;

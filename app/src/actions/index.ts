@@ -8,7 +8,7 @@ import { incomingWaves, outgoingWaves, sendWave } from './waves'
 import { chatBubble, getMessages, myChats, sendMessage } from './chats'
 import { deleteDropped, myDropped, myPopped, removePopped } from './you'
 import { resetDemo, setupDemoProfiles } from './demo'
-import { speak } from './speak'
+import { speak, speakLine } from './speak'
 import { openPopped } from './viewer'
 import { claimHandle, getMe, savePreferences } from './profile'
 import { getPushKey, pushNearby, removePushSubscription, savePushSubscription, setActiveChat } from './push'
@@ -34,6 +34,7 @@ export const actions: Record<string, ActionHandler<Env>> = {
   resetDemo,
   setupDemoProfiles,
   speak,
+  speakLine,
   openPopped,
   getMe,
   claimHandle,
