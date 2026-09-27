@@ -70,9 +70,14 @@ export function ThreadScreen() {
   const [retry, setRetry] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [sharedTitle, setSharedTitle] = useState('The spot that brought you together')
+  const [waveNotes, setWaveNotes] = useState<{ fromUserId: string; note: string }[]>([])
   useEffect(() => {
     let active = true
-    if (thread) result(api.chatBubble({ chatId: thread.chat.id })).then(pinned => { if (active) setSharedTitle(pinned.title) }).catch(() => {})
+    if (thread) result(api.chatBubble({ chatId: thread.chat.id })).then(pinned => {
+      if (!active) return
+      setSharedTitle(pinned.title)
+      setWaveNotes(pinned.waveNotes ?? [])
+    }).catch(() => {})
     return () => { active = false }
   }, [api, thread])
   const bottom = useRef<HTMLDivElement>(null)
@@ -83,12 +88,15 @@ export function ThreadScreen() {
     load(); const timer = setInterval(load, 5000)
     return () => { active = false; clearInterval(timer) }
   }, [api, thread, retry])
-  useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }) }, [messages.length])
+  useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }) }, [messages.length, waveNotes.length])
   if (!thread) return null
   return <section className="thread-screen screen-fill"><ScreenHeader onBack={() => go('chats')} title={<span className="chat-header-person"><Avatar name={thread.otherUser.name} image={thread.otherUser.imageUrl} /><span><strong>{thread.otherUser.name || 'Your new connection'}</strong></span></span>}>{library && <button className="round-button" aria-label="Delete chat" onClick={() => setConfirmDelete(true)}><Trash2 /></button>}</ScreenHeader>
     {confirmDelete && <div className="delete-confirm" role="alert"><strong>Delete this chat?</strong><p>This removes the conversation from this device.</p><div><Button variant="outline" onClick={() => setConfirmDelete(false)}>Keep chat</Button><Button variant="destructive" loading={busy} onClick={() => run(async () => { await library!.deleteChat(thread.chat.id); go('chats') })}>Delete chat</Button></div></div>}
     <button type="button" className="thread-pin" disabled={busy} onClick={() => { if (!library) { go('walk', thread.chat.bubbleId); return } void run(async () => open({ ...await library.getSavedBubble(thread.chat.bubbleId), fromChat: true })) }}><Pin size={22} /><span><strong>Your first shared bubble</strong><span className="thread-pin-caption">{sharedTitle}</span></span></button><p className="eyebrow mutual-label"><Hand size={14} />You both waved</p>
-    <div className="message-list" aria-live="polite">{loading && <p className="loading-copy">Loading your conversation…</p>}{error && <div className="inline-error"><p>{error}</p><Button onClick={() => setRetry(retry + 1)}>Retry</Button></div>}{!loading && !error && !messages.length && <Empty icon={<Hand />} title="You're in each other's orbit.">Say hello. You already have a spot in common.</Empty>}{messages.map((message, index) => <div className={`message ${message.senderId === user.id ? 'mine' : ''}`} key={`${message.sentAt}:${index}`}><p>{message.text}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></div>)}<div ref={bottom} /></div>
+    <div className="message-list" aria-live="polite">{loading && <p className="loading-copy">Loading your conversation…</p>}{error && <div className="inline-error"><p>{error}</p><Button onClick={() => setRetry(retry + 1)}>Retry</Button></div>}
+      {waveNotes.map(wave => <div className={`message wave-note-message ${wave.fromUserId === user.id ? 'mine' : ''}`} key={`wave:${wave.fromUserId}`}><p className="wave-note-label"><Hand size={14} />{wave.fromUserId === user.id ? 'Your wave' : 'Their wave'}</p><p>{wave.note}</p></div>)}
+      {!loading && !error && !messages.length && !waveNotes.length && <Empty icon={<Hand />} title="You're in each other's orbit.">Say hello. You already have a spot in common.</Empty>}
+      {messages.map((message, index) => <div className={`message ${message.senderId === user.id ? 'mine' : ''}`} key={`${message.sentAt}:${index}`}><p>{message.text}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></div>)}<div ref={bottom} /></div>
     <form className="message-composer" onSubmit={event => { event.preventDefault(); if (!text.trim()) return; void run(async () => { const message = await result(api.sendMessage({ chatId: thread.chat.id, text: text.trim() })); setMessages(previous => [...previous, message]); setText('') }) }}><Input aria-label={`Message ${thread.otherUser.name}`} placeholder={`Message ${thread.otherUser.name || 'your connection'}`} value={text} maxLength={1000} onChange={e => setText(e.target.value)} /><Button type="submit" className="send-message" aria-label="Send message" disabled={!text.trim() || busy}><ArrowUp /></Button></form>
   </section>
 }

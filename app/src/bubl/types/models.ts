@@ -138,6 +138,8 @@ export interface ChatBubble {
   title: string;
   placeName: string;
   category: Category;
+  // Optional notes from the mutual waves about this bubble (oldest first).
+  waveNotes?: { fromUserId: string; note: string }[];
 }
 
 export interface ChatSummary {

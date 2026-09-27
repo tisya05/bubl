@@ -317,7 +317,11 @@ export const mockApi: Api = {
     const chat = chats.find(c => c.id === chatId && c.participantIds.includes(ME.id));
     const b = chat && bubbles.find(b => b.id === chat.bubbleId);
     if (!chat || !b) return fail('Chat not found');
-    return ok({ bubbleId: b.id, title: b.title, placeName: b.placeName, category: b.category });
+    const waveNotes = waves
+      .filter(w => chat.participantIds.includes(w.fromUserId) && chat.participantIds.includes(w.toUserId) && w.note?.trim())
+      .sort((x, y) => (x.bubbleId === chat.bubbleId ? 0 : 1) - (y.bubbleId === chat.bubbleId ? 0 : 1) || x.createdAt.localeCompare(y.createdAt))
+      .map(w => ({ fromUserId: w.fromUserId, note: w.note!.trim() }));
+    return ok({ bubbleId: b.id, title: b.title, placeName: b.placeName, category: b.category, ...(waveNotes.length ? { waveNotes } : {}) });
   },
   async myChats() {
     return ok(chats.filter(c => c.participantIds.includes(ME.id)).map(chat => ({ chat, otherUser: AUTHORS[chat.participantIds.find(id => id !== ME.id)!], lastMessage: messages.filter(m => m.chatId === chat.id).at(-1), unread: messages.some(m => m.chatId === chat.id && m.senderId !== ME.id && m.sentAt > (chatReadAt[chat.id] ?? '')) })));
