@@ -10,6 +10,8 @@ import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Bubble, BubblePreview, IncomingWave, Pop, User, Wave } from '../bubl/types'
 import { publicUser } from './profile'
+import { matchNotice, waveNotice } from '../bubl/lib/notifications'
+import { notify } from './notify'
 
 const MAX_NOTE_CHARS = 280
 
@@ -45,7 +47,7 @@ async function chatFor(tools: ActionTools, a: string, b: string, bubbleId: strin
 }
 
 /** Params: `{ toUserId, bubbleId, note? }`. Returns `{ matched, chatId? }`. */
-export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) => {
+export const sendWave: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const { toUserId, bubbleId, note } = params
   if (!nonEmptyString(toUserId) || !nonEmptyString(bubbleId)) {
     return { success: false, error: 'toUserId and bubbleId are required' }
@@ -55,7 +57,7 @@ export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) =>
   const cleanNote = typeof note === 'string' ? note.trim() : ''
   if (cleanNote.length > MAX_NOTE_CHARS) return { success: false, error: `note must be at most ${MAX_NOTE_CHARS} characters` }
 
-  const bubble = await tools.get<Pick<Bubble, 'authorId'>>('bubbles', bubbleId)
+  const bubble = await tools.get<Pick<Bubble, 'authorId' | 'placeName'>>('bubbles', bubbleId)
   if (!bubble.success) return { success: false, error: 'Bubble not found' }
   const authorId = bubble.data.record.data.authorId
 
@@ -64,17 +66,32 @@ export const sendWave: ActionHandler<Env> = async ({ userId, params, tools }) =>
     return { success: false, error: 'Waves are only between a bubble’s author and someone who loved it' }
   }
 
+  const placeName = bubble.data.record.data.placeName ?? ''
+  let newWave = false
   if (!(await findWave(tools, userId, toUserId, bubbleId))) {
     const wave: WaveRow = { fromUserId: userId, toUserId, bubbleId, userIds: [userId, toUserId] }
     if (cleanNote) wave.note = cleanNote
     const created = await tools.create('waves', wave)
     if (!created.success) return created
+    newWave = true
   }
 
-  if (!(await findWave(tools, toUserId, userId, bubbleId))) return { success: true, data: { matched: false } }
+  const me = newWave ? await publicUser(tools, userId, 'Someone') : undefined
+  if (!(await findWave(tools, toUserId, userId, bubbleId))) {
+    if (me) await notify(tools, toUserId, waveNotice(me, { id: bubbleId, placeName }, cleanNote || undefined), env)
+    return { success: true, data: { matched: false } }
+  }
 
   const chat = await chatFor(tools, userId, toUserId, bubbleId)
   if (!chat.success) return chat
+  // The wave back that unlocks the chat: tell both people (feed + phone).
+  if (me) {
+    const them = await publicUser(tools, toUserId, 'Someone')
+    await Promise.all([
+      notify(tools, toUserId, matchNotice(me, chat.chatId, bubbleId), env),
+      notify(tools, userId, matchNotice(them, chat.chatId, bubbleId), env),
+    ])
+  }
   return { success: true, data: { matched: true, chatId: chat.chatId } }
 }
 

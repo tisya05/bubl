@@ -5,6 +5,7 @@
 // Anyone can raise one: alert({ kind: 'pop', title: 'pop.', body: bubble.title })
 
 import { playPop } from './sounds';
+import { pushActive, setupPush } from './push';
 
 export type AlertKind = 'pop' | 'nearby' | 'love' | 'wave' | 'match' | 'message';
 
@@ -25,10 +26,10 @@ export function subscribeAlerts(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Registers public/sw.js, which phones need before they show system notifications. */
+/** Registers public/sw.js (phones need it for notifications) and, if allowed, subscribes this phone to push. */
 export function registerNotificationWorker() {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-  void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  void navigator.serviceWorker.register('/sw.js').then(() => setupPush()).catch(() => {});
 }
 
 // Where tapping the notification takes you.
@@ -40,6 +41,8 @@ function urlFor(a: BublAlert): string {
 
 async function systemNotification(a: BublAlert) {
   if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return;
+  // With push on, the server sends nearby / love / wave / match / message notifications itself.
+  if (pushActive() && a.kind !== 'pop') return;
   const options: NotificationOptions = {
     body: a.body,
     tag: a.bubbleId ?? a.chatId ?? a.kind,
@@ -72,7 +75,7 @@ export function alert(a: BublAlert) {
 /** Ask for system notifications. Call it from a tap (e.g. a settings toggle). */
 export async function enableSystemNotifications(): Promise<boolean> {
   if (!('Notification' in window)) return false;
-  registerNotificationWorker();
-  if (Notification.permission === 'granted') return true;
-  return (await Notification.requestPermission()) === 'granted';
+  const granted = Notification.permission === 'granted' || (await Notification.requestPermission()) === 'granted';
+  if (granted) registerNotificationWorker();
+  return granted;
 }

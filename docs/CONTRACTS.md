@@ -55,6 +55,10 @@ All of them require a signed-in user.
 | `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
 | `getMe` | Urvi | none | `{ userId, handle, notificationsEnabled, locationEnabled, onboarded }` | Splash: signed out (401 / no session) → sign-in screen; `onboarded: false` → handle, then notifications; `onboarded: true` → map. `handle` is `null` until claimed |
 | `claimHandle` | Urvi | `handle` | `{ ok: true, me }` or `{ ok: false, reason }` | 3 to 20 chars, lowercase letters, numbers and `_` (input is lowercased, a leading `@` dropped). Unique; `reason` is safe to show ("That handle is taken"). Claiming a new one frees the old one |
+| `getPushKey` | Tisya | none | `{ publicKey }` | The app's public VAPID key, for `pushManager.subscribe` |
+| `savePushSubscription` | Tisya | `endpoint`, `p256dh`, `auth` | `{ saved: true }` | Only Apple / Google / Mozilla / Microsoft push endpoints. One row per endpoint; it belongs to whoever subscribed last |
+| `removePushSubscription` | Tisya | `endpoint` | `{ removed }` | Only the caller's own row |
+| `pushNearby` | Tisya | `bubbleId`, `lat`, `lng` | `{ pushed }` | Pushes "You drifted into a bubble" to the caller's phones, only if they're inside a bubble they haven't popped or written. Place name only, never sealed content |
 | `savePreferences` | Urvi | `notificationsEnabled`, `locationEnabled` (booleans) | same as `getMe` | Needs a handle first. The first save marks onboarding done |
 
 **Auth (Urvi).** DeepSpace only supports Google (or GitHub) sign-in for new users: email sign-up is disabled and there's no phone sign-in, so the phone option is UI only. Everywhere a person is shown to someone else (`canPop` author, `lovedBy`, waves, chats) their name is `@handle` (or "A local" / "bubl user" before they pick one), never their Google name or email.
@@ -85,10 +89,10 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 
 ## Notifications
 
-In-app only for now (sound, vibration, a banner; a system notification too if the app is in the background and the user allowed it). Nothing arrives while the app is closed: that needs Web Push, not built.
+Real phone notifications through **Web Push**, so they arrive on iPhone (Home Screen app) and Android even with bubl closed. No in-app banners; every alert plays the one pop sound (`public/bubl/sounds/pop.wav`). Once notifications are allowed, the app subscribes the phone (`src/bubl/lib/push.ts`) and the server pushes (`src/actions/push.ts`, crypto in `src/server/webpush.ts`). Keys: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` in DeepSpace secrets; subscriptions live in the server-only `pushSubscriptions` table.
 
 - **Your own events** (client): call `alert({ kind: 'pop', title: 'pop.', body: bubble.title, bubbleId })` from `@/bubl/lib/alerts` when a pop succeeds. It plays the pop sound. Walking mode already does this; the Walk screen's manual pop should too. "You drifted into a bubble" fires by itself.
-- **Other people's actions** (server): after the action succeeds, one line, e.g. `await notify(tools, authorId, loveNotice({ id: userId, name: await displayName(tools, userId) }, { id: bubbleId, placeName }))`. Helpers: `notify`/`displayName` in `src/actions/notify.ts`; `loveNotice`, `waveNotice`, `matchNotice`, `messageNotice` in `@/bubl/lib/notifications`. Rows go to the recipient's private `notifications` table; `notify` never throws and never notifies you about yourself.
+- **Other people's actions** (server): after the action succeeds, one line, e.g. `await notify(tools, authorId, loveNotice({ id: userId, name: await displayName(tools, userId) }, { id: bubbleId, placeName }))`. Helpers: `notify`/`displayName` in `src/actions/notify.ts`; `loveNotice`, `waveNotice`, `matchNotice`, `messageNotice` in `@/bubl/lib/notifications`. Pass the action's `env` as the 4th argument to also push it to their phones. Rows go to the recipient's private `notifications` table; `notify` never throws and never notifies you about yourself. Already wired: `loveBubble`, `sendWave` (wave and match), `sendMessage`.
 - **Mounting:** `<NotificationCenter />` is already in `src/pages/(app)/_layout.tsx`. Screens that need the list or an unread badge use `useNotifications()` (`notifications`, `unreadCount`, `markRead`, `markAllRead`). System notifications need `enableSystemNotifications()` from a tap (e.g. a settings toggle).
 
 ## Sign-in is P0

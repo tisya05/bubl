@@ -6,6 +6,7 @@ import { useEffect, useRef } from 'react';
 import { api as defaultApi } from '../api/client';
 import { NEARBY_QUERY_RADIUS_M } from '../config';
 import { alert, subscribeAlerts } from '../lib/alerts';
+import { requestNearbyPush } from '../lib/push';
 import { bubblesInRange, shouldRefetch } from '../lib/walking';
 import type { Api, BubblePreview } from '../types';
 import { useUserLocation } from './useUserLocation';
@@ -41,6 +42,7 @@ export function useBubbleNearby(api: Pick<Api, 'nearbyBubbles'> = defaultApi) {
       for (const b of bubblesInRange(previews.current, you, announced.current)) {
         announced.current.add(b.id);
         alert({ kind: 'nearby', title: 'You drifted into a bubble', body: b.placeName || 'Tap to pop it', bubbleId: b.id });
+        requestNearbyPush(b.id, you);
       }
     })();
 

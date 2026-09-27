@@ -9,6 +9,8 @@ import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { Chat, ChatSummary, Message, User } from '../bubl/types'
 import { publicUser } from './profile'
+import { messageNotice } from '../bubl/lib/notifications'
+import { notify } from './notify'
 
 const MAX_MESSAGE_CHARS = 1000
 const MESSAGE_PAGE = 200
@@ -86,7 +88,7 @@ export const getMessages: ActionHandler<Env> = async ({ userId, params, tools })
 }
 
 /** Params: `{ chatId, text }` (1 to 1000 characters). */
-export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools }) => {
+export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools, env }) => {
   const chat = await chatForMember(tools, userId, params.chatId)
   if (!chat) return { success: false, error: 'Chat not found' }
 
@@ -103,5 +105,7 @@ export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools })
   }
   const created = await tools.create('messages', message)
   if (!created.success) return created
+  const recipientId = chat.data.userIds.find((id) => id !== userId)
+  if (recipientId) await notify(tools, recipientId, messageNotice(await publicUser(tools, userId, 'Someone'), chat.recordId, text), env)
   return { success: true, data: toMessage(message) }
 }

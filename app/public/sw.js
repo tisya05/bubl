@@ -1,10 +1,29 @@
-// bubl service worker. It only exists so phones can show real system
-// notifications (Android needs one; so does an installed iPhone web app).
-// It caches nothing, so every deploy is picked up right away.
+// bubl service worker: shows notifications (Android needs one; so does an
+// installed iPhone web app) and receives Web Push from the server
+// (src/actions/push.ts). It caches nothing, so every deploy is picked up right away.
 // Tapping a notification opens bubl (or focuses it) at the notification's page.
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+
+// Every push must show a notification: iPhones cancel the subscription otherwise.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'bubl', {
+      body: data.body || '',
+      tag: data.tag,
+      icon: '/bubl/icons/icon-192.png',
+      badge: '/bubl/icons/icon-192.png',
+      data: { url: data.url || '/home' },
+    }),
+  );
+});
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
