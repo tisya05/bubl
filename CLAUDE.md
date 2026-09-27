@@ -59,6 +59,8 @@ All API keys live in server-side environment variables. Never ship a key to the 
 
 ## 4. Design system (match the mockups)
 
+**Frontend update (Sep 26):** The intro follows the linked Figma file (`eQNyTTRhLVipvxw4rxTUTF`, page `0:1`): indigo `#252B61`, original white-and-pink vector logo, gently floating pink bubble artwork, Caprasimo “explore your city”, and Capriola “tap anywhere to continue”. The whole intro opens `/welcome`. Subsequent mobile screens follow `mockup/` (ignoring its splash), retaining Navy Sherbet and the current public-bubble / author-to-lover wave rules. Respect reduced motion. `/demo` uses local sample data only; `npm run dev:ui` previews the frontend without starting or configuring any backend. The user explicitly requested frontend-only work; do not implement backend changes for these screens.
+
 Mockups: https://claude.ai/artifact/MmVhwKnRz4RaVwmRoPjXkS
 
 **The UI is not final.** We already have some changes in mind and will make more during the hackathon. Treat the mockups and this section as the starting point, not a spec. Build UI in small, reusable components with colors and fonts pulled from shared theme tokens (not hard-coded in each file), so screens are easy to restyle or rearrange. When I describe a UI change, update this section of CLAUDE.md too so it stays current.
