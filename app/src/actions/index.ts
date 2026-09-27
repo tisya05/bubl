@@ -6,7 +6,7 @@ import { canPop } from './pop'
 import { loveBubble, lovedBy } from './love'
 import { incomingWaves, outgoingWaves, sendWave } from './waves'
 import { chatBubble, getMessages, myChats, sendMessage } from './chats'
-import { myDropped, myPopped } from './you'
+import { deleteDropped, myDropped, myPopped, removePopped } from './you'
 import { resetDemo, setupDemoProfiles } from './demo'
 import { speak } from './speak'
 import { openPopped } from './viewer'
@@ -28,6 +28,8 @@ export const actions: Record<string, ActionHandler<Env>> = {
   sendMessage,
   myPopped,
   myDropped,
+  removePopped,
+  deleteDropped,
   resetDemo,
   setupDemoProfiles,
   speak,
