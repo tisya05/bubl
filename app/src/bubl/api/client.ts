@@ -47,7 +47,9 @@ const realApi: Api = {
   myDropped: () => callAction('myDropped'),
   sendWave: (input) => callAction('sendWave', input),
   incomingWaves: () => callAction('incomingWaves'),
+  outgoingWaves: () => callAction('outgoingWaves'),
   myChats: () => callAction('myChats'),
+  chatBubble: (input) => callAction('chatBubble', input),
   getMessages: (input) => callAction('getMessages', input),
   sendMessage: (input) => callAction('sendMessage', input),
 };
