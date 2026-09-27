@@ -15,6 +15,7 @@ import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
 import { alert } from '../lib/alerts'
 import { result, useMobile, useOperation } from './MobileApp'
+import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
 export function WalkScreen() {
   const { api, demo, user, open, openWithPop, go, notify, library } = useMobile()
@@ -71,7 +72,11 @@ export function WalkScreen() {
   const allBubbles = [...bubbles, ...eventPreviews].filter(b => !hiddenMapIds.includes(b.id))
   const visible = allBubbles.filter(b => !filter || b.category === filter)
   const sorted = [...visible].sort((a, b) => location ? distanceM(location, a) - distanceM(location, b) : 0)
-  const nearest = sorted.find(b => b.id === selected) ?? sorted[0]
+  // A bubble you're standing in (and haven't popped) always wins over a bubble you selected elsewhere,
+  // so dragging or walking onto one shows Pop it right away.
+  const poppable = (b: BubblePreview) => !!location && !b.popped && !b.mine && !allPoppedIds.includes(b.id) && distanceM(location, b) <= b.popRadiusM
+  const chosen = sorted.find(b => b.id === selected)
+  const nearest = (chosen && poppable(chosen) ? chosen : sorted.find(poppable)) ?? chosen ?? sorted[0]
   const distance = location && nearest ? Math.round(distanceM(location, nearest)) : null
   const eventReason = nearest?.event ? eventAvailability({ ...nearest, event: nearest.event }, location, now) : null
   // Popped if the server says so or it's in this session's popped list. Normal bubbles (and your own)
@@ -96,8 +101,8 @@ export function WalkScreen() {
       if (data.alreadyPopped) { open(data); return }
       alert({ kind: 'pop', title: 'pop.', body: data.bubble.title, bubbleId: nearest.id, quiet: true })
       setPopping(true)
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
-      open(data)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, POP_TRANSITION_MS))
+      open({ ...data, justPopped: true })
     })
   }
   return <section className="walk-screen" style={{ '--sheet-height': `${sheetHeight}px`, '--map-header-height': `${headerHeight}px` } as CSSProperties}>
@@ -122,7 +127,7 @@ export function WalkScreen() {
       {nearest && <><button className="text-button hide-map-button" onClick={() => { const next = [...hiddenMapIds, nearest.id]; setHiddenMapIds(next); localStorage.setItem('bubl.hidden-map.v1', JSON.stringify(next)); setSelected(undefined) }}><EyeOff size={16} />Hide from map</button><ReportButton id={nearest.id} label={`${nearest.category} bubble at ${nearest.placeName}`} /></>}
       </div>
     </div>
-    {popping && <div className="pop-transition" role="status"><span className="pop-orb" /><strong>pop!</strong></div>}
+    {popping && <PopTransition category={nearest?.category} />}
   </section>
 }
 
@@ -146,7 +151,7 @@ export function NoteScreen() {
   const { author } = opened
   const bubble = liveEvents.find(item => item.id === opened.bubble.id) ?? opened.bubble
   const own = bubble.authorId === user.id
-  return <section className="note-screen screen-fill"><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
+  return <section className={`note-screen screen-fill ${opened.justPopped ? 'just-popped' : ''}`}><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
     <div className="note-body">
       {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
