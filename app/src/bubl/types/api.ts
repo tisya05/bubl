@@ -8,10 +8,12 @@ import type {
   Bubble,
   BubblePreview,
   Category,
+  ChatBubble,
   ChatSummary,
   DroppedItem,
   IncomingWave,
   Message,
+  OutgoingWave,
   PoppedItem,
   User,
 } from './models';
@@ -66,17 +68,6 @@ export interface SpeakResult {
   audioUrl: string;
 }
 
-// Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
-// Deferred: not planned for now. Kept as a placeholder; don't build UI for it.
-export interface TranslateInput {
-  bubbleId: string;
-  targetLanguage: string;
-}
-export interface TranslateResult {
-  title: string;
-  text: string;
-  sourceLanguage: string;
-}
 
 // ---- Drop ----
 
@@ -120,6 +111,10 @@ export interface GetMessagesInput {
   chatId: string;
 }
 
+export interface ChatBubbleInput {
+  chatId: string;
+}
+
 export interface SendMessageInput {
   chatId: string;
   text: string;
@@ -138,7 +133,6 @@ export interface Api {
   loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
   lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
   speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
-  translate(input: TranslateInput): Promise<ActionResult<TranslateResult>>;
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;
@@ -148,7 +142,9 @@ export interface Api {
 
   sendWave(input: SendWaveInput): Promise<ActionResult<SendWaveResult>>;
   incomingWaves(): Promise<ActionResult<IncomingWave[]>>;
+  outgoingWaves(): Promise<ActionResult<OutgoingWave[]>>;
   myChats(): Promise<ActionResult<ChatSummary[]>>;
+  chatBubble(input: ChatBubbleInput): Promise<ActionResult<ChatBubble>>;
   getMessages(input: GetMessagesInput): Promise<ActionResult<Message[]>>;
   sendMessage(input: SendMessageInput): Promise<ActionResult<Message>>;
 }

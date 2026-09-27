@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { NEARBY_QUERY_RADIUS_M } from '../config'
 import { distanceM } from '../lib/geo'
 import { setDemoLocation, setLocationSource, useUserLocation } from '../hooks/useUserLocation'
-import type { BubblePreview, Category } from '../lib/uiModels'
+import type { BubblePreview, Category, User } from '../lib/uiModels'
 import { Avatar, Categories, CategoryIcon, Empty, ScreenHeader } from './MobileUI'
 import { useDemoEvents, demoEvents, eventAvailability } from '../lib/eventDemo'
 import { LocationMap } from './LocationMap'
@@ -15,6 +15,7 @@ import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
 import { alert } from '../lib/alerts'
 import { result, useMobile, useOperation } from './MobileApp'
+import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
 export function WalkScreen() {
   const { api, demo, user, open, openWithPop, go, notify, library } = useMobile()
@@ -71,7 +72,11 @@ export function WalkScreen() {
   const allBubbles = [...bubbles, ...eventPreviews].filter(b => !hiddenMapIds.includes(b.id))
   const visible = allBubbles.filter(b => !filter || b.category === filter)
   const sorted = [...visible].sort((a, b) => location ? distanceM(location, a) - distanceM(location, b) : 0)
-  const nearest = sorted.find(b => b.id === selected) ?? sorted[0]
+  // A bubble you're standing in (and haven't popped) always wins over a bubble you selected elsewhere,
+  // so dragging or walking onto one shows Pop it right away.
+  const poppable = (b: BubblePreview) => !!location && !b.popped && !b.mine && !allPoppedIds.includes(b.id) && distanceM(location, b) <= b.popRadiusM
+  const chosen = sorted.find(b => b.id === selected)
+  const nearest = (chosen && poppable(chosen) ? chosen : sorted.find(poppable)) ?? chosen ?? sorted[0]
   const distance = location && nearest ? Math.round(distanceM(location, nearest)) : null
   const eventReason = nearest?.event ? eventAvailability({ ...nearest, event: nearest.event }, location, now) : null
   // Popped if the server says so or it's in this session's popped list. Normal bubbles (and your own)
@@ -96,8 +101,8 @@ export function WalkScreen() {
       if (data.alreadyPopped) { open(data); return }
       alert({ kind: 'pop', title: 'pop.', body: data.bubble.title, bubbleId: nearest.id, quiet: true })
       setPopping(true)
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
-      open(data)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, POP_TRANSITION_MS))
+      open({ ...data, justPopped: true })
     })
   }
   return <section className="walk-screen" style={{ '--sheet-height': `${sheetHeight}px`, '--map-header-height': `${headerHeight}px` } as CSSProperties}>
@@ -122,7 +127,7 @@ export function WalkScreen() {
       {nearest && <><button className="text-button hide-map-button" onClick={() => { const next = [...hiddenMapIds, nearest.id]; setHiddenMapIds(next); localStorage.setItem('bubl.hidden-map.v1', JSON.stringify(next)); setSelected(undefined) }}><EyeOff size={16} />Hide from map</button><ReportButton id={nearest.id} label={`${nearest.category} bubble at ${nearest.placeName}`} /></>}
       </div>
     </div>
-    {popping && <div className="pop-transition" role="status"><span className="pop-orb" /><strong>pop!</strong></div>}
+    {popping && <PopTransition category={nearest?.category} />}
   </section>
 }
 
@@ -135,11 +140,18 @@ export function NoteScreen() {
   const audio = useRef<HTMLAudioElement | null>(null)
   useEffect(() => { if (audio.current) audio.current.muted = !soundEnabled }, [soundEnabled])
   useEffect(() => () => { audio.current?.pause() }, [])
+  const [lovers, setLovers] = useState<User[]>([])
+  const ownBubbleId = opened && !opened.bubble.event && opened.bubble.authorId === user.id ? opened.bubble.id : undefined
+  useEffect(() => {
+    let active = true
+    if (ownBubbleId) result(api.lovedBy({ bubbleId: ownBubbleId })).then(data => { if (active) setLovers(data) }).catch(() => {})
+    return () => { active = false }
+  }, [api, ownBubbleId])
   if (!opened) return null
   const { author } = opened
   const bubble = liveEvents.find(item => item.id === opened.bubble.id) ?? opened.bubble
   const own = bubble.authorId === user.id
-  return <section className="note-screen screen-fill"><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
+  return <section className={`note-screen screen-fill ${opened.justPopped ? 'just-popped' : ''}`}><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
     <div className="note-body">
       {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
@@ -150,6 +162,7 @@ export function NoteScreen() {
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
     </div>
     {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline wave-button" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
-    {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
+    {own && !bubble.event && lovers.length > 0 && <div className="note-lovers"><p className="eyebrow section-label">Loved this · {lovers.length}</p>{lovers.map(lover => <div className="incoming-wave" key={lover.id}><Avatar name={lover.name} image={lover.imageUrl} /><div><p className="wave-person"><strong>{lover.name || 'A local'}</strong><span className="wave-action-text"> loved this spot</span></p><Button className="wave-button" onClick={() => waveAt({ user: lover, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div></div>)}</div>}
+    {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : lovers.length ? 'Wave first, or wait for them in Chats.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
   </section>
 }

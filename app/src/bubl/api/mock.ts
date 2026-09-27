@@ -90,9 +90,8 @@ const bubbles: Bubble[] = [
     lng: -73.9669,
     placeName: 'Riverside Dr & 116th St',
     category: 'Park',
-    title: 'El mejor atardecer',
-    text: 'Baja las escaleras al atardecer. El río se pone dorado y casi no hay gente.',
-    language: 'es',
+    title: 'The best sunset',
+    text: 'Head down the stairs at sunset. The river turns golden, and there is almost nobody around.',
   }),
   bubble({
     id: 'b-college-walk',
@@ -255,18 +254,13 @@ export const mockApi: Api = {
     loves.add(`me:${bubbleId}`);
     return ok({ loved: true as const });
   },
-  async lovedBy() {
-    return ok([]);
+  async lovedBy({ bubbleId }) {
+    const b = bubbles.find(b => b.id === bubbleId);
+    if (!b || b.authorId !== ME.id) return ok([]);
+    return ok([...loves].flatMap(key => { const [userId, id] = key.split(':'); return id === bubbleId && AUTHORS[userId] ? [AUTHORS[userId]] : []; }));
   },
   async speak() {
     return ok({ audioUrl: '' });
-  },
-  async translate({ bubbleId, targetLanguage }) {
-    const b = bubbles.find((x) => x.id === bubbleId);
-    if (!b || !pops.has(`me:${bubbleId}`)) return fail('Pop this bubble first.');
-    if (b.id === 'b-riverside' && targetLanguage === 'en') return ok({ title: 'The best sunset', text: 'Head down the stairs at sunset. The river turns golden, and there is almost nobody around.', sourceLanguage: 'es' });
-    if (targetLanguage !== b.language) return fail('This language is not available in the demo. Live translation will use Gemini.');
-    return ok({ title: b?.title ?? '', text: b?.text ?? '', sourceLanguage: b?.language ?? 'en' });
   },
   async uploadMedia(file) {
     if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return fail('Choose a photo or video.');
@@ -321,6 +315,22 @@ export const mockApi: Api = {
       return b && from ? [{ from, note: w.note, bubbleId: b.id, category: b.category, placeName: b.placeName, createdAt: w.createdAt }] : [];
     }));
   },
+  async outgoingWaves() {
+    return ok(waves.filter(w => w.fromUserId === ME.id && !waves.some(r => r.fromUserId === w.toUserId && r.toUserId === ME.id && r.bubbleId === w.bubbleId)).flatMap(w => {
+      const b = bubbles.find(b => b.id === w.bubbleId), to = AUTHORS[w.toUserId];
+      return b && to ? [{ to, bubbleId: b.id, placeName: b.placeName, category: b.category, note: w.note, createdAt: w.createdAt }] : [];
+    }));
+  },
+  async chatBubble({ chatId }) {
+    const chat = chats.find(c => c.id === chatId && c.participantIds.includes(ME.id));
+    const b = chat && bubbles.find(b => b.id === chat.bubbleId);
+    if (!chat || !b) return fail('Chat not found');
+    const waveNotes = waves
+      .filter(w => chat.participantIds.includes(w.fromUserId) && chat.participantIds.includes(w.toUserId) && w.note?.trim())
+      .sort((x, y) => (x.bubbleId === chat.bubbleId ? 0 : 1) - (y.bubbleId === chat.bubbleId ? 0 : 1) || x.createdAt.localeCompare(y.createdAt))
+      .map(w => ({ fromUserId: w.fromUserId, note: w.note!.trim() }));
+    return ok({ bubbleId: b.id, title: b.title, placeName: b.placeName, category: b.category, ...(waveNotes.length ? { waveNotes } : {}) });
+  },
   async myChats() {
     return ok(chats.filter(c => c.participantIds.includes(ME.id)).map(chat => ({ chat, otherUser: AUTHORS[chat.participantIds.find(id => id !== ME.id)!], lastMessage: messages.filter(m => m.chatId === chat.id).at(-1), unread: messages.some(m => m.chatId === chat.id && m.senderId !== ME.id && m.sentAt > (chatReadAt[chat.id] ?? '')) })));
   },
@@ -331,7 +341,7 @@ export const mockApi: Api = {
   },
   async sendMessage({ chatId, text }) {
     if (!chats.some(c => c.id === chatId && c.participantIds.includes(ME.id))) return fail('This chat is locked. You both need to wave first.');
-    if (!text.trim() || text.length > 2000) return fail('Messages must be between 1 and 2000 characters.');
+    if (!text.trim() || text.length > 1000) return fail('Messages must be between 1 and 1000 characters.');
     const message = { chatId, senderId: ME.id, text: text.trim(), sentAt: new Date().toISOString() };
     messages.push(message);
     return ok(message);
