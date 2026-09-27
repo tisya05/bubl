@@ -94,6 +94,24 @@ export type DropBubbleResult =
   | { ok: true; bubble: Bubble }
   | { ok: false; reasons: string[] };
 
+export type EventPrice = 'Free' | '$' | '$$' | '$$$';
+
+export interface DropEventInput {
+  title: string;
+  text?: string;
+  placeName: string;
+  lat: number;
+  lng: number;
+  startsAt: string;
+  endsAt: string;
+  price?: EventPrice;
+  uploadId?: string;
+}
+
+export type DropEventResult =
+  | { ok: true; event: BackendEvent }
+  | { ok: false; reasons: string[] };
+
 // ---- Wave and chat ----
 
 // Allowed only author -> lover or lover -> author for that bubble.
@@ -137,6 +155,7 @@ export interface Api {
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;
+  dropEvent(input: DropEventInput): Promise<ActionResult<DropEventResult>>;
 
   myPopped(): Promise<ActionResult<PoppedItem[]>>;
   myDropped(): Promise<ActionResult<DroppedItem[]>>;
@@ -151,6 +170,18 @@ export interface Api {
 }
 
 export interface BackendEvent {
-  id: string; title: string; description?: string; imageUrl?: string; sourceUrl?: string; placeName: string; lat?: number; lng?: number;
-  startsAt: string; endsAt: string; price: 'Free' | '$' | '$$' | '$$$';
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  sourceUrl?: string;
+  placeName: string;
+  lat?: number;
+  lng?: number;
+  startsAt: string;
+  endsAt: string;
+  price: EventPrice;
+  authorId?: string;
+  source?: string;
+  moderation?: 'passed' | 'unchecked';
 }

@@ -68,7 +68,9 @@ export function WalkScreen() {
     }, 180)
     return () => { active = false; clearTimeout(timer) }
   }, [api, lat, lng, retry])
-  const eventPreviews: BubblePreview[] = demo ? events.filter(event => event.id === params.get('bubble') || !location || distanceM(location, event) <= NEARBY_QUERY_RADIUS_M).map(({ id, lat, lng, placeName, category, popRadiusM, event }) => ({ id, lat, lng, placeName, category, popRadiusM, event })) : []
+  const eventPreviews: BubblePreview[] = events
+    .filter(event => !event.feedHidden && !event.hidden && (event.id === params.get('bubble') || !location || distanceM(location, event) <= NEARBY_QUERY_RADIUS_M))
+    .map(({ id, lat, lng, placeName, category, popRadiusM, event }) => ({ id, lat, lng, placeName, category, popRadiusM, event }))
   const allBubbles = [...bubbles, ...eventPreviews].filter(b => !hiddenMapIds.includes(b.id))
   const visible = allBubbles.filter(b => !filter || b.category === filter)
   const sorted = [...visible].sort((a, b) => location ? distanceM(location, a) - distanceM(location, b) : 0)
