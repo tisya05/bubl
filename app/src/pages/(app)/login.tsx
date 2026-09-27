@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Phone, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +11,34 @@ type Step = 'choice' | 'phone' | 'code' | 'handle'
 type Method = 'phone' | 'google'
 const METHOD_KEY = 'bubl.login.method'
 const DEMO_ACCOUNTS = ['maya', 'dev', 'sam'] as const
+
+interface Droplet { key: number; left: number; top: number; dx: number; dy: number; size: number; delay: number; spin: number }
+interface Burst { x: number; y: number; w: number; h: number; droplets: Droplet[] }
+const POP_MS = 560
+
+// Droplets start scattered across the button's own surface, weighted towards its
+// rim the way a real soap film beads up before it goes. Each one is thrown
+// outward along its own radius, then gravity takes over as it shrinks and fades.
+function makeDroplets(rect: DOMRect): Droplet[] {
+  const cx = rect.width / 2
+  const cy = rect.height / 2
+  return Array.from({ length: 18 }, (_, i) => {
+    const edge = 0.55 + Math.random() * 0.45
+    const angle = (i / 18) * Math.PI * 2 + Math.random() * 0.35
+    const left = cx + Math.cos(angle) * cx * edge
+    const top = cy + Math.sin(angle) * cy * edge
+    const dist = 18 + Math.random() * 34
+    return {
+      key: i,
+      left, top,
+      dx: Math.cos(angle) * dist,
+      dy: Math.sin(angle) * dist * 0.45 + 22 + Math.random() * 26,
+      size: 3 + Math.random() * 6,
+      delay: Math.random() * 70,
+      spin: -30 + Math.random() * 60,
+    }
+  })
+}
 
 export default function Login() {
   const navigate = useNavigate()
@@ -28,6 +56,20 @@ export default function Login() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(!AUTH_OFFLINE)
   const [userId, setUserId] = useState('me')
+  const [transitioning, setTransitioning] = useState(false)
+  const [burst, setBurst] = useState<Burst | null>(null)
+  const submitRef = useRef<HTMLButtonElement>(null)
+  // Purely visual: the pressed button thins out like a soap film and breaks into
+  // droplets, then `after` runs. Auth work stays exactly where it was — this only
+  // defers the step change / navigation that would have happened anyway.
+  function popThen(target: HTMLElement | null, after: () => void) {
+    if (!target || window.matchMedia('(prefers-reduced-motion: reduce)').matches) { after(); return }
+    const rect = target.getBoundingClientRect()
+    setTransitioning(true)
+    target.classList.add('poofing')
+    setBurst({ x: rect.left, y: rect.top, w: rect.width, h: rect.height, droplets: makeDroplets(rect) })
+    setTimeout(() => { after(); setBurst(null); setTransitioning(false) }, POP_MS)
+  }
   useEffect(() => { if (!cooldown) return; const timer = setTimeout(() => setCooldown(value => value - 1), 1000); return () => clearTimeout(timer) }, [cooldown])
   useEffect(() => {
     if (AUTH_OFFLINE) return
@@ -65,10 +107,10 @@ export default function Login() {
     setError('')
     if (step === 'phone') {
       if (!/^\+?[\d\s().-]+$/.test(phone) || phone.replace(/\D/g, '').length < 8 || phone.replace(/\D/g, '').length > 15) { setError('Enter a phone number with country code.'); return }
-      setCode(''); setCooldown(30); move('code')
+      popThen(submitRef.current, () => { setCode(''); setCooldown(30); move('code') })
     } else if (step === 'code') {
       if (code !== '123456') { setError('For this demo, enter 123456. No text message was sent.'); return }
-      if (AUTH_OFFLINE) move('handle')
+      if (AUTH_OFFLINE) popThen(submitRef.current, () => move('handle'))
       else await signInDemo('sam', 'phone')
     } else if (step === 'handle') {
       const username = handle.replace(/^@/, '').trim().toLowerCase()
@@ -88,20 +130,20 @@ export default function Login() {
       } catch { /* The server already has the handle; the local copy is only a cache. */ }
       setPassword(''); setPhone(''); setCode('')
       sessionStorage.removeItem(METHOD_KEY)
-      navigate('/welcome')
+      popThen(submitRef.current, () => navigate('/welcome'))
     }
   }
   return <main ref={viewport} className={`bubl-app mobile-shell login-screen login-${step}`}>
     <div className="login-scroll"><header className="login-header">{step === 'choice' ? <Link to="/" className="round-button" aria-label="Back to intro"><ChevronLeft /></Link> : <button className="round-button" aria-label="Back" disabled={busy} onClick={() => move(step === 'phone' ? 'choice' : step === 'code' ? 'phone' : method === 'google' ? 'choice' : 'code')}><ChevronLeft /></button>}</header>
       <div className="login-orbs" aria-hidden="true"><i /><i /><i /></div>
       <section className="login-card" key={step} aria-busy={busy}>
-        {step === 'choice' ? <><h1 className="login-wordmark">bubl</h1><p className="login-subtitle">Discover the city on foot.</p><Button className="google-login" disabled={busy} onClick={google}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.4a4.6 4.6 0 0 1-2 3v2.5h3.3c1.9-1.8 2.9-4.3 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.7-2.4l-3.3-2.5c-.9.6-2 1-3.4 1-2.6 0-4.9-1.8-5.7-4.1H2.9v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.3 14a6 6 0 0 1 0-4V7.4H2.9a10 10 0 0 0 0 9.2Z"/><path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9.1 5.4L6.3 10c.8-2.3 3.1-4.1 5.7-4.1Z"/></svg>Continue with Google</Button><div className="login-divider"><span />or<span /></div><Button className="bubl-primary" disabled={busy} onClick={() => { setMethod('phone'); move('phone') }}><Phone size={18} />Use phone number</Button>          {!AUTH_OFFLINE && <><div className="login-divider"><span />Demo sign-in<span /></div><div className="login-demo-accounts">{DEMO_ACCOUNTS.map(as => <button key={as} type="button" disabled={busy} aria-label={`Sign in as ${as}`} onClick={() => signInDemo(as, 'phone')}><span className={`login-demo-avatar avatar-${as}`} aria-hidden="true">{as[0].toUpperCase()}</span>{as}</button>)}</div></>}
+        {step === 'choice' ? <><h1 className="login-wordmark">bubl</h1><p className="login-subtitle">Discover the city on foot.</p><Button className="google-login" disabled={busy || transitioning} onClick={event => popThen(event.currentTarget, google)}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.4a4.6 4.6 0 0 1-2 3v2.5h3.3c1.9-1.8 2.9-4.3 2.9-7.4Z"/><path fill="#34A853" d="M12 22c2.7 0 5-0.9 6.7-2.4l-3.3-2.5c-.9.6-2 1-3.4 1-2.6 0-4.9-1.8-5.7-4.1H2.9v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.3 14a6 6 0 0 1 0-4V7.4H2.9a10 10 0 0 0 0 9.2Z"/><path fill="#EA4335" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.8-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9.1 5.4L6.3 10c.8-2.3 3.1-4.1 5.7-4.1Z"/></svg>Continue with Google</Button><div className="login-divider"><span />or<span /></div><Button className="bubl-primary" disabled={busy || transitioning} onClick={event => popThen(event.currentTarget, () => { setMethod('phone'); move('phone') })}><Phone size={18} />Use phone number</Button>          {!AUTH_OFFLINE && <><div className="login-divider"><span />Demo sign-in<span /></div><div className="login-demo-accounts">{DEMO_ACCOUNTS.map(as => <button key={as} type="button" disabled={busy} aria-label={`Sign in as ${as}`} onClick={() => signInDemo(as, 'phone')}><span className={`login-demo-avatar avatar-${as}`} aria-hidden="true">{as[0].toUpperCase()}</span>{as}</button>)}</div></>}
           {error && <p className="login-error" role="alert">{error}</p>}</> : <form onSubmit={event => { event.preventDefault(); if (!busy) submit() }}>
           {method === 'phone' && <p className="eyebrow">Step {step === 'phone' ? '1' : step === 'code' ? '2' : '3'} of 3</p>}
           <h1>{step === 'phone' ? 'What’s your number?' : step === 'code' ? 'Check your texts.' : method === 'google' ? 'Create your account.' : 'Pick your handle.'}</h1>
           <p className="login-subtitle">{step === 'phone' ? 'We’ll use a one-time code to get you started.' : step === 'code' ? <>Enter the 6-digit code for <strong>{phone}</strong>.</> : 'Your @handle is how other users see you on the street.'}</p>
           {step === 'phone' && <><label className="sr-only" htmlFor="login-phone">Phone number</label><input id="login-phone" type="tel" autoComplete="tel" placeholder="+1 (555) 000-0000" value={phone} onChange={event => setPhone(event.target.value)} required maxLength={24} /><p className="login-demo-note">Demo only — no SMS will be sent.</p></>}
-          {step === 'code' && <><label className="sr-only" htmlFor="login-code">Verification code</label><input id="login-code" className="login-code" type="text" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/\D/g, ''))} required /><p className="login-demo-note">Use demo code <strong>123456</strong>. No text message was sent.</p><button className="text-button login-resend" type="button" disabled={cooldown > 0} onClick={() => { setCooldown(30); setNotice('Demo code: 123456. No text message was sent.') }}>{cooldown ? `Resend code in ${cooldown}s` : 'Resend code'}</button></>}
+          {step === 'code' && <><label className="sr-only" htmlFor="login-code">Verification code</label><input id="login-code" className="code-input" type="text" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/\D/g, ''))} required /><p className="login-demo-note">Use demo code <strong>123456</strong>. No text message was sent.</p><button className="text-button login-resend" type="button" disabled={cooldown > 0} onClick={() => { setCooldown(30); setNotice('Demo code: 123456. No text message was sent.') }}>{cooldown ? `Resend code in ${cooldown}s` : 'Resend code'}</button></>}
           {step === 'handle' && <>
             {method === 'google' && <><label className="sr-only" htmlFor="login-name">Name</label><input id="login-name" placeholder="Your name" autoComplete="name" value={name} onChange={event => setName(event.target.value)} required maxLength={40} /></>}
             <label className="sr-only" htmlFor="login-handle">Username</label><input id="login-handle" placeholder="@username" autoCapitalize="none" autoCorrect="off" autoComplete="username" value={handle} onChange={event => setHandle(event.target.value)} required maxLength={21} />
@@ -109,9 +151,10 @@ export default function Login() {
             {method === 'google' && <p className="login-demo-note">Your name stays on this device. Others only see your @handle.</p>}
           </>}
           {error && <p className="login-error" role="alert">{error}</p>}{notice && <p className="login-demo-note" role="status">{notice}</p>}
-          <Button type="submit" className="bubl-primary" disabled={busy}>{busy ? 'One moment…' : step === 'phone' ? 'Send code' : step === 'code' ? 'Verify' : 'Create account'}</Button>
+          <Button type="submit" ref={submitRef} className="bubl-primary" disabled={busy || transitioning}>{busy ? 'One moment…' : step === 'phone' ? 'Send code' : step === 'code' ? 'Verify' : 'Create account'}</Button>
         </form>}
       </section>
     </div>
+    {burst && <span className="droplet-burst" aria-hidden="true" style={{ left: burst.x, top: burst.y, width: burst.w, height: burst.h }}>{burst.droplets.map(d => <i key={d.key} style={{ left: d.left, top: d.top, animationDelay: `${d.delay}ms`, '--size': `${d.size}px`, '--dx': `${d.dx}px`, '--dy': `${d.dy}px`, '--spin': `${d.spin}deg` } as CSSProperties} />)}</span>}
   </main>
 }

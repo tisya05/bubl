@@ -34,9 +34,19 @@ export interface CanPopInput {
   bubbleId: string;
 }
 export type CanPopResult =
-  | { ok: true; bubble: Bubble; author: User }
+  | { ok: true; bubble: Bubble; author: User; alreadyPopped?: boolean }
   | { ok: false; reason: 'too_far'; distanceM: number }
   | { ok: false; reason: 'not_found' | 'expired' };
+
+// Reopen a note you already popped (or wrote), from anywhere. For "Open note" and the You tab.
+export interface OpenPoppedInput {
+  bubbleId: string;
+}
+export interface OpenPoppedResult {
+  bubble: Bubble;
+  author: User;
+  loved: boolean;
+}
 
 // Sets Pop.loved. Requires an existing Pop. Refused for the bubble's own author.
 export interface LoveBubbleInput {
@@ -58,17 +68,6 @@ export interface SpeakResult {
   audioUrl: string;
 }
 
-// Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
-// Deferred: not planned for now. Kept as a placeholder; don't build UI for it.
-export interface TranslateInput {
-  bubbleId: string;
-  targetLanguage: string;
-}
-export interface TranslateResult {
-  title: string;
-  text: string;
-  sourceLanguage: string;
-}
 
 // ---- Drop ----
 
@@ -128,10 +127,10 @@ export interface SendMessageInput {
 export interface Api {
   nearbyBubbles(input: NearbyBubblesInput): Promise<ActionResult<BubblePreview[]>>;
   canPop(input: CanPopInput): Promise<ActionResult<CanPopResult>>;
+  openPopped(input: OpenPoppedInput): Promise<ActionResult<OpenPoppedResult>>;
   loveBubble(input: LoveBubbleInput): Promise<ActionResult<{ loved: true }>>;
   lovedBy(input: LovedByInput): Promise<ActionResult<User[]>>;
   speak(input: SpeakInput): Promise<ActionResult<SpeakResult>>;
-  translate(input: TranslateInput): Promise<ActionResult<TranslateResult>>;
 
   uploadMedia(file: File): Promise<ActionResult<UploadMediaResult>>;
   dropBubble(input: DropBubbleInput): Promise<ActionResult<DropBubbleResult>>;

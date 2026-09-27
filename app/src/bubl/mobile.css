@@ -95,6 +95,13 @@
 .map-bubble.far { opacity: .68; }
 .map-bubble.far .category-icon { filter: blur(4px); width: 26px; height: 26px; }
 .map-bubble.far svg { visibility: hidden; }
+/* Opened (popped, or your own): a ring in the bubble's color with a dot in the middle. Same at any distance: you know what's inside. */
+.map-bubble.popped, .map-bubble.popped.far { border: 0; padding: 0; background: transparent; opacity: 1; }
+.map-bubble.popped:not(.active) { box-shadow: none; }
+/* The selected bubble sits above your own dot, so a bubble you're standing on (or just popped) stays visible. */
+.map-bubble.active { z-index: 4; }
+.popped-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--category); background: #fbf9f4; box-shadow: 0 2px 8px #243b6424; }
+.popped-mark i { width: 12px; height: 12px; border-radius: 50%; background: var(--category); }
 .map-bubble.far { border: 0; padding: 10px; }
 .you-pin { width: 64px; height: 64px; position: absolute; transform: translate(-50%, -50%); border-radius: 50%; border: 1px dashed #243b6477; background: #243b6414; z-index: 3; display: grid; place-items: center; }
 .you-pin span { width: 20px; height: 20px; background: var(--bubl-navy); border: 3px solid white; border-radius: 50%; box-shadow: 0 1px 4px #243b6433; pointer-events: none; }
@@ -116,6 +123,27 @@
 .pop-transition strong { font-size: 65px; }
 .pop-orb { width: 180px; height: 180px; border-radius: 50%; border: 2px solid #ff8a5b; position: absolute; animation: pop-burst .7s ease-out forwards; }
 @keyframes pop-burst { 0% { transform: scale(.4); opacity: 1; } 75% { opacity: .8; } 100% { transform: scale(3); opacity: 0; } }
+/* Bubble pop: the clicked button stretches and thins like a soap film before it
+   gives way, a faint rim races outward, and a fine spray of droplets arcs off
+   under gravity — the next screen appears as the last of it fades (login.tsx). */
+.poofing { animation: button-poof .22s cubic-bezier(.35, 0, .65, 1) forwards; pointer-events: none; }
+@keyframes button-poof {
+  0% { transform: scale(1); opacity: 1; filter: blur(0); }
+  45% { transform: scale(1.04); opacity: .5; filter: blur(.6px); }
+  100% { transform: scale(1.09); opacity: 0; filter: blur(3px); }
+}
+.droplet-burst { position: fixed; pointer-events: none; z-index: 50; }
+.droplet-burst::before { content: ''; position: absolute; inset: 0; border-radius: 999px; border: 1.5px solid #cfe0f0; opacity: 0; animation: film-rim .4s ease-out forwards; }
+@keyframes film-rim {
+  0% { transform: scale(.98); opacity: .75; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+.droplet-burst i { position: absolute; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); border-radius: 50%; background: radial-gradient(circle at 34% 28%, #ffffffb8, #cfe0f070 55%, #9dbcdc4d); opacity: 0; will-change: transform, opacity; animation: droplet-fall .52s cubic-bezier(.22, .7, .3, 1) forwards; }
+@keyframes droplet-fall {
+  0% { transform: translate(0, 0) scale(.45); opacity: 0; }
+  18% { transform: translate(calc(var(--dx) * .3), calc(var(--dy) * .12)) scale(1); opacity: .85; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.2) rotate(var(--spin)); opacity: 0; }
+}
 .note-body { padding: 0 20px; }
 .note-media { display: block; width: 100%; max-height: 330px; object-fit: cover; border-radius: 26px; margin-bottom: 18px; }
 .note-illustration { height: 230px; border-radius: 26px; background: #cfe0f0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; margin-bottom: 18px; }
@@ -128,7 +156,6 @@
 .note-text { font-size: 21px; font-weight: 550; line-height: 1.4; margin-bottom: 18px !important; overflow-wrap: anywhere; white-space: pre-wrap; }
 .note-tools { display: flex; gap: 8px; margin-top: 20px; margin-bottom: 20px; flex-wrap: wrap; }
 .note-tools button { min-height: 44px; border-radius: 30px; }
-.language-picker select { min-height: 44px; max-width: 120px; border: 1px solid var(--bubl-line); border-radius: 22px; background: var(--bubl-card); padding: 6px 10px; }
 .note-actions { display: flex; gap: 10px; margin-top: auto; padding: 22px 20px max(22px, env(safe-area-inset-bottom)); }
 .note-actions .bubl-primary { flex: 1; }
 .drop-screen form { padding: 0 16px 24px; }
@@ -206,6 +233,12 @@
 .incoming-wave .bubl-avatar { background: #eadcf5; }
 .incoming-wave:not(.outgoing-wave) > div { display: flow-root; }
 .incoming-wave:not(.outgoing-wave) .wave-button { float: right; margin: 4px 0 4px 10px; }
+/* "See all" opens the full Waved-at-you list when the preview is capped (SocialScreens.tsx). */
+.see-all-waves { display: flex; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 44px; padding: 4px; font-size: 12px; font-weight: 700; color: var(--bubl-ink); }
+.see-all-waves svg { width: 15px; height: 15px; }
+.waves-screen { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.waves-list { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 20px max(24px, env(safe-area-inset-bottom)); }
+.waves-list .section-label { margin-top: 4px !important; }
 .chat-row { display: flex; align-items: center; width: 100%; gap: 12px; border-bottom: 1px solid var(--bubl-line); padding: 15px 2px; text-align: left; }
 .chat-row .bubl-avatar { outline: none; margin-right: 3px; }
 .chat-row.unread .bubl-avatar { outline: 2px solid #db5795; outline-offset: 3px; }
@@ -501,11 +534,12 @@ html:has(.bubl-intro), body:has(.bubl-intro), #root:has(.bubl-intro) { backgroun
 .login-demo-note { font-size: 12px; line-height: 1.5; color: #827b74; margin: 16px 0 !important; }
 .login-choice .login-demo-note { text-align: center; margin-bottom: 0 !important; }
 .login-card .eyebrow { margin-bottom: 18px; }
-.login-card h1:not(.login-wordmark) { font-size: 30px; margin: 0 0 16px; letter-spacing: -.8px; }
+.login-card h1:not(.login-wordmark) { font-family: 'Caprasimo', Georgia, serif; font-size: 30px; margin: 0 0 16px; letter-spacing: 0; }
+.login-code .login-subtitle { font-size: 13px; line-height: 1.5; color: #827b74; }
 .login-card input { display: block; width: 100%; min-width: 0; min-height: 60px; border: 1px solid #243454; border-radius: 18px; background: white; color: #243454; font: inherit; font-size: 17px; padding: 16px; margin-bottom: 14px; }
 .login-card input::placeholder { color: #928b82; }
 .login-card input:focus-visible { outline-color: #db81ae; }
-.login-code { text-align: center; letter-spacing: .35em; font-size: 26px !important; font-variant-numeric: tabular-nums; }
+.code-input { text-align: center; letter-spacing: .35em; font-size: 26px !important; font-variant-numeric: tabular-nums; }
 .login-resend { margin: 0 auto 16px; }
 .login-password { position: relative; }
 .login-password input { padding-right: 52px; }

@@ -3,15 +3,15 @@
 // quiet while walking mode is on, and never re-announces a bubble that already popped.
 
 import { useEffect, useRef } from 'react';
-import { api } from '../api/client';
+import { api as defaultApi } from '../api/client';
 import { NEARBY_QUERY_RADIUS_M } from '../config';
 import { alert, subscribeAlerts } from '../lib/alerts';
 import { bubblesInRange, shouldRefetch } from '../lib/walking';
-import type { BubblePreview } from '../types';
+import type { Api, BubblePreview } from '../types';
 import { useUserLocation } from './useUserLocation';
 import { useWalkingMode } from './useWalkingMode';
 
-export function useBubbleNearby() {
+export function useBubbleNearby(api: Pick<Api, 'nearbyBubbles'> = defaultApi) {
   const you = useUserLocation();
   const walking = useWalkingMode();
   const announced = useRef(new Set<string>());
@@ -47,5 +47,5 @@ export function useBubbleNearby() {
     return () => {
       cancelled = true;
     };
-  }, [you, walking.on]);
+  }, [api, you, walking.on]);
 }

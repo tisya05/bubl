@@ -14,6 +14,7 @@ export interface BublAlert {
   body?: string;
   bubbleId?: string;
   chatId?: string;
+  quiet?: boolean; // sound + vibration only: the screen already shows it (e.g. the pop animation)
 }
 
 type Listener = (alert: BublAlert) => void;
@@ -43,7 +44,7 @@ export function alert(a: BublAlert) {
   else playChime();
   if (typeof navigator !== 'undefined') navigator.vibrate?.(a.kind === 'pop' ? [30, 40, 80] : 120);
   listeners.forEach((l) => l(a));
-  void systemNotification(a);
+  if (!a.quiet) void systemNotification(a);
 }
 
 /** Ask for system notifications. Call it from a tap (e.g. a settings toggle). */

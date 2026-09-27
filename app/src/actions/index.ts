@@ -9,6 +9,7 @@ import { chatBubble, getMessages, myChats, sendMessage } from './chats'
 import { myDropped, myPopped } from './you'
 import { resetDemo, setupDemoProfiles } from './demo'
 import { speak } from './speak'
+import { openPopped } from './viewer'
 import { claimHandle, getMe, savePreferences } from './profile'
 
 export const actions: Record<string, ActionHandler<Env>> = {
@@ -30,6 +31,7 @@ export const actions: Record<string, ActionHandler<Env>> = {
   resetDemo,
   setupDemoProfiles,
   speak,
+  openPopped,
   getMe,
   claimHandle,
   savePreferences,

@@ -36,6 +36,8 @@ export interface BubblePreview {
   placeName: string;
   category: Category;
   popRadiusM: number;      // so the client shows the in-bubble banner at the right distance
+  popped?: boolean;        // the viewer already popped it: show "Open note", don't pop or announce again
+  mine?: boolean;          // the viewer dropped it
 }
 
 // Created by a successful canPop, one per user and bubble. Authors can't love their own bubble.

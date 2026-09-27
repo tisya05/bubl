@@ -37,10 +37,10 @@ async function uploadMedia(file: File): Promise<ActionResult<{ uploadId: string;
 const realApi: Api = {
   nearbyBubbles: (input) => callAction('nearbyBubbles', input),
   canPop: (input) => callAction('canPop', input),
+  openPopped: (input) => callAction('openPopped', input),
   loveBubble: (input) => callAction('loveBubble', input),
   lovedBy: (input) => callAction('lovedBy', input),
   speak: (input) => callAction('speak', input),
-  translate: (input) => callAction('translate', input),
   uploadMedia,
   dropBubble: (input) => callAction('dropBubble', input),
   myPopped: () => callAction('myPopped'),
