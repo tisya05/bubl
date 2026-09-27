@@ -219,6 +219,7 @@
 .collection-tag { display: inline-block; background: #ffffffbb; padding: 3px 8px; border-radius: 20px; font-size: 10px; }
 .next-bubble { min-height: 145px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; border: 1px dashed #aaa18f; border-radius: 24px; padding: 16px; }
 .next-bubble .eyebrow { font-size: 9px; }
+.find-next-bubble { display: flex; margin-inline: auto; }
 .bubl-empty { text-align: center; padding: 48px 18px 28px; color: var(--bubl-muted); }
 .empty-icon { display: grid; place-items: center; margin: 0 auto 18px; width: 78px; height: 78px; background: #cfe0f0; border-radius: 50%; color: var(--bubl-navy); }
 .empty-icon svg { width: 34px; height: 34px; }
