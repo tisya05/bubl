@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent, type CSSProperties } from 'react'
-import { LocateFixed, Minus, Plus, Volume2, Check } from 'lucide-react'
+import { LocateFixed, Minus, Plus, Volume2 } from 'lucide-react'
 import { useSound } from '../hooks/useSound'
 import type { BubblePreview } from '../lib/uiModels'
 import { LERNER_HALL, NEAR_ICON_M } from '../config'
@@ -133,9 +133,8 @@ export function StreetMap({ bubbles, location, selected, onSelect, focus, popped
     <div className="map-marker-layer">{bubbles.map(bubble => {
       const p = project(bubble.lat, bubble.lng)
       const near = location && distanceM(location, bubble) <= NEAR_ICON_M
-      const closeEnoughToPop = !!location && distanceM(location, bubble) <= bubble.popRadiusM
-      const showPoppedCheck = poppedIds.includes(bubble.id) && closeEnoughToPop
-      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top, '--bubble-color': CATEGORY_META[bubble.category].color } as CSSProperties} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${showPoppedCheck ? ' · Already popped' : ''}`}><CategoryIcon category={bubble.category} />{showPoppedCheck && <span className="map-popped-check"><Check size={12} /></span>}</button>
+      const isPopped = !!bubble.popped || poppedIds.includes(bubble.id)
+      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${isPopped ? 'popped' : ''} ${bubble.mine ? 'mine' : ''} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top, '--bubble-color': CATEGORY_META[bubble.category].color } as CSSProperties} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${isPopped ? ', already popped' : bubble.mine ? ', yours' : ''}`}>{isPopped ? <span className="popped-mark" style={{ '--category': CATEGORY_META[bubble.category].color } as CSSProperties}><i /></span> : <CategoryIcon category={bubble.category} />}</button>
     })}
     {user && <div data-demo-pin className={`you-pin ${location?.source === 'demo' ? 'draggable' : ''}`} style={{ left: user.x * scale - left, top: user.y * scale - top }} role={location?.source === 'demo' ? 'slider' : 'img'} aria-label={location?.source === 'demo' ? 'Your demo location. Drag or use arrow keys to move.' : 'Your location'} tabIndex={location?.source === 'demo' ? 0 : undefined} aria-valuetext={`${location?.lat.toFixed(5)}, ${location?.lng.toFixed(5)}`} onKeyDown={event => {
       if (location?.source !== 'demo' || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return

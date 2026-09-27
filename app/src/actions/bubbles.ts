@@ -13,6 +13,7 @@ import { distanceM } from '../bubl/lib/geo'
 import { isExpired } from '../bubl/lib/pop'
 import { uploadIdFromMediaUrl } from '../server/media-routes'
 import { CATEGORIES, type Bubble, type BubblePreview, type Category } from '../bubl/types'
+import { markForViewer } from './viewer'
 
 type BubbleRow = Omit<Bubble, 'id' | 'createdAt'>
 type PreviewRow = Omit<BubblePreview, 'id'> & { expiresAt?: string }
@@ -132,7 +133,7 @@ export const importSeedBubbles: ActionHandler<Env> = async ({ userId, params, to
 }
 
 /** Previews of live, unexpired bubbles within radiusM (capped at MAX_NEARBY_RADIUS_M). */
-export const nearbyBubbles: ActionHandler<Env> = async ({ params, tools }) => {
+export const nearbyBubbles: ActionHandler<Env> = async ({ userId, params, tools }) => {
   const { lat, lng, radiusM } = params
   if (!isFiniteNumber(lat) || !isFiniteNumber(lng) || !isFiniteNumber(radiusM) || radiusM <= 0) {
     return { success: false, error: 'lat, lng and a positive radiusM are required' }
@@ -152,5 +153,5 @@ export const nearbyBubbles: ActionHandler<Env> = async ({ params, tools }) => {
       category: r.data.category,
       popRadiusM: r.data.popRadiusM,
     }))
-  return { success: true, data: nearby }
+  return { success: true, data: await markForViewer(tools, userId, nearby) }
 }

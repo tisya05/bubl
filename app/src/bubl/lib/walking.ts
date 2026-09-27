@@ -7,10 +7,11 @@ import type { BubblePreview } from '../types';
 export const REFETCH_EVERY_MS = 30_000;
 export const REFETCH_AFTER_M = 150;
 
-/** Bubbles whose pop radius you're inside and that haven't fired yet, closest first. */
+/** Bubbles whose pop radius you're inside and that haven't fired yet, closest first.
+ *  Skips bubbles you already popped or dropped: they don't pop or announce again. */
 export function bubblesInRange(previews: BubblePreview[], you: LatLng, fired: ReadonlySet<string>): BubblePreview[] {
   return previews
-    .filter((b) => !fired.has(b.id))
+    .filter((b) => !fired.has(b.id) && !b.popped && !b.mine)
     .map((b) => ({ b, d: distanceM(you, b) }))
     .filter(({ b, d }) => d <= b.popRadiusM)
     .sort((x, y) => x.d - y.d)
