@@ -109,7 +109,7 @@ export function DropScreen() {
     })
   }
   if (released) return <section className="release-screen screen-fill"><div className="floating-bubl" aria-hidden="true"><span>⌣</span></div><h1>Your bubble is floating.</h1><p className="lead">Anyone who walks past {released.placeName} can get close and pop it.</p>
-    <div className="safety-card"><p className="eyebrow"><ShieldCheck size={15} />{demo ? 'Demo drop · not published' : 'Safety check'}</p><p><Check />{demo ? 'Saved for this demo session.' : released.moderation === 'passed' ? 'Your bubble passed the safety check.' : 'Your bubble was saved, but moderation was unavailable.'}</p><p><MapPin />Pinned to this place, not your profile.</p></div>
+    <div className="safety-card"><p className="eyebrow"><ShieldCheck size={15} />{'Safety check'}</p><p><Check />{released.moderation === 'passed' ? 'Your bubble passed the safety check.' : 'Your bubble was saved, but moderation was unavailable.'}</p><p><MapPin />Pinned to this place, not your profile.</p></div>
     <div className="bottom-actions"><Button className="bubl-primary" onClick={() => go('walk')}>Back to walking</Button><button className="text-button" onClick={() => { setReleased(undefined); setText(''); setTitle(''); setFile(undefined) }}>Drop another</button></div></section>
   return <section className="drop-screen screen-fill"><ScreenHeader title="Drop a bubble" close onBack={() => go('walk')} />
     <form onSubmit={event => { event.preventDefault(); submit() }}>

@@ -163,7 +163,8 @@ if (!campusSamplesSeeded) {
     ['u-bruno', 'Coffee and a stroll', 'Your coffee spot looks amazing!'],
   ]) {
     const bubbleId = `b-campus-${id}`;
-    bubbles.push(bubble({ id: bubbleId, authorId: id, ...LERNER_HALL, title, text: 'A sample campus discovery. A good place to slow down and say hello.', placeName: 'College Walk · Columbia University', category: 'Misc' }));
+    const sampleCategory = id === 'u-tim' ? 'Food' : id === 'u-tiger' ? 'Park' : 'Cafe';
+    bubbles.push(bubble({ id: bubbleId, authorId: id, ...LERNER_HALL, title, text: 'A sample campus discovery. A good place to slow down and say hello.', placeName: 'College Walk · Columbia University', category: sampleCategory }));
     pops.add(`me:${bubbleId}`); loves.add(`me:${bubbleId}`);
     waves.push({ fromUserId: id === 'u-bruno' ? ME.id : id, toUserId: id === 'u-bruno' ? id : ME.id, bubbleId, note, createdAt: now });
   }

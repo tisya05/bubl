@@ -20,6 +20,7 @@ type View = 'walk' | 'drop' | 'chats' | 'you' | 'note' | 'wave' | 'thread' | 'pr
 interface MobileContextValue {
   api: Api; demo: boolean; user: User; opened: OpenedBubble | null; wave: WaveTarget | null; thread: ChatSummary | null;
   go: (view: View, bubbleId?: string) => void; open: (value: OpenedBubble) => void; waveAt: (value: WaveTarget) => void;
+  openWithPop: (value: OpenedBubble) => Promise<void>;
   openChat: (value: ChatSummary) => void; notify: (message: string) => void; onSignOut?: () => void;
   library?: LibraryActions; profile: LocalProfile; updateProfile: (profile: LocalProfile) => void;
 }
@@ -56,19 +57,26 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   const [opened, setOpened] = useState<OpenedBubble | null>(null)
   const [wave, setWave] = useState<WaveTarget | null>(null)
   const [thread, setThread] = useState<ChatSummary | null>(null)
+  const [popping, setPopping] = useState(false)
   const [message, setMessage] = useState('')
   const view: View = requested === 'note' && opened ? 'note' : requested === 'wave' && wave ? 'wave' : requested === 'thread' && thread ? 'thread' : ['drop', 'chats', 'you', 'profile', 'events'].includes(requested) ? requested as View : 'walk'
   function go(next: View, bubbleId?: string) { setParams(bubbleId ? { view: next, bubble: bubbleId } : { view: next }); setMessage('') }
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   const context: MobileContextValue = { api, demo, user, opened, wave, thread, onSignOut, go, notify: setMessage, library, profile, updateProfile,
+    async openWithPop(value) {
+      setPopping(true)
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
+      setPopping(false); setOpened(value); go('note')
+    },
     open(value) { setOpened(value); go('note') }, waveAt(value) { setWave(value); go('wave') }, openChat(value) { setThread(value); go('thread') } }
   const screens: Record<View, ReactNode> = { walk: <WalkScreen />, drop: <DropScreen />, chats: <ChatsScreen />, you: <YouScreen />, note: <NoteScreen />, wave: <WaveScreen />, thread: <ThreadScreen />, profile: <ProfileScreen />, events: <EventsScreen /> }
   const showNav = ['walk', 'chats', 'you', 'events'].includes(view)
   return <MobileContext.Provider value={context}><main ref={viewportRef} className={`bubl-app mobile-shell view-${view}`}>
     <div className="mobile-content" key={view}>{screens[view]}</div>
     {showNav && <nav className="bottom-nav" aria-label="Main navigation">{([
-      ['walk', 'Walk', Compass], ['drop', 'Drop', DropIcon], ['events', 'Events', BalloonsIcon], ['chats', 'Chats', MessageSquare], ['you', 'You', UserRound],
-    ] as const).map(([tab, label, Icon]) => <button key={tab} aria-current={view === tab ? 'page' : undefined} onClick={() => go(tab)}><Icon /><span>{label}</span><i /></button>)}</nav>}
+      ['walk', 'Walk', Compass], ['events', 'Events', BalloonsIcon], ['drop', 'Drop', DropIcon], ['chats', 'Chats', MessageSquare], ['you', 'You', UserRound],
+    ] as const).map(([tab, label, Icon]) => <button key={tab} className={tab === 'drop' ? 'nav-drop' : undefined} aria-current={view === tab ? 'page' : undefined} onClick={() => go(tab)}>{tab === 'drop' ? <span className="nav-drop-circle"><Icon /></span> : <Icon />}<span>{label}</span><i /></button>)}</nav>}
+    {popping && <div className="pop-transition" role="status"><span className="pop-orb" /><strong>pop!</strong></div>}
     {message && <div className="bubl-toast" role="status"><span>{message}</span><button aria-label="Dismiss message" onClick={() => setMessage('')}><X size={18} /></button></div>}
   </main></MobileContext.Provider>
 }
