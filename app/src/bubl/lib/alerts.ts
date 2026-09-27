@@ -1,5 +1,5 @@
-// One pipeline for everything bubl tells you about: vibration (plus the pop sound
-// when you pop a bubble), and a real system notification (the phone's own notification banner) once
+// One pipeline for everything bubl tells you about: the pop sound (except for
+// drifting into a bubble) + vibration, and a real system notification (the phone's own notification banner) once
 // notification permission was given. There are no in-app banners.
 //
 // Anyone can raise one: alert({ kind: 'pop', title: 'pop.', body: bubble.title })
@@ -69,11 +69,11 @@ async function systemNotification(a: BublAlert) {
 }
 
 export function alert(a: BublAlert) {
-  // The pop sound is only for popping a bubble. Notifications (drift, love, wave, match,
-  // message) make no sound in the app; the phone's notification handles them.
+  // Everything pops except drifting into a bubble (the Pop it button is the signal there).
+  // The phone's own notification stays silent while bubl is open (public/sw.js), so it's one sound.
   const onScreen = typeof document !== 'undefined' && document.visibilityState === 'visible';
   if (a.kind === 'message' && onScreen && a.chatId && a.chatId === openChatId) return;
-  if (a.kind === 'pop') playPop();
+  if (a.kind !== 'nearby') playPop();
   if (typeof navigator !== 'undefined') navigator.vibrate?.(a.kind === 'pop' ? [30, 40, 80] : 120);
   listeners.forEach((l) => l(a));
   if (!a.quiet) void systemNotification(a);
