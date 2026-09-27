@@ -26,6 +26,8 @@ import { tasks as cronTasks, runTask as runCronTask } from './src/cron.js'
 import { runJob } from './src/jobs.js'
 import { schemas } from './src/schemas.js'
 import { registerActionRoutes } from './src/server/action-routes.js'
+import { registerMediaRoutes } from './src/server/media-routes.js'
+import { registerDemoAuthRoutes } from './src/server/demo-auth-routes.js'
 import {
   registerAuthAndIntegrationRoutes,
   registerPlatformProxyRoutes,
@@ -106,6 +108,8 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
   /** Immutable record-scope and platform identity. */
   DEEPSPACE_APP_ID: string
   OWNER_USER_ID: string
+  /** Comma-separated user IDs (besides the owner) allowed to run importSeedBubbles. */
+  SEED_IMPORTERS?: string
   /**
    * Long-lived owner JWT used for developer-billed server calls. User-billed
    * calls always forward the signed-in caller's JWT instead.
@@ -116,6 +120,14 @@ export interface Env extends DOBindings<typeof __DO_MANIFEST__> {
    * an authenticated app owner/admin. deepspace dev/test set it locally.
    */
   ALLOW_DEBUG_ROUTES?: string
+  /** Gemini key for dropBubble moderation (`deepspace secrets set GEMINI_API_KEY=...`). Unset = drops saved unchecked. */
+  GEMINI_API_KEY?: string
+  /** Optional Gemini model override; defaults to gemini-3.5-flash-lite. */
+  GEMINI_MODEL?: string
+  /** Passwords for POST /api/demo/sign-in (Maya, Dev, Sam). Unset = demo sign-in off. */
+  DEMO_PASSWORD_MAYA?: string
+  DEMO_PASSWORD_DEV?: string
+  DEMO_PASSWORD_SAM?: string
 }
 
 export type AppContext = { Bindings: Env }
@@ -135,6 +147,8 @@ app.use('*', async (c, next) => {
 registerAuthAndIntegrationRoutes(app)
 registerRealtimeRoutes(app)
 registerActionRoutes(app, resolveAuth)
+registerMediaRoutes(app, resolveAuth)
+registerDemoAuthRoutes(app)
 // The in-app assistant stores chat history in `ai-chats` / `ai-messages`,
 // which only the copilot overlay declares. When present, registerAgent enables
 // both that website AI and the user's local Codex/Claude/etc. assistant.

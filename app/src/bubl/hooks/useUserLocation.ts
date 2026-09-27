@@ -85,3 +85,17 @@ export function useUserLocation(): UserLocation | null {
 export function useLocationSource(): LocationSource {
   return useSyncExternalStore(subscribe, getSource);
 }
+
+// Explicit demo snapshot: never starts a GPS watcher.
+const subscribeDemo = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+const getDemoLocation = () => demoLocation;
+export function useDemoLocation(): UserLocation {
+  return useSyncExternalStore(subscribeDemo, getDemoLocation);
+}
+
+// Same store, outside React (walking mode). Calls back on every location change.
+export function watchUserLocation(onChange: (location: UserLocation | null) => void): () => void {
+  const unsubscribe = subscribe(() => onChange(getLocation()));
+  onChange(getLocation());
+  return unsubscribe;
+}
