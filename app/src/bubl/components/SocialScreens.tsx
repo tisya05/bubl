@@ -34,6 +34,84 @@ export function WaveScreen() {
   </section>
 }
 
+/* Waved-at-you cards are shared by the Chats preview and the full "Waved at you" list
+   so both stay visually identical. */
+function IncomingWaveCard({ wave, onWave }: { wave: IncomingWave; onWave: () => void }) {
+  return <div className="incoming-wave"><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><p className="wave-person"><strong>{wave.from.name}</strong><span className="wave-action-text"> waved at you</span></p><Button className="wave-button" onClick={onWave}><Hand />Wave</Button><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p className="wave-message">{wave.note}</p>}</div></div>
+}
+
+/* Only the fields the card renders, so both the library helper's shape and the server's
+   OutgoingWave type fit without depending on either. */
+type SentWave = { to: IncomingWave['from']; bubbleId: string; placeName: string; note?: string }
+
+function OutgoingWaveCard({ wave }: { wave: SentWave }) {
+  return <div className="incoming-wave outgoing-wave"><Avatar name={wave.to.name} image={wave.to.imageUrl} /><div><strong>{wave.to.name}</strong><p className="eyebrow">{wave.placeName}</p>{wave.note && <p className="wave-message">{wave.note}</p>}<small>Waiting for a wave back</small></div><Hand className="pending-wave-icon" aria-hidden="true" /></div>
+}
+
+/* The Chats screen only previews this many waves per section; the rest live behind "See all". */
+const WAVE_PREVIEW_LIMIT = 2
+
+function SeeAllWaves({ onClick }: { onClick: () => void }) {
+  return <button className="see-all-waves" onClick={onClick}>See all<ChevronRight aria-hidden="true" /></button>
+}
+
+/* Full-list screens behind "See all" — one per direction, sharing the Chats card styling. */
+export function WavesScreen() {
+  const { api, waveAt, go } = useMobile()
+  const [waves, setWaves] = useState<IncomingWave[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
+  useEffect(() => {
+    let active = true
+    function load() {
+      result(api.incomingWaves()).then(w => { if (active) { setWaves(w); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    }
+    load(); const timer = setInterval(load, 15000)
+    return () => { active = false; clearInterval(timer) }
+  }, [api, retry])
+  return <section className="social-screen chats-screen waves-screen screen-fill"><ScreenHeader title="Waved at you" onBack={() => go('chats')} />
+    <div className="waves-list">
+      {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
+      {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
+      {waves.length > 0 && <p className="eyebrow section-label">{waves.length} {waves.length === 1 ? 'person' : 'people'} waved at you</p>}
+      {waves.map(wave => <IncomingWaveCard key={`${wave.from.id}:${wave.bubbleId}`} wave={wave} onWave={() => waveAt(waveTarget(wave))} />)}
+      {!loading && !error && !waves.length && <Empty icon={<Hand />} title="No waves waiting.">When a local waves at you, they'll show up here.</Empty>}
+    </div>
+  </section>
+}
+
+/* Prefers the `api.outgoingWaves` server action when the api provides it, else the library helper. */
+function loadSentWaves(api: unknown, library: ReturnType<typeof useMobile>['library']): Promise<SentWave[]> {
+  const fromServer = (api as { outgoingWaves?: () => Parameters<typeof result<SentWave[]>>[0] }).outgoingWaves
+  return fromServer ? result(fromServer.call(api)) : library?.outgoingWaves?.() ?? Promise.resolve([])
+}
+
+export function SentWavesScreen() {
+  const { api, go, library } = useMobile()
+  const [waves, setWaves] = useState<SentWave[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [retry, setRetry] = useState(0)
+  useEffect(() => {
+    let active = true
+    function load() {
+      loadSentWaves(api, library).then(w => { if (active) { setWaves(w); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    }
+    load(); const timer = setInterval(load, 15000)
+    return () => { active = false; clearInterval(timer) }
+  }, [api, library, retry])
+  return <section className="social-screen chats-screen waves-screen screen-fill"><ScreenHeader title="You waved to" onBack={() => go('chats')} />
+    <div className="waves-list">
+      {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
+      {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
+      {waves.length > 0 && <p className="eyebrow section-label">{waves.length} {waves.length === 1 ? 'wave' : 'waves'} waiting for a wave back</p>}
+      {waves.map(wave => <OutgoingWaveCard key={`${wave.to.id}:${wave.bubbleId}`} wave={wave} />)}
+      {!loading && !error && !waves.length && <Empty icon={<Hand />} title="No waves sent yet.">Pop a bubble you love and wave at the local who left it.</Empty>}
+    </div>
+  </section>
+}
+
 export function ChatsScreen() {
   const { api, waveAt, openChat, go, library } = useMobile()
   const [outgoing, setOutgoing] = useState<Awaited<ReturnType<NonNullable<LibraryActions['outgoingWaves']>>>>([])
@@ -53,8 +131,8 @@ export function ChatsScreen() {
   return <section className="social-screen chats-screen"><h1>Chats</h1>
     {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
     {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
-    {outgoing.length > 0 && <><p className="eyebrow section-label">You Waved To · {outgoing.length}</p>{outgoing.map(wave => <div className="incoming-wave outgoing-wave" key={`${wave.to.id}:${wave.bubbleId}`}><Avatar name={wave.to.name} image={wave.to.imageUrl} /><div><strong>{wave.to.name}</strong><p className="eyebrow">{wave.placeName}</p>{wave.note && <p className="wave-message">{wave.note}</p>}<small>Waiting for a wave back</small></div><Hand className="pending-wave-icon" aria-hidden="true" /></div>)}</>}
-    {waves.length > 0 && <><p className="eyebrow section-label">Waved At You · {waves.length}</p>{waves.map(wave => <div className="incoming-wave" key={`${wave.from.id}:${wave.bubbleId}`}><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><p className="wave-person"><strong>{wave.from.name}</strong><span className="wave-action-text"> waved at you</span></p><Button className="wave-button" onClick={() => waveAt(waveTarget(wave))}><Hand />Wave</Button><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p className="wave-message">{wave.note}</p>}</div></div>)}</>}
+    {outgoing.length > 0 && <><p className="eyebrow section-label">You Waved To · {outgoing.length}</p>{outgoing.slice(0, WAVE_PREVIEW_LIMIT).map(wave => <OutgoingWaveCard key={`${wave.to.id}:${wave.bubbleId}`} wave={wave} />)}{outgoing.length > WAVE_PREVIEW_LIMIT && <SeeAllWaves onClick={() => go('sent-waves')} />}</>}
+    {waves.length > 0 && <><p className="eyebrow section-label">Waved At You · {waves.length}</p>{waves.slice(0, WAVE_PREVIEW_LIMIT).map(wave => <IncomingWaveCard key={`${wave.from.id}:${wave.bubbleId}`} wave={wave} onWave={() => waveAt(waveTarget(wave))} />)}{waves.length > WAVE_PREVIEW_LIMIT && <SeeAllWaves onClick={() => go('waves')} />}</>}
     {chats.length > 0 && <><p className="eyebrow section-label">Chats</p>{chats.map(chat => <button className={`chat-row ${chat.unread ? 'unread' : ''}`} key={chat.chat.id} onClick={() => openChat(chat)}><Avatar name={chat.otherUser.name} image={chat.otherUser.imageUrl} /><span><strong>{chat.otherUser.name}</strong><span>{chat.lastMessage?.text ?? 'You both waved. Say hello!'}</span></span>{chat.unread && <i className="unread-dot" aria-label="Unread messages" />}</button>)}</>}
     {!loading && !error && !chats.length && !waves.length && !outgoing.length && <><Empty icon={<MessageCircle />} title="Good things start with a wave.">Pop a bubble, love the spot, and wave at the local who left it.</Empty><Button className="bubl-outline find-next-bubble" onClick={() => go('walk')}>Find your next bubble</Button></>}
   </section>
