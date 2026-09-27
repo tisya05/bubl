@@ -1,5 +1,6 @@
-// The bubl pop: one recorded file (public/bubl/sounds/pop.wav), so every
-// phone and laptop plays exactly the same sound. Every alert uses it.
+// The bubl pop: one recorded bubble pop (public/bubl/sounds/pop.wav, trimmed
+// from "Bubbles Burst" by BigSoundBank, CC0), so every phone and laptop plays
+// exactly the same sound. Every alert uses it.
 // Browsers only allow sound after the user has tapped something once;
 // unlockSounds() is called on the first tap anywhere (see MobileApp).
 // Respects the app's sound on/off setting (useSound).
