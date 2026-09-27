@@ -2,14 +2,14 @@ import { chromium } from '@playwright/test'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
-// Render only the visible Figma icon (61:6), with breathing room on splash indigo.
+// Render the splash icon with breathing room on splash indigo.
 const destination = fileURLToPath(new URL('../public/bubl/icons/', import.meta.url))
 await mkdir(destination, { recursive: true })
 const browser = await chromium.launch({ channel: 'msedge' })
 try {
   const page = await browser.newPage()
-  const sourceImage = await readFile(new URL('../public/bubl/app-icon-mark.svg', import.meta.url))
-  const source = `data:image/svg+xml;base64,${sourceImage.toString('base64')}`
+  const sourceImage = await readFile(new URL('../public/bubl/app-icon-transparent.png', import.meta.url))
+  const source = `data:image/png;base64,${sourceImage.toString('base64')}`
   for (const size of [32, 180, 192, 512]) {
     const png = await page.evaluate(async ({ size, source }) => {
       const art = new Image()
