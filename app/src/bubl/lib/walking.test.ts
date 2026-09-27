@@ -24,6 +24,11 @@ describe('bubblesInRange', () => {
     expect(bubblesInRange(previews, LERNER, new Set(['here', 'demo'])).map((b) => b.id)).toEqual(['near']);
   });
 
+  it('never fires for a bubble you already popped or dropped', () => {
+    const mine = [{ ...preview('popped', LERNER), popped: true }, { ...preview('own', LERNER), mine: true }, preview('fresh', LERNER)];
+    expect(bubblesInRange(mine, LERNER, new Set()).map((b) => b.id)).toEqual(['fresh']);
+  });
+
   it('returns nothing when you are outside every radius', () => {
     expect(bubblesInRange(previews, north(500), new Set())).toEqual([]);
   });

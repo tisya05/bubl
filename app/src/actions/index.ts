@@ -4,6 +4,7 @@ import { importSeedBubbles, nearbyBubbles } from './bubbles'
 import { dropBubble } from './drop'
 import { canPop } from './pop'
 import { speak } from './speak'
+import { openPopped } from './viewer'
 
 export const actions: Record<string, ActionHandler<Env>> = {
   importSeedBubbles,
@@ -11,4 +12,5 @@ export const actions: Record<string, ActionHandler<Env>> = {
   canPop,
   dropBubble,
   speak,
+  openPopped,
 }

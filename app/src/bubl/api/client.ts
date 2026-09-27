@@ -23,6 +23,7 @@ async function callAction<T>(name: string, params: object = {}): Promise<ActionR
 const realApi: Api = {
   nearbyBubbles: (input) => callAction('nearbyBubbles', input),
   canPop: (input) => callAction('canPop', input),
+  openPopped: (input) => callAction('openPopped', input),
   loveBubble: (input) => callAction('loveBubble', input),
   lovedBy: (input) => callAction('lovedBy', input),
   speak: (input) => callAction('speak', input),

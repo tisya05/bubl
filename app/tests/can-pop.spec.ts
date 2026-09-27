@@ -92,6 +92,22 @@ test('canPop keeps content sealed until the caller is inside the radius', async 
     })
   }
 
+  // Popping again doesn't create a second pop: the server says so.
+  const again = await callAction(dev.page.request, 'canPop', token, { userLat: LERNER.lat, userLng: LERNER.lng, bubbleId: BUBBLE_ID })
+  expect(await again.json()).toMatchObject({ success: true, data: { ok: true, alreadyPopped: true } })
+
+  // The map marks it popped for Dev, and not for Maya, who wrote it (it's hers instead).
+  const devNear = (await (await callAction(dev.page.request, 'nearbyBubbles', token, { ...LERNER, radiusM: 100 })).json()) as {
+    data: { id: string; popped?: boolean; mine?: boolean }[]
+  }
+  expect(devNear.data.find((b) => b.id === BUBBLE_ID)).toMatchObject({ popped: true })
+  const mayaToken = await tokenFor(maya)
+  const mayaNear = (await (await callAction(maya.page.request, 'nearbyBubbles', mayaToken, { ...LERNER, radiusM: 100 })).json()) as {
+    data: { id: string; popped?: boolean; mine?: boolean }[]
+  }
+  expect(mayaNear.data.find((b) => b.id === BUBBLE_ID)).toMatchObject({ mine: true })
+  expect(mayaNear.data.find((b) => b.id === BUBBLE_ID)?.popped).toBeUndefined()
+
   const missing = await callAction(dev.page.request, 'canPop', token, {
     userLat: LERNER.lat,
     userLng: LERNER.lng,

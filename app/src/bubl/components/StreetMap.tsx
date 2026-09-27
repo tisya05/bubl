@@ -132,7 +132,7 @@ export function StreetMap({ bubbles, location, selected, onSelect, focus }: { fo
     <div className="map-marker-layer">{bubbles.map(bubble => {
       const p = project(bubble.lat, bubble.lng)
       const near = location && distanceM(location, bubble) <= NEAR_ICON_M
-      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top }} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}`}><CategoryIcon category={bubble.category} /></button>
+      return <button key={bubble.id} className={`map-bubble ${near ? '' : 'far'} ${bubble.popped ? 'popped' : ''} ${bubble.mine ? 'mine' : ''} ${selected === bubble.id ? 'active' : ''}`} style={{ left: p.x * scale - left, top: p.y * scale - top }} onClick={() => onSelect(bubble)} aria-label={`${bubble.category} bubble at ${bubble.placeName}${bubble.popped ? ', already popped' : bubble.mine ? ', yours' : ''}`}><CategoryIcon category={bubble.category} /></button>
     })}
     {user && <div data-demo-pin className={`you-pin ${location?.source === 'demo' ? 'draggable' : ''}`} style={{ left: user.x * scale - left, top: user.y * scale - top }} role={location?.source === 'demo' ? 'slider' : 'img'} aria-label={location?.source === 'demo' ? 'Your demo location. Drag or use arrow keys to move.' : 'Your location'} tabIndex={location?.source === 'demo' ? 0 : undefined} aria-valuetext={`${location?.lat.toFixed(5)}, ${location?.lng.toFixed(5)}`} onKeyDown={event => {
       if (location?.source !== 'demo' || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return

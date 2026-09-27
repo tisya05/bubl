@@ -19,7 +19,7 @@ const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Num
 const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
 
 // Seed authors may not have an account yet, so fall back to a neutral name.
-async function loadAuthor(tools: ActionTools, authorId: string): Promise<User> {
+export async function loadAuthor(tools: ActionTools, authorId: string): Promise<User> {
   const res = await tools.get<UserRow>('users', authorId)
   if (!res.success) return { id: authorId, name: 'A local' }
   const { name, imageUrl } = res.data.record.data
@@ -30,8 +30,10 @@ async function loadAuthor(tools: ActionTools, authorId: string): Promise<User> {
 async function recordPop(tools: ActionTools, userId: string, bubbleId: string) {
   const existing = await tools.query<PopRow>('pops', { where: { userId, bubbleId }, limit: 1 })
   if (!existing.success) return existing
-  if (existing.data.records.length > 0) return { success: true as const, data: null }
-  return tools.create('pops', { userId, bubbleId, poppedAt: new Date().toISOString() })
+  if (existing.data.records.length > 0) return { success: true as const, data: { alreadyPopped: true } }
+  const created = await tools.create('pops', { userId, bubbleId, poppedAt: new Date().toISOString() })
+  if (!created.success) return created
+  return { success: true as const, data: { alreadyPopped: false } }
 }
 
 export const canPop: ActionHandler<Env> = async ({ userId, params, tools }) => {
@@ -57,5 +59,6 @@ export const canPop: ActionHandler<Env> = async ({ userId, params, tools }) => {
 
   const bubble: Bubble = { ...record.data, id: record.recordId, createdAt: record.createdAt }
   const author = await loadAuthor(tools, bubble.authorId)
-  return { success: true, data: { ok: true, bubble, author } satisfies CanPopResult }
+  const again = popped.data.alreadyPopped ? { alreadyPopped: true } : {}
+  return { success: true, data: { ok: true, bubble, author, ...again } satisfies CanPopResult }
 }

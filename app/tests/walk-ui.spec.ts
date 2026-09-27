@@ -17,7 +17,8 @@ test.skip(
 // ~700 m north of Lerner, well away from the other test bubbles there.
 const SPOT = { lat: 40.8132, lng: -73.964 }
 const BUBBLE = {
-  id: 'seed-test-walk-ui',
+  // Fresh every run, so Dev hasn't popped it yet.
+  id: `seed-test-walk-ui-${Date.now()}`,
   title: '__test__ Walk UI bubble',
   text: '__test__ You found the walk screen test note.',
   placeName: 'Broadway & 122nd St',
@@ -46,7 +47,7 @@ const standAt = (page: Page, lat: number, lng: number) =>
     [lat, lng],
   )
 
-test('walk to a bubble, pop it from the Walk screen, read and hear the note', async ({ users, request }) => {
+test('walk to a bubble, pop it once, then only reopen it', async ({ users, request }) => {
   const jwt = ownerJwt()
   test.skip(!jwt, 'No APP_OWNER_JWT in .dev.vars')
   const [maya, dev] = await users(['Maya', 'Dev'])
@@ -58,7 +59,8 @@ test('walk to a bubble, pop it from the Walk screen, read and hear the note', as
   expect(await seed.json()).toMatchObject({ success: true })
 
   const page = dev.page
-  await page.goto('/home')
+  // Select this run's bubble (older test bubbles sit at the same spot).
+  await page.goto(`/home?bubble=${BUBBLE.id}`)
   await expect(page.locator('.walk-screen')).toBeVisible({ timeout: 20_000 })
 
   // ~150 m further north: shows the distance, no Pop button, and nothing sealed on screen.
@@ -85,4 +87,23 @@ test('walk to a bubble, pop it from the Walk screen, read and hear the note', as
   const speak = (await (await spoken).json()) as { success: boolean; error?: string; data?: { audioUrl: string } }
   expect(speak.success, speak.error).toBe(true)
   expect(speak.data?.audioUrl).toMatch(/^data:audio\//)
+
+  // Back on the map, the same bubble can't be popped again: only reopened.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByText('You popped this')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByRole('button', { name: 'Open note' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pop it' })).toBeHidden()
+
+  // And it reopens from anywhere, without a new pop.
+  await standAt(page, SPOT.lat + 300 / 111_195, SPOT.lng)
+  await expect(page.getByText(/m away · Broadway & 122nd St/)).toBeVisible({ timeout: 15_000 })
+  let popCalls = 0
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/actions/canPop')) popCalls++
+  })
+  const reopened = page.waitForResponse((r) => r.url().endsWith('/api/actions/openPopped'))
+  await page.getByRole('button', { name: 'Open note' }).click()
+  expect(await (await reopened).json()).toMatchObject({ success: true, data: { bubble: { id: BUBBLE.id } } })
+  await expect(page.getByRole('heading', { name: BUBBLE.title })).toBeVisible({ timeout: 15_000 })
+  expect(popCalls).toBe(0)
 })

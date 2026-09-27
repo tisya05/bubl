@@ -169,7 +169,11 @@ export const mockApi: Api = {
     const nearby = bubbles.filter(
       (b) => b.status === 'live' && !isExpired(b.expiresAt) && distanceM({ lat, lng }, b) <= radius,
     );
-    return ok(nearby.map(toPreview));
+    return ok(nearby.map((b) => ({
+      ...toPreview(b),
+      ...(pops.has(`${ME.id}:${b.id}`) && { popped: true }),
+      ...(b.authorId === ME.id && { mine: true }),
+    })));
   },
 
   async canPop({ userLat, userLng, bubbleId }) {
@@ -177,9 +181,19 @@ export const mockApi: Api = {
     if (!b) return ok({ ok: false as const, reason: 'not_found' as const });
     const check = checkPop(b, { lat: userLat, lng: userLng });
     if (!check.ok) return ok(check);
+    const alreadyPopped = pops.has(`${ME.id}:${b.id}`);
     pops.add(`${ME.id}:${b.id}`);
     hiddenPops.delete(b.id);
-    return ok({ ok: true as const, bubble: await withMedia(b), author: b.authorId === ME.id ? ME : AUTHORS[b.authorId] });
+    persist();
+    const author = b.authorId === ME.id ? ME : AUTHORS[b.authorId];
+    return ok({ ok: true as const, bubble: await withMedia(b), author, ...(alreadyPopped && { alreadyPopped: true }) });
+  },
+  async openPopped({ bubbleId }) {
+    const b = bubbles.find((x) => x.id === bubbleId);
+    if (!b) return fail('Bubble not found');
+    if (!pops.has(`${ME.id}:${b.id}`) && b.authorId !== ME.id) return fail('Pop this bubble first');
+    const author = b.authorId === ME.id ? ME : AUTHORS[b.authorId];
+    return ok({ bubble: await withMedia(b), author, loved: loves.has(`${ME.id}:${b.id}`) });
   },
 
   async loveBubble({ bubbleId }) {

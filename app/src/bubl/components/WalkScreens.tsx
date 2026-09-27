@@ -70,13 +70,21 @@ export function WalkScreen() {
   const nearest = sorted.find(b => b.id === selected) ?? sorted[0]
   const distance = location && nearest ? Math.round(distanceM(location, nearest)) : null
   const eventReason = nearest?.event ? eventAvailability({ ...nearest, event: nearest.event }, location, now) : null
-  const canOpen = !eventReason && nearest && distance !== null && distanceM(location!, nearest) <= nearest.popRadiusM
+  // Already popped (or yours): open it again from anywhere, no pop, no sound.
+  const done = Boolean(nearest && !nearest.event && (nearest.popped || nearest.mine))
+  const canOpen = !done && !eventReason && nearest && distance !== null && distanceM(location!, nearest) <= nearest.popRadiusM
+  async function reopen() {
+    if (!nearest) return
+    await run(async () => { open(await result(api.openPopped({ bubbleId: nearest.id }))) })
+  }
   async function pop() {
     if (!nearest || !location) return
     await run(async () => {
       if (nearest.category === 'Events') { open(await demoEvents.pop(nearest.id, location)); return }
       const data = await result(api.canPop({ bubbleId: nearest.id, userLat: location.lat, userLng: location.lng }))
       if (!data.ok) { notify(data.reason === 'too_far' ? `Keep walking — you're ${data.distanceM} m away.` : 'This bubble is no longer floating.'); return }
+      setBubbles(list => list.map(b => b.id === nearest.id ? { ...b, popped: true } : b))
+      if (data.alreadyPopped) { open(data); return }
       alert({ kind: 'pop', title: 'pop.', body: data.bubble.title, bubbleId: nearest.id, quiet: true })
       setPopping(true)
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
@@ -91,9 +99,13 @@ export function WalkScreen() {
     </div>
     <div ref={sheet} className={`map-sheet ${collapsed ? 'collapsed' : ''} ${dragHeight !== null ? 'dragging' : ''}`} style={{ height: dragHeight ?? (collapsed ? 96 : expandedHeight) }}>
       <button className="sheet-grip" aria-label={collapsed ? 'Expand bubble details' : 'Collapse bubble details'} aria-expanded={!collapsed} aria-controls="bubble-details" onPointerDown={event => { dragStart.current = event.clientY; startHeight.current = sheet.current?.offsetHeight ?? expandedHeight; dragged.current = false; event.currentTarget.setPointerCapture(event.pointerId) }} onPointerMove={event => { if (dragStart.current === null) return; const delta = event.clientY - dragStart.current; if (Math.abs(delta) > 4) dragged.current = true; setDragHeight(Math.max(96, Math.min(expandedHeight, startHeight.current - delta))) }} onPointerUp={event => { if (dragStart.current !== null && dragged.current) { const delta = event.clientY - dragStart.current; setCollapsed(Math.abs(delta) > 24 ? delta > 0 : (dragHeight ?? startHeight.current) < (expandedHeight + 96) / 2) } dragStart.current = null; setDragHeight(null) }} onPointerCancel={() => { dragStart.current = null; setDragHeight(null) }} onClick={() => { if (dragged.current) { dragged.current = false; return } setCollapsed(value => !value) }}><span className="sheet-handle" /></button>
-      {collapsed && <button className="collapsed-summary" onClick={() => setCollapsed(false)}>{nearest ? <><CategoryIcon category={nearest.category} /><span>{canOpen ? 'A bubble is ready to pop' : 'Keep exploring'}<small>{nearest.placeName}</small></span></> : 'Explore nearby bubbles'}</button>}
+      {collapsed && <button className="collapsed-summary" onClick={() => setCollapsed(false)}>{nearest ? <><CategoryIcon category={nearest.category} /><span>{done ? (nearest.mine ? 'Your bubble' : 'You popped this') : canOpen ? 'A bubble is ready to pop' : 'Keep exploring'}<small>{nearest.placeName}</small></span></> : 'Explore nearby bubbles'}</button>}
       <div ref={details} id="bubble-details" inert={collapsed} aria-hidden={collapsed}>
-      {error ? <><h2>Couldn't load nearby bubbles</h2><p>{error}</p><Button className="bubl-primary" onClick={() => setRetry(retry + 1)}>Try again</Button></> : !location ? <><h2>Finding your corner…</h2><p>Allow location access to discover what's around you.</p><Button className="bubl-primary" onClick={() => setLocationSource('demo')}>Use a demo location</Button></> : nearest ? <>
+      {error ? <><h2>Couldn't load nearby bubbles</h2><p>{error}</p><Button className="bubl-primary" onClick={() => setRetry(retry + 1)}>Try again</Button></> : !location ? <><h2>Finding your corner…</h2><p>Allow location access to discover what's around you.</p><Button className="bubl-primary" onClick={() => setLocationSource('demo')}>Use a demo location</Button></> : nearest && done ? <>
+        <div className="nearest-title"><CategoryIcon category={nearest.category} /><div><p className="eyebrow">{nearest.mine ? 'Your bubble' : 'You popped this'}</p><h2>{distance !== null && distance > nearest.popRadiusM ? `${distance} m away · ${nearest.placeName}` : nearest.placeName}</h2></div></div>
+        <p>{nearest.mine ? 'You left this here. Open it to see what others will find.' : "You've already popped this one. Open it anytime, from here or Your bubbles."}</p>
+        <Button className="bubl-outline" loading={busy} onClick={reopen}>Open note</Button>
+      </> : nearest ? <>
         <div className="nearest-title"><CategoryIcon category={nearest.category} /><div><p className="eyebrow">{canOpen ? "You're standing in a bubble" : `Nearest bubble · ${nearest.category}`}</p><h2>{canOpen ? nearest.placeName : `${distance} m away · ${nearest.placeName}`}</h2></div></div>
         <p>{eventReason ? eventReason : canOpen ? 'Someone left a little piece of this place. Go on, pop it.' : "Colors tell you what kind of spot it is. What's inside stays sealed until you get close."}</p>
         {canOpen ? <Button className="bubl-primary" loading={busy} onClick={pop}>Pop it <Sparkles size={18} /></Button> : <><progress max={500} value={Math.max(0, 500 - (distance ?? 500))} /><div className="distance-labels"><span>You</span><span>Pops at {nearest.popRadiusM} m</span></div>{demo && <button className="text-button" onClick={() => setDemoLocation(nearest.lat, nearest.lng)}>Demo: walk to this bubble</button>}</>}

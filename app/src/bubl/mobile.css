@@ -95,6 +95,12 @@
 .map-bubble.far { opacity: .68; }
 .map-bubble.far .category-icon { filter: blur(4px); width: 26px; height: 26px; }
 .map-bubble.far svg { visibility: hidden; }
+/* Already popped or your own: you know what's inside, so no blur; a dashed ring marks it as done. */
+.map-bubble.popped, .map-bubble.mine { border-style: dashed; opacity: .6; }
+.map-bubble.mine { border-color: #FF8A5B; opacity: .8; }
+.map-bubble.popped .category-icon, .map-bubble.mine .category-icon { filter: saturate(.55); }
+.map-bubble.popped.far .category-icon, .map-bubble.mine.far .category-icon { filter: saturate(.55); width: auto; height: auto; }
+.map-bubble.popped.far svg, .map-bubble.mine.far svg { visibility: visible; }
 .map-bubble.far { border: 0; padding: 10px; }
 .you-pin { width: 64px; height: 64px; position: absolute; transform: translate(-50%, -50%); border-radius: 50%; border: 1px dashed #243b6477; background: #243b6414; z-index: 3; display: grid; place-items: center; }
 .you-pin span { width: 20px; height: 20px; background: var(--bubl-navy); border: 3px solid white; border-radius: 50%; box-shadow: 0 1px 4px #243b6433; pointer-events: none; }
