@@ -7,7 +7,9 @@
 
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
-import type { Chat, ChatSummary, Message, User } from '../bubl/types'
+import type { Bubble, Chat, ChatBubble, ChatSummary, Message, Wave } from '../bubl/types'
+import { messageNotice } from '../bubl/lib/notifications'
+import { notify } from './notify'
 import { publicUser } from './profile'
 
 const MAX_MESSAGE_CHARS = 1000
@@ -15,6 +17,7 @@ const MESSAGE_PAGE = 200
 
 type ChatRow = { userIds: string[]; pairKey: string; bubbleId: string }
 type MessageRow = Omit<Message, never> & { userIds: string[] }
+type WaveRow = Omit<Wave, 'createdAt'> & { userIds: string[] }
 
 const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
 
@@ -85,6 +88,47 @@ export const getMessages: ActionHandler<Env> = async ({ userId, params, tools })
   return { success: true, data: res.data.records.map((r) => toMessage(r.data)).reverse() }
 }
 
+/** The pinned bubble's title, place, and mutual-wave notes. Params: `{ chatId }`. */
+export const chatBubble: ActionHandler<Env> = async ({ userId, params, tools }) => {
+  const chat = await chatForMember(tools, userId, params.chatId)
+  if (!chat) return { success: false, error: 'Chat not found' }
+
+  const bubble = await tools.get<Pick<Bubble, 'title' | 'placeName' | 'category'>>('bubbles', chat.data.bubbleId)
+  if (!bubble.success) return { success: false, error: 'Bubble not found' }
+  const pinned = bubble.data.record.data
+  const [a, b] = chat.data.userIds
+
+  // Notes from either side's waves at the other (any connecting bubble). Prefer the
+  // pinned bubble's notes first, then older ones — one chat per pair can cover several.
+  const [ab, ba] = await Promise.all([
+    tools.query<WaveRow>('waves', { where: { fromUserId: a, toUserId: b }, limit: 50 }),
+    tools.query<WaveRow>('waves', { where: { fromUserId: b, toUserId: a }, limit: 50 }),
+  ])
+  const rows = [
+    ...(ab.success ? ab.data.records : []),
+    ...(ba.success ? ba.data.records : []),
+  ]
+  rows.sort((x, y) => {
+    const pin = (r: (typeof rows)[number]) => (r.data.bubbleId === chat.data.bubbleId ? 0 : 1)
+    const byPin = pin(x) - pin(y)
+    if (byPin !== 0) return byPin
+    return x.createdAt.localeCompare(y.createdAt)
+  })
+  const waveNotes = rows.flatMap((r) => {
+    const note = r.data.note?.trim()
+    return note ? [{ fromUserId: r.data.fromUserId, note }] : []
+  })
+
+  const data: ChatBubble = {
+    bubbleId: chat.data.bubbleId,
+    title: pinned.title,
+    placeName: pinned.placeName,
+    category: pinned.category,
+    ...(waveNotes.length ? { waveNotes } : {}),
+  }
+  return { success: true, data }
+}
+
 /** Params: `{ chatId, text }` (1 to 1000 characters). */
 export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools }) => {
   const chat = await chatForMember(tools, userId, params.chatId)
@@ -103,5 +147,10 @@ export const sendMessage: ActionHandler<Env> = async ({ userId, params, tools })
   }
   const created = await tools.create('messages', message)
   if (!created.success) return created
+  const otherId = chat.data.userIds.find((id) => id !== userId)
+  if (otherId) {
+    const from = await publicUser(tools, userId)
+    await notify(tools, otherId, messageNotice({ id: userId, name: from.name }, chat.recordId, text))
+  }
   return { success: true, data: toMessage(message) }
 }

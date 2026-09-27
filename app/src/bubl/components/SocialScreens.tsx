@@ -8,8 +8,8 @@ import { Postmark, WaveIllustration } from './IllustratedIcons'
 import { demoEvents, useDemoEvents } from '../lib/eventDemo'
 import { CATEGORY_META } from '../lib/uiCategories'
 import type { ChatSummary, DroppedItem, IncomingWave, Message, PoppedItem } from '../lib/uiModels'
+import type { OutgoingWave } from '../types'
 import { Avatar, CategoryIcon, Empty, ScreenHeader } from './MobileUI'
-import type { LibraryActions } from '../lib/libraryActions'
 import { result, useMobile, useOperation, waveTarget } from './MobileApp'
 
 export function WaveScreen() {
@@ -27,7 +27,7 @@ export function WaveScreen() {
     <div className="wave-pair"><div><Avatar name={user.name} /><strong>You</strong><span className={`status-pill ${sent ? 'waved' : ''}`}>{sent ? 'Waved' : 'Not yet'}</span></div><CategoryIcon category={wave.category} /><div><Avatar name={name} image={wave.user.imageUrl} /><strong>{name}</strong><span className="status-pill">{matched ? 'Waved' : 'Waiting'}</span></div></div>
     <div className="pinned-card"><CategoryIcon category={wave.category} /><div><strong>{wave.placeName}</strong><p>The bubble that connected you</p></div></div>
     {!sent && <label className="wave-note">Add a note <span>(optional)</span><Textarea value={note} maxLength={280} onChange={e => setNote(e.target.value)} placeholder="Hey, I loved your little corner of the city." /><small>{note.length}/280</small></label>}
-    <div className="bottom-actions">{!sent ? <Button className="bubl-primary wave-button" loading={busy} onClick={send}><Hand />Wave at {name}</Button> : <Button className="bubl-primary" onClick={() => matched ? openChat({ chat: { id: matched, participantIds: [user.id, wave.user.id], bubbleId: wave.bubbleId, unlockedAt: new Date().toISOString() }, otherUser: wave.user, unread: false }) : go('chats')}>{matched ? 'Open chat' : 'Go to chats'}</Button>}
+    <div className="bottom-actions">{!sent ? <Button className="bubl-primary wave-button" loading={busy} onClick={send}><Hand />Wave at {name}</Button> : <Button className="bubl-primary" loading={busy} onClick={() => matched ? run(async () => { const chat = (await result(api.myChats())).find(c => c.chat.id === matched); if (chat) openChat(chat); else go('chats') }) : go('chats')}>{matched ? 'Open chat' : 'Go to chats'}</Button>}
       {!sent && <button className="text-button" onClick={() => go('walk')}>Not now</button>}
       {demo && library?.simulateWaveBack && sent && !matched && <button className="text-button" onClick={() => run(async () => { library.simulateWaveBack?.(wave.user.id, wave.bubbleId); const data = await result(api.sendWave({ toUserId: wave.user.id, bubbleId: wave.bubbleId })); setMatched(data.chatId) })}>Demo: {name} waves back</button>}
       <p className="fine-print">No pressure. If they don't wave back, nothing else happens.</p></div>
@@ -113,8 +113,8 @@ export function SentWavesScreen() {
 }
 
 export function ChatsScreen() {
-  const { api, waveAt, openChat, go, library } = useMobile()
-  const [outgoing, setOutgoing] = useState<Awaited<ReturnType<NonNullable<LibraryActions['outgoingWaves']>>>>([])
+  const { api, waveAt, openChat, go } = useMobile()
+  const [outgoing, setOutgoing] = useState<OutgoingWave[]>([])
   const [chats, setChats] = useState<ChatSummary[]>([])
   const [waves, setWaves] = useState<IncomingWave[]>([])
   const [loading, setLoading] = useState(true)
@@ -122,12 +122,25 @@ export function ChatsScreen() {
   const [retry, setRetry] = useState(0)
   useEffect(() => {
     let active = true
-    function load() {
-      Promise.all([result(api.myChats()), result(api.incomingWaves()), library?.outgoingWaves?.() ?? Promise.resolve([])]).then(([c, w, sent]) => { if (active) { setChats(c); setWaves(w); setOutgoing(sent); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    // Load each section on its own so a missing/failed action (e.g. outgoingWaves
+    // not yet deployed) does not blank Chats + Waved At You too.
+    async function load() {
+      const [c, w, sent] = await Promise.allSettled([result(api.myChats()), result(api.incomingWaves()), result(api.outgoingWaves())])
+      if (!active) return
+      if (c.status === 'fulfilled') setChats(c.value)
+      if (w.status === 'fulfilled') setWaves(w.value)
+      if (sent.status === 'fulfilled') setOutgoing(sent.value)
+      else setOutgoing([])
+      const failed = [c, w, sent].filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      // Only surface an error when nothing useful loaded.
+      if (c.status === 'rejected' && w.status === 'rejected' && sent.status === 'rejected') {
+        setError(failed[0]?.reason instanceof Error ? failed[0].reason.message : 'Could not load chats.')
+      } else setError('')
+      setLoading(false)
     }
     load(); const timer = setInterval(load, 15000)
     return () => { active = false; clearInterval(timer) }
-  }, [api, library, retry])
+  }, [api, retry])
   return <section className="social-screen chats-screen"><h1>Chats</h1>
     {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
     {error && <div className="inline-error" role="alert"><p>{error}</p><Button variant="outline" onClick={() => setRetry(retry + 1)}>Try again</Button></div>}
@@ -148,11 +161,16 @@ export function ThreadScreen() {
   const [retry, setRetry] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [sharedTitle, setSharedTitle] = useState('The spot that brought you together')
+  const [waveNotes, setWaveNotes] = useState<{ fromUserId: string; note: string }[]>([])
   useEffect(() => {
     let active = true
-    if (thread && library) library.getSavedBubble(thread.chat.bubbleId).then(saved => { if (active) setSharedTitle(saved.bubble.title) }).catch(() => {})
+    if (thread) result(api.chatBubble({ chatId: thread.chat.id })).then(pinned => {
+      if (!active) return
+      setSharedTitle(pinned.title)
+      setWaveNotes(pinned.waveNotes ?? [])
+    }).catch(() => {})
     return () => { active = false }
-  }, [thread, library])
+  }, [api, thread])
   const bottom = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!thread) return
@@ -161,14 +179,16 @@ export function ThreadScreen() {
     load(); const timer = setInterval(load, 5000)
     return () => { active = false; clearInterval(timer) }
   }, [api, thread, retry])
-  useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }) }, [messages.length])
+  useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest' }) }, [messages.length, waveNotes.length])
   if (!thread) return null
-  const username = `@${(thread.otherUser.name || 'user').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`
-  return <section className="thread-screen screen-fill"><ScreenHeader onBack={() => go('chats')} title={<span className="chat-header-person"><Avatar name={thread.otherUser.name} image={thread.otherUser.imageUrl} /><span><strong>{thread.otherUser.name || 'Your new connection'}</strong><small>{username}</small></span></span>}><button className="round-button" aria-label="Delete chat" disabled={!library?.deleteChat} onClick={() => setConfirmDelete(true)}><Trash2 /></button></ScreenHeader>
+  return <section className="thread-screen screen-fill"><ScreenHeader onBack={() => go('chats')} title={<span className="chat-header-person"><Avatar name={thread.otherUser.name} image={thread.otherUser.imageUrl} /><span><strong>{thread.otherUser.name || 'Your new connection'}</strong></span></span>}>{library?.deleteChat && <button className="round-button" aria-label="Delete chat" onClick={() => setConfirmDelete(true)}><Trash2 /></button>}</ScreenHeader>
     {confirmDelete && <div className="delete-confirm" role="alert"><strong>Delete this chat?</strong><p>This removes the conversation from this device.</p><div><Button variant="outline" onClick={() => setConfirmDelete(false)}>Keep chat</Button><Button variant="destructive" loading={busy} onClick={() => run(async () => { await library!.deleteChat!(thread.chat.id); go('chats') })}>Delete chat</Button></div></div>}
     <button type="button" className="thread-pin" disabled={busy} onClick={() => { if (!library) { go('walk', thread.chat.bubbleId); return } void run(async () => open({ ...await library.getSavedBubble(thread.chat.bubbleId), fromChat: true })) }}><Pin size={22} /><span><strong>Your first shared bubble</strong><span className="thread-pin-caption">{sharedTitle}</span></span></button><p className="eyebrow mutual-label"><Hand size={14} />You both waved</p>
-    <div className="message-list" aria-live="polite">{loading && <p className="loading-copy">Loading your conversation…</p>}{error && <div className="inline-error"><p>{error}</p><Button onClick={() => setRetry(retry + 1)}>Retry</Button></div>}{!loading && !error && !messages.length && <Empty icon={<Hand />} title="You're in each other's orbit.">Say hello. You already have a spot in common.</Empty>}{messages.map((message, index) => <div className={`message ${message.senderId === user.id ? 'mine' : ''}`} key={`${message.sentAt}:${index}`}><p>{message.text}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></div>)}<div ref={bottom} /></div>
-    <form className="message-composer" onSubmit={event => { event.preventDefault(); if (!text.trim()) return; void run(async () => { const message = await result(api.sendMessage({ chatId: thread.chat.id, text: text.trim() })); setMessages(previous => [...previous, message]); setText('') }) }}><Input aria-label={`Message ${thread.otherUser.name}`} placeholder={`Message ${thread.otherUser.name || 'your connection'}`} value={text} maxLength={2000} onChange={e => setText(e.target.value)} /><Button type="submit" className="send-message" aria-label="Send message" disabled={!text.trim() || busy}><ArrowUp /></Button></form>
+    <div className="message-list" aria-live="polite">{loading && <p className="loading-copy">Loading your conversation…</p>}{error && <div className="inline-error"><p>{error}</p><Button onClick={() => setRetry(retry + 1)}>Retry</Button></div>}
+      {waveNotes.map(wave => <div className={`message wave-note-message ${wave.fromUserId === user.id ? 'mine' : ''}`} key={`wave:${wave.fromUserId}`}><p className="wave-note-label"><Hand size={14} />{wave.fromUserId === user.id ? 'Your wave' : 'Their wave'}</p><p>{wave.note}</p></div>)}
+      {!loading && !error && !messages.length && !waveNotes.length && <Empty icon={<Hand />} title="You're in each other's orbit.">Say hello. You already have a spot in common.</Empty>}
+      {messages.map((message, index) => <div className={`message ${message.senderId === user.id ? 'mine' : ''}`} key={`${message.sentAt}:${index}`}><p>{message.text}</p><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time></div>)}<div ref={bottom} /></div>
+    <form className="message-composer" onSubmit={event => { event.preventDefault(); if (!text.trim()) return; void run(async () => { const message = await result(api.sendMessage({ chatId: thread.chat.id, text: text.trim() })); setMessages(previous => [...previous, message]); setText('') }) }}><Input aria-label={`Message ${thread.otherUser.name}`} placeholder={`Message ${thread.otherUser.name || 'your connection'}`} value={text} maxLength={1000} onChange={e => setText(e.target.value)} /><Button type="submit" className="send-message" aria-label="Send message" disabled={!text.trim() || busy}><ArrowUp /></Button></form>
   </section>
 }
 
