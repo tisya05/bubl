@@ -29,12 +29,14 @@ export function WalkScreen() {
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer) }, [])
   const [bubbles, setBubbles] = useState<BubblePreview[]>([])
   const walking = useWalkingMode()
-  // Walking voice pops bubbles by itself: show them as popped right away.
+  // Walking voice pops bubbles by itself: show them as popped right away, and put the
+  // one it just popped on the card.
   useEffect(() => subscribeAlerts(a => {
     if (a.kind !== 'pop' || !a.bubbleId) return
     const id = a.bubbleId
     setBubbles(list => list.map(b => b.id === id ? { ...b, popped: true } : b))
     setPoppedIds(ids => ids.includes(id) ? ids : [...ids, id])
+    setSelected(id)
   }), [])
   const [params] = useSearchParams()
   // Coming back from a note, the card shows that bubble again.

@@ -25,6 +25,8 @@ const BUBBLE = {
   popRadiusM: 25,
   ...SPOT,
 }
+// Selected on the card before the walk, ~400 m away: the walk-in pop must take its place.
+const OTHER = { ...BUBBLE, id: `${BUBBLE.id}-other`, title: '__test__ Other bubble', placeName: 'Amsterdam & 131st St', lat: SPOT.lat + 400 / 111_195 }
 
 function ownerJwt(): string | undefined {
   try {
@@ -51,15 +53,15 @@ test('walking voice pops a bubble you walk into and reads it, without opening it
   const [maya, dev] = await users(['Maya', 'Dev'])
   const seed = await request.post('/api/actions/importSeedBubbles', {
     headers: { Authorization: `Bearer ${jwt}` },
-    data: { bubbles: [{ ...BUBBLE, authorId: maya.userId ?? 'maya' }] },
+    data: { bubbles: [BUBBLE, OTHER].map((b) => ({ ...b, authorId: maya.userId ?? 'maya' })) },
   })
   expect(await seed.json()).toMatchObject({ success: true })
 
   const page = dev.page
-  await page.goto(`/home?bubble=${BUBBLE.id}`)
+  await page.goto(`/home?bubble=${OTHER.id}`)
   await expect(page.locator('.walk-screen')).toBeVisible({ timeout: 20_000 })
   await standAt(page, SPOT.lat + 150 / 111_195, SPOT.lng)
-  await expect(page.getByText(/m away · Broadway & 127th St/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/m away · Amsterdam & 131st St/)).toBeVisible({ timeout: 15_000 })
 
   const toggle = page.getByRole('button', { name: 'Walking voice' })
   await expect(toggle).toHaveAttribute('aria-pressed', 'false')
@@ -76,8 +78,9 @@ test('walking voice pops a bubble you walk into and reads it, without opening it
   expect(speak.success, speak.error).toBe(true)
   expect(speak.data?.audioUrl).toMatch(/^data:audio\//)
 
-  // Still on the map, now showing it as popped; the note never opened.
+  // Still on the map, and the card switched to the bubble it just popped; the note never opened.
   await expect(page.getByText('You popped this')).toBeVisible({ timeout: 15_000 })
+  await expect(page.locator('#bubble-details .nearest-title h2')).toHaveText('Broadway & 127th St')
   await expect(page.getByRole('heading', { name: BUBBLE.title })).toHaveCount(0)
   expect(new URL(page.url()).searchParams.get('view')).not.toBe('note')
 
