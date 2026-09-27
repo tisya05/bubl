@@ -116,7 +116,7 @@ export function NoteScreen() {
   if (!opened) return null
   const { bubble, author } = opened
   const own = bubble.authorId === user.id
-  return <section className="note-screen screen-fill"><ScreenHeader onBack={() => go(opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
+  return <section className="note-screen screen-fill"><ScreenHeader onBack={() => go(opened.fromChat ? 'thread' : opened.fromLibrary ? 'you' : opened.fromEvents ? 'events' : 'walk')} title={bubble.placeName}><ReportButton id={bubble.id} label={bubble.title} /></ScreenHeader>
     <div className="note-body">
       {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
@@ -128,7 +128,7 @@ export function NoteScreen() {
         <Button variant="outline" disabled={busy} aria-label="Translate note" onClick={() => run(async () => { const data = await result(api.translate({ bubbleId: bubble.id, targetLanguage: language })); setTranslated(data) })}><Languages /></Button></div>}
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
     </div>
-    {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
+    {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline wave-button" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}
     {own && <p className="privacy-note"><MapPin size={18} />{bubble.event ? 'You dropped this event. Find it in Your bubbles.' : 'You left this bubble. Find incoming waves in Chats.'}</p>}
   </section>
 }
