@@ -5,17 +5,13 @@
 // Screens that want the list or unread count call useNotifications() themselves.
 
 import { useEffect } from 'react';
-import { unlockSounds } from '../lib/sounds';
+import { installSoundUnlock } from '../lib/sounds';
 import { useNotifications } from '../hooks/useNotifications';
 
 export function NotificationCenter() {
   useNotifications();
 
-  useEffect(() => {
-    const unlock = () => unlockSounds();
-    window.addEventListener('pointerdown', unlock, { once: true });
-    return () => window.removeEventListener('pointerdown', unlock);
-  }, []);
+  useEffect(installSoundUnlock, []);
 
   return null;
 }

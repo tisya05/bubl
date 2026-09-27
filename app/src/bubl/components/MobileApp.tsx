@@ -6,7 +6,7 @@ import { DropIcon, BalloonsIcon } from './AppIcons'
 import { useAppViewport } from '../hooks/useAppViewport'
 import { useBubbleNearby } from '../hooks/useBubbleNearby'
 import { registerNotificationWorker } from '../lib/alerts'
-import { unlockSounds } from '../lib/sounds'
+import { installSoundUnlock } from '../lib/sounds'
 import type { ActionResult } from 'deepspace/worker'
 import type { Api, Bubble, User, ChatSummary, IncomingWave } from '../lib/uiModels'
 import { WalkScreen, NoteScreen } from './WalkScreens'
@@ -67,7 +67,7 @@ export function MobileApp({ api, demo = false, user: originalUser, onSignOut, li
   useEffect(() => { if (!message) return; const timer = setTimeout(() => setMessage(''), 6500); return () => clearTimeout(timer) }, [message])
   // Alerts (drifted into a bubble, love, wave, match, message) are phone notifications, never in-app banners.
   useEffect(registerNotificationWorker, [])
-  useEffect(() => { window.addEventListener('pointerdown', unlockSounds, { once: true }); return () => window.removeEventListener('pointerdown', unlockSounds) }, [])
+  useEffect(installSoundUnlock, [])
   useBubbleNearby(api)
   const context: MobileContextValue = { api, demo, user, opened, wave, thread, onSignOut, go, notify: setMessage, library, profile, updateProfile,
     async openWithPop(value) {
