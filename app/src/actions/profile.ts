@@ -7,8 +7,15 @@
 import type { ActionHandler, ActionTools } from 'deepspace/worker'
 import type { Env } from '../../worker'
 import type { User } from '../bubl/types'
+import { avatarUrlFor } from '../server/avatar-url'
 
-type ProfileRow = { handle?: string; notificationsEnabled?: number | boolean; locationEnabled?: number | boolean; onboardedAt?: string }
+type ProfileRow = {
+  handle?: string
+  notificationsEnabled?: number | boolean
+  locationEnabled?: number | boolean
+  onboardedAt?: string
+  avatarKey?: string
+}
 type HandleRow = { userId: string }
 
 export const HANDLE_PATTERN = /^[a-z0-9_]{3,20}$/
@@ -31,21 +38,30 @@ async function getProfile(tools: ActionTools, userId: string): Promise<ProfileRo
 /** How a person appears to others: their handle, or a neutral name before they pick one. */
 export async function publicUser(tools: ActionTools, userId: string, fallback = 'bubl user'): Promise<User> {
   const [profile, user] = await Promise.all([getProfile(tools, userId), tools.get<{ imageUrl?: string }>('users', userId)])
-  return { id: userId, name: profile?.handle ? `@${profile.handle}` : fallback, imageUrl: user.success ? user.data.record.data.imageUrl : undefined }
+  const authImage = user.success ? user.data.record.data.imageUrl : undefined
+  return {
+    id: userId,
+    name: profile?.handle ? `@${profile.handle}` : fallback,
+    // Custom avatars live on profiles (users.imageUrl is system-managed by auth).
+    imageUrl: profile?.avatarKey ? avatarUrlFor(userId, profile.avatarKey) : authImage || undefined,
+  }
 }
 
-function toMe(userId: string, p: ProfileRow | undefined) {
+function toMe(userId: string, p: ProfileRow | undefined, authImageUrl?: string) {
   return {
     userId,
     handle: p?.handle ?? null,
     notificationsEnabled: Boolean(p?.notificationsEnabled),
     locationEnabled: Boolean(p?.locationEnabled),
     onboarded: Boolean(p?.handle && p?.onboardedAt),
+    imageUrl: p?.avatarKey ? avatarUrlFor(userId, p.avatarKey) : authImageUrl || null,
   }
 }
 
 export const getMe: ActionHandler<Env> = async ({ userId, tools }) => {
-  return { success: true, data: toMe(userId, await getProfile(tools, userId)) }
+  const [profile, user] = await Promise.all([getProfile(tools, userId), tools.get<{ imageUrl?: string }>('users', userId)])
+  const authImage = user.success ? user.data.record.data.imageUrl : undefined
+  return { success: true, data: toMe(userId, profile, authImage) }
 }
 
 export const claimHandle: ActionHandler<Env> = async ({ userId, params, tools }) => {

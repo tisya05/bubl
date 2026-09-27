@@ -52,8 +52,8 @@ All of them require a signed-in user.
 | `deleteDropped` | Tisya | `{ bubbleId }` | `{ deleted: true }` | You tab trash. Author only; seeded demo bubbles refused. Removes the bubble, its preview, pops and media |
 | `sendWave` | Urvi | `toUserId`, `bubbleId`, `note?` (max 280 chars) | `{ matched, chatId? }` | Only between the bubble's author and someone who loved it; either may wave first. Waving again is a no-op. `matched` when the other person already waved; the server then creates the pair's one `Chat` (or reuses it), pinned to the first bubble |
 | `incomingWaves` | Urvi | none | `IncomingWave[]` | Waves to the caller they haven't waved back yet, newest first. `createdAt` is the day only |
-| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. No read receipts: `unread` means the other person sent the last message |
-| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first |
+| `myChats` | Urvi | none | `ChatSummary[]` | Most recent activity first. `unread` when the other person sent something after the caller last opened the thread |
+| `getMessages` | Urvi | `chatId` | `Message[]` | Only the chat's two users. Latest 200, oldest first. Marks the chat read for the caller |
 | `sendMessage` | Urvi | `chatId`, `text` (1 to 1000 chars) | `Message` | Only the chat's two users |
 | `getMe` | Urvi | none | `{ userId, handle, notificationsEnabled, locationEnabled, onboarded }` | Splash: signed out (401 / no session) → sign-in screen; `onboarded: false` → handle, then notifications; `onboarded: true` → map. `handle` is `null` until claimed |
 | `claimHandle` | Urvi | `handle` | `{ ok: true, me }` or `{ ok: false, reason }` | 3 to 20 chars, lowercase letters, numbers and `_` (input is lowercased, a leading `@` dropped). Unique; `reason` is safe to show ("That handle is taken"). Claiming a new one frees the old one |
@@ -86,7 +86,7 @@ Rule of thumb: Urvi owns anything that calls DeepSpace; Tisya owns the logic tha
 3. **Location comes only from `useUserLocation`.** Nothing else calls `navigator.geolocation`. The in-app toggle switches between GPS and the draggable demo dot (`setDemoLocation`); denied or missing GPS falls back to the demo dot automatically.
 4. **Waves are author and lover only.** A wave is only between a bubble's author and someone who loved it, about that bubble, and either can wave first. Two people who loved the same bubble never see or wave at each other. Authors can't love their own bubble. On the note screen the action is **Wave** (not "Reply"), with an optional note of up to 280 characters.
 5. **One chat per pair of users,** created only when both have waved, readable and writable only by those two. It pins the *first* bubble that connected them and never updates the pin.
-6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`.
+6. **Never expose a user's location.** `User` is only `id`, `name` and `imageUrl`. Custom photos upload to `POST /api/avatars` (stored via `profiles.avatarKey`; `users.imageUrl` is auth-managed and not writable) and are served at `/api/avatars/:userId` to any signed-in user.
 7. **Units:** ISO date strings, meters, WGS84 decimal degrees.
 
 ## Notifications

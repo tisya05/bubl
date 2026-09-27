@@ -43,6 +43,7 @@ export const resetDemo: ActionHandler<Env> = async ({ userId, tools, env }) => {
   try {
     const counts = {
       messages: await removeAll(tools, 'messages'),
+      chatReads: await removeAll(tools, 'chat_reads'),
       chats: await removeAll(tools, 'chats'),
       waves: await removeAll(tools, 'waves'),
       pops: await removeAll(tools, 'pops'),
@@ -65,7 +66,9 @@ const DEMO_PROFILES = [
   { userId: 'sYL8FvOhT463FM0ZH9ajemFvfXqu7XGo', handle: 'maya' },
   { userId: 'OHHViJa9Fu4tyKzF8ZnRO7OqDgvTm3qx', handle: 'dev' },
   { userId: 'GN08sDkS4Kj0h9JXL6pB2x4OFQBLXQiW', handle: 'sam' },
-]
+] as const
+
+/** Keep in sync with DEMO_ACCOUNTS.userId in demo-auth-routes.ts. */
 
 /** Owner-only: gives Maya, Dev and Sam handles and finished onboarding, so demo sign-in lands on the map. */
 export const setupDemoProfiles: ActionHandler<Env> = async ({ userId, tools, env }) => {
@@ -73,9 +76,17 @@ export const setupDemoProfiles: ActionHandler<Env> = async ({ userId, tools, env
   for (const { userId: id, handle } of DEMO_PROFILES) {
     const claimed = await tools.create('handles', { userId: id }, handle)
     if (!claimed.success) return claimed
+    const existing = await tools.get<{ avatarKey?: string; onboardedAt?: string }>('profiles', id)
+    const prior = existing.success ? existing.data.record.data : undefined
     const saved = await tools.create(
       'profiles',
-      { handle, notificationsEnabled: true, locationEnabled: true, onboardedAt: new Date().toISOString() },
+      {
+        ...prior,
+        handle,
+        notificationsEnabled: true,
+        locationEnabled: true,
+        onboardedAt: prior?.onboardedAt ?? new Date().toISOString(),
+      },
       id,
     )
     if (!saved.success) return saved

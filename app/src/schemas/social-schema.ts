@@ -1,10 +1,10 @@
 /**
- * Pops, waves, chats and messages.
+ * Pops, waves, chats, messages and per-user chat read stamps.
  *
  * Every collection here is written only by server actions (canPop, loveBubble,
- * sendWave, sendMessage), which enforce the product rules. Reads are scoped
+ * sendWave, sendMessage, getMessages), which enforce the product rules. Reads are scoped
  * server-side: a pop to its user, a wave / chat / message to its two users
- * (via the `userIds` collaborators column and read: 'shared').
+ * (via the `userIds` collaborators column and read: 'shared'), a chat_read to its user.
  *
  * Admins get the same row access as members: the app owner's own client must
  * not receive other people's pops, waves or messages.
@@ -77,4 +77,17 @@ export const messagesSchema: CollectionSchema = {
   ],
   collaboratorsField: 'userIds',
   permissions: { viewer: noAccess, member: participantRows, admin: participantRows },
+}
+
+/** Per-user "last opened this chat" stamp. getMessages upserts it; myChats uses it for unread. */
+export const chatReadsSchema: CollectionSchema = {
+  name: 'chat_reads',
+  columns: [
+    { name: 'userId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
+    { name: 'chatId', storage: 'text', interpretation: 'plain', required: true, immutable: true },
+    { name: 'readAt', storage: 'text', interpretation: { kind: 'datetime' }, required: true },
+  ],
+  uniqueOn: ['userId', 'chatId'],
+  ownerField: 'userId',
+  permissions: { viewer: noAccess, member: ownRows, admin: ownRows },
 }

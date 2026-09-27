@@ -18,6 +18,7 @@ const MESSAGE_PAGE = 200
 type ChatRow = { userIds: string[]; pairKey: string; bubbleId: string }
 type MessageRow = Omit<Message, never> & { userIds: string[] }
 type WaveRow = Omit<Wave, 'createdAt'> & { userIds: string[] }
+type ChatReadRow = { userId: string; chatId: string; readAt: string }
 
 const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
 
@@ -35,6 +36,9 @@ const toMessage = (row: MessageRow): Message => ({
   sentAt: row.sentAt,
 })
 
+/** Stable recordId so opening a thread can upsert without a prior query. */
+const chatReadId = (userId: string, chatId: string) => `${userId}:${chatId}`
+
 async function chatForMember(tools: ActionTools, userId: string, chatId: unknown) {
   if (!nonEmptyString(chatId)) return undefined
   const res = await tools.get<ChatRow>('chats', chatId)
@@ -42,10 +46,14 @@ async function chatForMember(tools: ActionTools, userId: string, chatId: unknown
   return res.data.record
 }
 
+async function markChatRead(tools: ActionTools, userId: string, chatId: string) {
+  const row: ChatReadRow = { userId, chatId, readAt: new Date().toISOString() }
+  await tools.create('chat_reads', row, chatReadId(userId, chatId))
+}
 
 /**
- * The caller's chats, most recent activity first. With no read receipts,
- * `unread` means the other person sent the last message.
+ * The caller's chats, most recent activity first. `unread` when the other
+ * person sent something after the caller last opened the thread (getMessages).
  */
 export const myChats: ActionHandler<Env> = async ({ userId, tools }) => {
   const res = await tools.query<ChatRow>('chats', { limit: 500 })
@@ -55,16 +63,18 @@ export const myChats: ActionHandler<Env> = async ({ userId, tools }) => {
   const summaries = await Promise.all(
     mine.map(async (r): Promise<ChatSummary> => {
       const otherId = r.data.userIds.find((id) => id !== userId) ?? userId
-      const [otherUser, last] = await Promise.all([
+      const [otherUser, last, read] = await Promise.all([
         publicUser(tools, otherId),
         tools.query<MessageRow>('messages', { where: { chatId: r.recordId }, orderBy: 'sentAt', orderDir: 'desc', limit: 1 }),
+        tools.get<ChatReadRow>('chat_reads', chatReadId(userId, r.recordId)),
       ])
       const lastRow = last.success ? last.data.records[0]?.data : undefined
+      const readAt = read.success ? read.data.record.data.readAt : ''
       return {
         chat: toChat(r.recordId, r.data, r.createdAt),
         otherUser,
         lastMessage: lastRow ? toMessage(lastRow) : undefined,
-        unread: lastRow !== undefined && lastRow.senderId !== userId,
+        unread: lastRow !== undefined && lastRow.senderId !== userId && lastRow.sentAt > readAt,
       }
     }),
   )
@@ -73,7 +83,7 @@ export const myChats: ActionHandler<Env> = async ({ userId, tools }) => {
   return { success: true, data: summaries }
 }
 
-/** The latest messages in a chat, oldest first. Params: `{ chatId }`. */
+/** The latest messages in a chat, oldest first. Params: `{ chatId }`. Marks the chat read. */
 export const getMessages: ActionHandler<Env> = async ({ userId, params, tools }) => {
   const chat = await chatForMember(tools, userId, params.chatId)
   if (!chat) return { success: false, error: 'Chat not found' }
@@ -85,6 +95,7 @@ export const getMessages: ActionHandler<Env> = async ({ userId, params, tools })
     limit: MESSAGE_PAGE,
   })
   if (!res.success) return res
+  await markChatRead(tools, userId, chat.recordId)
   return { success: true, data: res.data.records.map((r) => toMessage(r.data)).reverse() }
 }
 

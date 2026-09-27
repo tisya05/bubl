@@ -345,11 +345,19 @@ test('chats: only the pair can list, read and write; pinned to the first bubble'
   const devSide = ((await act('myChats', devToken)) as { data: Record<string, any>[] }).data.find((c) => c.chat.id === chatId)
   expect(devSide).toMatchObject({ otherUser: { id: maya.userId }, lastMessage: { text: hi }, unread: false })
 
+  // Opening the thread clears unread; a later message from them brings it back.
+  await act('getMessages', mayaToken, { chatId })
+  expect(await chatWithDev()).toMatchObject({ lastMessage: { text: hi }, unread: false })
+
   await act('sendMessage', mayaToken, { chatId, text: reply })
   expect(await chatWithDev()).toMatchObject({ lastMessage: { text: reply }, unread: false })
 
   const thread = ((await act('getMessages', devToken, { chatId })) as { data: { text: string }[] }).data.map((m) => m.text)
   expect(thread.slice(-2)).toEqual([hi, reply])
+  expect(((await act('myChats', mayaToken)) as { data: Record<string, any>[] }).data.find((c) => c.chat.id === chatId)).toMatchObject({
+    lastMessage: { text: reply },
+    unread: false,
+  })
 })
 
 test('You tab: myPopped and myDropped show only the caller’s own bubbles', async ({ users, request }) => {
