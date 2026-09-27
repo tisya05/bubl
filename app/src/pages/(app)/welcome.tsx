@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { useAppViewport } from '@/bubl/hooks/useAppViewport'
 import { setLocationSource } from '@/bubl/hooks/useUserLocation'
 import { AUTH_OFFLINE, fetchMe, savePreferences } from '@/bubl/lib/authActions'
+import { enableSystemNotifications } from '@/bubl/lib/alerts'
 import '@/bubl/mobile.css'
 
 export default function Welcome() {
@@ -27,8 +28,8 @@ export default function Welcome() {
   async function enter() {
     if (busy) return
     setError('')
-    if (notifications && 'Notification' in window && Notification.permission === 'default') {
-      try { await Notification.requestPermission() } catch { /* In-app banners still work. */ }
+    if (notifications) {
+      try { await enableSystemNotifications() } catch { /* Not supported on this browser. */ }
     }
     if (!AUTH_OFFLINE) {
       setBusy(true)

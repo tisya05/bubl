@@ -14,7 +14,17 @@ export interface UserLocation {
   source: LocationSource;
 }
 
-let source: LocationSource = 'gps';
+// The chosen source survives a page reload in this tab (e.g. the demo walk reloads after signing in).
+const SOURCE_KEY = 'bubl.location-source';
+function savedSource(): LocationSource {
+  try {
+    return sessionStorage.getItem(SOURCE_KEY) === 'demo' ? 'demo' : 'gps';
+  } catch {
+    return 'gps';
+  }
+}
+
+let source: LocationSource = typeof window === 'undefined' ? 'gps' : savedSource();
 let gpsLocation: UserLocation | null = null;
 let demoLocation: UserLocation = { ...LERNER_HALL, accuracyM: 5, source: 'demo' };
 let watchId: number | null = null;
@@ -52,6 +62,11 @@ function stopGps() {
 
 // For the in-app GPS / demo toggle.
 export function setLocationSource(next: LocationSource) {
+  try {
+    sessionStorage.setItem(SOURCE_KEY, next);
+  } catch {
+    // Storage blocked (private mode): the choice just won't survive a reload.
+  }
   if (next === source) return;
   source = next;
   if (source === 'gps') startGps();
