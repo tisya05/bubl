@@ -157,8 +157,6 @@ export function EventsScreen() {
         <label>Location<input value={location} onChange={event => setLocation(event.target.value)} placeholder="Neighborhood or venue" /></label>
         <button type="button" className="text-button" onClick={clearFilters}>Clear</button>
       </div>
-      <button type="button" className="text-button event-refresh" disabled={refreshing} onClick={refresh}>{refreshing ? 'Refreshing…' : 'Refresh events now'}</button>
-      {refreshMessage && <p className="events-refresh-message">{refreshMessage}</p>}
       {visible.map(item => <EventCard key={item.id} item={item} now={now} focused={item.id === focusId} />)}
       {!visible.length && (
         <Empty icon={<BalloonsIcon />} title={filter === 'all' ? 'Something good is on its way.' : 'Your next plan starts here.'}>
