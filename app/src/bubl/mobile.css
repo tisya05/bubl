@@ -119,10 +119,13 @@
 .map-sheet progress::-webkit-progress-bar { background: var(--bubl-line); }
 .map-sheet progress::-webkit-progress-value { background: var(--bubl-navy); border-radius: 10px; }
 .distance-labels { display: flex; justify-content: space-between; margin-top: 6px; font: 10px 'DM Mono', monospace; text-transform: uppercase; }
-.pop-transition { position: fixed; inset: 0; z-index: 200; background: var(--bubl-navy); display: grid; place-items: center; color: white; }
-.pop-transition strong { font-size: 65px; }
-.pop-orb { width: 180px; height: 180px; border-radius: 50%; border: 2px solid #ff8a5b; position: absolute; animation: pop-burst .7s ease-out forwards; }
-@keyframes pop-burst { 0% { transform: scale(.4); opacity: 1; } 75% { opacity: .8; } 100% { transform: scale(3); opacity: 0; } }
+.pop-transition { position: fixed; inset: 0; z-index: 200; overflow: hidden; pointer-events: none; background: radial-gradient(circle at var(--pop-x) var(--pop-y), #ffffff66 0, #cfe0f099 35%, #9dbde299 70%, #5b8fd966 100%); backdrop-filter: blur(3px) saturate(1.2); -webkit-backdrop-filter: blur(3px) saturate(1.2); animation: pop-wash .64s ease-in-out forwards; }
+.pop-ring { position: absolute; left: calc(var(--pop-x) - 60px); top: calc(var(--pop-y) - 60px); width: 120px; height: 120px; border-radius: 50%; border: 2px solid #5b8fd9cc; box-shadow: 0 0 18px 2px #ffffffaa, inset 0 0 18px #cfe0f0cc; transform: scale(.25); opacity: 0; animation: pop-ring .6s cubic-bezier(.2, .7, .3, 1) forwards; }
+.pop-ring-late { border-color: #9dbde2; animation-delay: .1s; animation-duration: .54s; }
+@keyframes pop-wash { 0% { opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pop-ring { 0% { transform: scale(.25); opacity: 1; } 80% { opacity: .75; } 100% { transform: scale(var(--ring-end)); opacity: 0; } }
+.view-note .note-screen { animation: note-pop-in .42s cubic-bezier(.34, 1.4, .64, 1) both; transform-origin: 50% 60%; }
+@keyframes note-pop-in { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
 /* Bubble pop: the clicked button stretches and thins like a soap film before it
    gives way, a faint rim races outward, and a fine spray of droplets arcs off
    under gravity — the next screen appears as the last of it fades (login.tsx). */
@@ -291,7 +294,7 @@
 .signin-screen .bubl-primary { margin-top: 26px; }
 @media (min-width: 600px) { .bubl-app { box-shadow: 0 0 80px #243b6414; } }
 @media (max-width: 359px) { .category-chips { gap: 3px; } .category-chips button { font-size: 10px; } .permission-card { padding: 14px 10px; gap: 8px; } .welcome-screen { padding-left: 18px; padding-right: 18px; } .wave-pair { gap: 24px; } .note-actions { padding: 16px 12px; } }
-@media (prefers-reduced-motion: reduce) { .intro-bubbles, .floating-bubl, .pop-orb { animation: none; } .bubl-app *, .bubl-intro * { scroll-behavior: auto !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .intro-bubbles, .floating-bubl, .pop-transition, .pop-ring, .view-note .note-screen { animation: none; } .bubl-app *, .bubl-intro * { scroll-behavior: auto !important; transition: none !important; } }
 
 /* Fixed app viewport; only the content areas that need scrolling own it. */
 html, body, #root { height: 100%; min-height: 0; overflow: hidden; overscroll-behavior: none; }

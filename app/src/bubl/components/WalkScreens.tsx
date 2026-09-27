@@ -15,6 +15,7 @@ import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
 import { alert } from '../lib/alerts'
 import { result, useMobile, useOperation } from './MobileApp'
+import { PopTransition, POP_TRANSITION_MS } from './PopTransition'
 
 export function WalkScreen() {
   const { api, demo, user, open, openWithPop, go, notify, library } = useMobile()
@@ -96,7 +97,7 @@ export function WalkScreen() {
       if (data.alreadyPopped) { open(data); return }
       alert({ kind: 'pop', title: 'pop.', body: data.bubble.title, bubbleId: nearest.id, quiet: true })
       setPopping(true)
-      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, POP_TRANSITION_MS))
       open(data)
     })
   }
@@ -122,7 +123,7 @@ export function WalkScreen() {
       {nearest && <><button className="text-button hide-map-button" onClick={() => { const next = [...hiddenMapIds, nearest.id]; setHiddenMapIds(next); localStorage.setItem('bubl.hidden-map.v1', JSON.stringify(next)); setSelected(undefined) }}><EyeOff size={16} />Hide from map</button><ReportButton id={nearest.id} label={`${nearest.category} bubble at ${nearest.placeName}`} /></>}
       </div>
     </div>
-    {popping && <div className="pop-transition" role="status"><span className="pop-orb" /><strong>pop!</strong></div>}
+    {popping && <PopTransition />}
   </section>
 }
 
