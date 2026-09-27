@@ -26,7 +26,7 @@ import { schemas } from '../../schemas'
 import { NotificationCenter } from '@/bubl/components/NotificationCenter'
 
 export default function AppLayout() {
-  const isMobileHome = useLocation().pathname === '/home'
+  const isMobileHome = ['/home', '/login', '/welcome'].includes(useLocation().pathname)
   if (import.meta.env.VITE_UI_ONLY) return <Outlet />
   return (
     <DeepSpaceAuthProvider>

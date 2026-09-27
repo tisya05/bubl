@@ -6,8 +6,8 @@ import './styles.css'
 import './bubl/lib/safariScroll'
 
 // The phone preview needs no auth, realtime providers, or unrelated routes.
-const Login = lazy(() => import('./pages/login'))
-const Welcome = lazy(() => import('./pages/welcome'))
+const Login = lazy(() => import('./pages/(app)/login'))
+const Welcome = lazy(() => import('./pages/(app)/welcome'))
 const Demo = lazy(() => import('./pages/demo'))
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter><Suspense fallback={<div className="preview-loading" role="status">Opening bubl…</div>}>
