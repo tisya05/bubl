@@ -16,7 +16,7 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(
     (async () => {
-      // bubl open on screen plays its own pop, so the phone's notification sound stays off.
+      // With bubl open on screen, notifications make no sound at all.
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const onScreen = windows.some((w) => w.visibilityState === 'visible');
       await self.registration.showNotification(data.title || 'bubl', {
