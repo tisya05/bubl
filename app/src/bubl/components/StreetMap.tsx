@@ -10,7 +10,8 @@ import { CATEGORY_META } from '../lib/uiCategories'
 
 const BASE_ZOOM = 16
 const WORLD = 256 * 2 ** BASE_ZOOM
-const clampZoom = (zoom: number) => Math.min(19, Math.max(13, zoom))
+// 11 fits the whole city on a phone, so every bubble can be seen at once.
+const clampZoom = (zoom: number) => Math.min(19, Math.max(11, zoom))
 export function project(lat: number, lng: number) {
   const sin = Math.sin(Math.min(85.05, Math.max(-85.05, lat)) * Math.PI / 180)
   return { x: (lng + 180) / 360 * WORLD, y: (.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * WORLD }

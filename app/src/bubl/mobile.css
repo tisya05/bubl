@@ -98,8 +98,10 @@
 /* Popped: a ring in the bubble's color with a dot in the middle. Same at any distance: you know what's inside. */
 .map-bubble.popped, .map-bubble.popped.far { border: 0; padding: 0; background: transparent; opacity: 1; }
 .map-bubble.popped:not(.active) { box-shadow: none; }
-.popped-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--category); background: #fbf9f4; box-shadow: 0 2px 8px #243b6424; }
-.popped-mark i { width: 10px; height: 10px; border-radius: 50%; background: var(--category); }
+/* The selected bubble sits above your own dot, so a bubble you're standing on (or just popped) stays visible. */
+.map-bubble.active { z-index: 4; }
+.popped-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--category); background: #fbf9f4; box-shadow: 0 2px 8px #243b6424; }
+.popped-mark i { width: 12px; height: 12px; border-radius: 50%; background: var(--category); }
 /* Your own bubble: an orange dashed ring, icon always visible. */
 .map-bubble.mine { border-style: dashed; border-color: #FF8A5B; opacity: .85; }
 .map-bubble.mine.far .category-icon { filter: saturate(.6); width: auto; height: auto; }
