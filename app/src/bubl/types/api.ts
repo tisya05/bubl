@@ -56,6 +56,7 @@ export interface SpeakResult {
 }
 
 // Server loads the bubble itself, only if the caller has popped it. Cached per (bubbleId, targetLanguage).
+// Deferred: not planned for now. Kept as a placeholder; don't build UI for it.
 export interface TranslateInput {
   bubbleId: string;
   targetLanguage: string;
@@ -75,7 +76,7 @@ export interface UploadMediaResult {
 }
 
 // Moderation runs inside dropBubble and cannot be skipped. Empty title or category
-// fall back to Grok's suggestions. If Grok fails, the bubble is saved with moderation 'unchecked'.
+// fall back to Gemini's suggestions. If Gemini is unavailable, the bubble is saved with moderation 'unchecked'.
 export interface DropBubbleInput {
   title?: string;
   text: string;

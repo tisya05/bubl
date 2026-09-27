@@ -12,7 +12,7 @@ test('intro, onboarding and the full local demo journey', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'bubl only works on foot.' })).toBeVisible()
   await page.screenshot({ path: 'test-results/welcome-mobile.png' })
   await page.getByRole('button', { name: "Let's go" }).click()
-  await expect(page.getByText('Demo walk · sample content')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
   await page.getByRole('button', { name: 'Chats', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Good things start with a wave.' })).toBeVisible()
   await page.getByRole('button', { name: 'Walk', exact: true }).click()
@@ -138,7 +138,7 @@ test('small screens, reduced motion and frontend-only navigation', async ({ page
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.goto('/home')
-  await expect(page.getByText('Demo walk · sample content')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
   expect(backendRequests).toEqual([])
 })
 
