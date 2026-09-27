@@ -40,9 +40,11 @@ function IncomingWaveCard({ wave, onWave }: { wave: IncomingWave; onWave: () => 
   return <div className="incoming-wave"><Avatar name={wave.from.name} image={wave.from.imageUrl} /><div><p className="wave-person"><strong>{wave.from.name}</strong><span className="wave-action-text"> waved at you</span></p><Button className="wave-button" onClick={onWave}><Hand />Wave</Button><p className="eyebrow">{wave.placeName} · {wave.category}</p>{wave.note && <p className="wave-message">{wave.note}</p>}</div></div>
 }
 
-type OutgoingWave = Awaited<ReturnType<NonNullable<LibraryActions['outgoingWaves']>>>[number]
+/* Only the fields the card renders, so both the library helper's shape and the server's
+   OutgoingWave type fit without depending on either. */
+type SentWave = { to: IncomingWave['from']; bubbleId: string; placeName: string; note?: string }
 
-function OutgoingWaveCard({ wave }: { wave: OutgoingWave }) {
+function OutgoingWaveCard({ wave }: { wave: SentWave }) {
   return <div className="incoming-wave outgoing-wave"><Avatar name={wave.to.name} image={wave.to.imageUrl} /><div><strong>{wave.to.name}</strong><p className="eyebrow">{wave.placeName}</p>{wave.note && <p className="wave-message">{wave.note}</p>}<small>Waiting for a wave back</small></div><Hand className="pending-wave-icon" aria-hidden="true" /></div>
 }
 
@@ -79,20 +81,26 @@ export function WavesScreen() {
   </section>
 }
 
+/* Prefers the `api.outgoingWaves` server action when the api provides it, else the library helper. */
+function loadSentWaves(api: unknown, library: ReturnType<typeof useMobile>['library']): Promise<SentWave[]> {
+  const fromServer = (api as { outgoingWaves?: () => Parameters<typeof result<SentWave[]>>[0] }).outgoingWaves
+  return fromServer ? result(fromServer.call(api)) : library?.outgoingWaves?.() ?? Promise.resolve([])
+}
+
 export function SentWavesScreen() {
-  const { go, library } = useMobile()
-  const [waves, setWaves] = useState<OutgoingWave[]>([])
+  const { api, go, library } = useMobile()
+  const [waves, setWaves] = useState<SentWave[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   useEffect(() => {
     let active = true
     function load() {
-      (library?.outgoingWaves?.() ?? Promise.resolve([])).then(w => { if (active) { setWaves(w); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+      loadSentWaves(api, library).then(w => { if (active) { setWaves(w); setError('') } }).catch(e => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     }
     load(); const timer = setInterval(load, 15000)
     return () => { active = false; clearInterval(timer) }
-  }, [library, retry])
+  }, [api, library, retry])
   return <section className="social-screen chats-screen waves-screen screen-fill"><ScreenHeader title="You waved to" onBack={() => go('chats')} />
     <div className="waves-list">
       {loading && <p className="loading-copy" role="status">Checking for a little hello…</p>}
@@ -106,7 +114,7 @@ export function SentWavesScreen() {
 
 export function ChatsScreen() {
   const { api, waveAt, openChat, go, library } = useMobile()
-  const [outgoing, setOutgoing] = useState<OutgoingWave[]>([])
+  const [outgoing, setOutgoing] = useState<Awaited<ReturnType<NonNullable<LibraryActions['outgoingWaves']>>>>([])
   const [chats, setChats] = useState<ChatSummary[]>([])
   const [waves, setWaves] = useState<IncomingWave[]>([])
   const [loading, setLoading] = useState(true)
