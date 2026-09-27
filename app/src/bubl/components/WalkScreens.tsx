@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Heart, Hand, Languages, Volume2, MapPin, Sparkles } from 'lucide-react'
+import { Heart, Hand, Volume2, MapPin, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { NEARBY_QUERY_RADIUS_M } from '../config'
 import { distanceM } from '../lib/geo'
@@ -13,6 +13,7 @@ import { ReportButton } from './ReportButton'
 import { EventWhen } from './EventsScreen'
 import { StreetMap } from './StreetMap'
 import { isSoundEnabled, useSound } from '../hooks/useSound'
+import { alert } from '../lib/alerts'
 import { result, useMobile, useOperation } from './MobileApp'
 
 export function WalkScreen() {
@@ -76,6 +77,7 @@ export function WalkScreen() {
       if (nearest.category === 'Events') { open(await demoEvents.pop(nearest.id, location)); return }
       const data = await result(api.canPop({ bubbleId: nearest.id, userLat: location.lat, userLng: location.lng }))
       if (!data.ok) { notify(data.reason === 'too_far' ? `Keep walking — you're ${data.distanceM} m away.` : 'This bubble is no longer floating.'); return }
+      alert({ kind: 'pop', title: 'pop.', body: data.bubble.title, bubbleId: nearest.id, quiet: true })
       setPopping(true)
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) await new Promise(resolve => setTimeout(resolve, 700))
       open(data)
@@ -107,8 +109,6 @@ export function NoteScreen() {
   const { api, opened, go, waveAt, user, notify } = useMobile()
   const { busy, run } = useOperation()
   const [loved, setLoved] = useState(opened?.loved ?? false)
-  const [translated, setTranslated] = useState<{ title: string; text: string }>()
-  const [language, setLanguage] = useState('en')
   const [soundEnabled] = useSound()
   const audio = useRef<HTMLAudioElement | null>(null)
   useEffect(() => { if (audio.current) audio.current.muted = !soundEnabled }, [soundEnabled])
@@ -121,11 +121,9 @@ export function NoteScreen() {
       {bubble.mediaType === 'video' && bubble.mediaUrl ? <video className="note-media" src={bubble.mediaUrl} controls playsInline muted={!soundEnabled} /> : bubble.mediaUrl ? <img className="note-media" src={bubble.mediaUrl} alt={bubble.title} /> : <div className="note-illustration"><CategoryIcon category={bubble.category} /><span>A little local knowledge.</span></div>}
       <div className="author-row"><Avatar name={author.name} image={author.imageUrl} /><div><strong>{author.name || 'A local'}</strong><p className="eyebrow">Local · {new Date(bubble.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</p></div></div>
       {bubble.event && <EventWhen event={bubble.event} />}
-      <h1>{translated?.title ?? bubble.title}</h1><p className="note-text">{translated?.text ?? bubble.text}</p>
+      <h1>{bubble.title}</h1><p className="note-text">{bubble.text}</p>
       <p className="eyebrow">{bubble.poppedCount ?? 1} popped · {(bubble.lovedCount ?? 0) + (loved ? 1 : 0)} loved it</p>
-      {!bubble.event && <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); audio.current.muted = !isSoundEnabled(); await audio.current.play() })}><Volume2 />Listen</Button>
-        <label className="language-picker"><span className="sr-only">Translate to</span><select aria-label="Translate to" value={language} onChange={e => setLanguage(e.target.value)}><option value="en">English</option><option value="es">Español</option><option value="fr">Français</option><option value="hi">हिन्दी</option><option value="zh">中文</option></select></label>
-        <Button variant="outline" disabled={busy} aria-label="Translate note" onClick={() => run(async () => { const data = await result(api.translate({ bubbleId: bubble.id, targetLanguage: language })); setTranslated(data) })}><Languages /></Button></div>}
+      {!bubble.event && <div className="note-tools"><Button variant="outline" disabled={busy} onClick={() => run(async () => { const data = await result(api.speak({ bubbleId: bubble.id })); if (!data.audioUrl) { notify('Read-aloud is not connected in this demo yet.'); return } audio.current?.pause(); audio.current = new Audio(data.audioUrl); audio.current.muted = !isSoundEnabled(); await audio.current.play() })}><Volume2 />Listen</Button></div>}
       <LocationMap lat={bubble.lat} lng={bubble.lng} label={bubble.placeName} />
     </div>
     {!own && !bubble.event && <div className="note-actions"><Button className="bubl-primary" loading={busy} onClick={() => run(async () => { await result(api.loveBubble({ bubbleId: bubble.id })); setLoved(true) })} disabled={loved}><Heart fill={loved ? 'currentColor' : 'none'} />{loved ? 'Loved this spot' : 'Love this spot'}</Button><Button className="bubl-outline" disabled={!loved} onClick={() => waveAt({ user: author, bubbleId: bubble.id, category: bubble.category, placeName: bubble.placeName })}><Hand />Wave</Button></div>}

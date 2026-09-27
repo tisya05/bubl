@@ -1,6 +1,9 @@
 // Tiny synthesized sounds (Web Audio), so there are no audio files to ship.
 // Browsers only allow sound after the user has tapped something once;
-// unlockSounds() is called on the first tap anywhere (see NotificationCenter).
+// unlockSounds() is called on the first tap anywhere (see MobileApp).
+// Both sounds respect the app's sound on/off setting (useSound).
+
+import { isSoundEnabled } from '../hooks/useSound';
 
 let ctx: AudioContext | null = null;
 
@@ -16,6 +19,7 @@ export function unlockSounds() {
 }
 
 function tone(freqFrom: number, freqTo: number, startIn: number, length: number, volume: number) {
+  if (!isSoundEnabled()) return;
   const ac = audio();
   if (!ac) return;
   const t = ac.currentTime + startIn;
