@@ -45,6 +45,15 @@ describe('speak', () => {
     expect(tools.integration).not.toHaveBeenCalled()
   })
 
+  it("plays a voice-note bubble's own recording instead of generating speech", async () => {
+    const tools = fakeTools({ popped: true, bubble: { ...bubbleRow, mediaType: 'audio', mediaUrl: '/api/media/v1' } })
+    expect(await call(tools)).toEqual({ success: true, data: { audioUrl: '/api/media/v1' } })
+    expect(tools.integration).not.toHaveBeenCalled()
+    expect(await call(fakeTools({ popped: false, bubble: { ...bubbleRow, mediaType: 'audio', mediaUrl: '/api/media/v1' } }))).toMatchObject({
+      success: false,
+    })
+  })
+
   it('lets the author hear their own bubble without popping it', async () => {
     const tools = fakeTools({ popped: false })
     expect(await call(tools, 'author')).toMatchObject({ success: true })

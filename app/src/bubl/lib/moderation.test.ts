@@ -87,6 +87,13 @@ describe('mediaContentBlock', () => {
     expect(mediaContentBlock({ mimeType: 'video/mp4', base64: 'QUJD' })?.mime_type).toBe('video/mp4');
   });
 
+  it("maps voice notes to Gemini's audio types", () => {
+    expect(mediaContentBlock({ mimeType: 'audio/mp4', base64: 'QUJD' })).toEqual({ type: 'audio', data: 'QUJD', mime_type: 'audio/m4a' });
+    expect(mediaContentBlock({ mimeType: 'audio/webm', base64: 'QUJD' })?.mime_type).toBe('audio/webm');
+    expect(mediaContentBlock({ mimeType: 'audio/ogg', base64: 'QUJD' })?.mime_type).toBe('audio/ogg');
+    expect(mediaContentBlock({ mimeType: 'audio/mpeg', base64: 'QUJD' })?.mime_type).toBe('audio/mp3');
+  });
+
   it('returns null for types Gemini cannot moderate', () => {
     expect(mediaContentBlock({ mimeType: 'application/pdf', base64: 'QUJD' })).toBeNull();
   });

@@ -31,7 +31,7 @@ Hackathon track: **Know Your City** ("anti-tourist track": NYC block by block, h
 
 | Person | Owns |
 | --- | --- |
-| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, deploy, .tech domain, seed import. Frontend: wave screen, Chats tab, chat thread. |
+| Urvi | DeepSpace backend: auth, tables, storage, the wave rule, deploy, .tech domain, seed data (collecting spots + import). Frontend: wave screen, Chats tab, chat thread. |
 | Stephanie | Map with category bubbles, pop animation, note screen. Also splash, onboarding, You tab, PWA install. |
 | Tisya | `dropBubble` (Gemini moderation inside), `speak`, `canPop`, demo mode, Drop screen, pitch. |
 
@@ -212,7 +212,7 @@ Finish each tier before starting the next.
 
 ## 8. Seed data format
 
-Tisya collects 20 to 30 spots around Morningside Heights. The shared sheet uses these columns, and we need an import script that turns it into `Bubble` rows (running each through the same media processing, including metadata stripping):
+Urvi collects 20 to 30 spots around Morningside Heights. The shared sheet uses these columns, and we need an import script that turns it into `Bubble` rows (running each through the same media processing, including metadata stripping):
 
 ```csv
 title,note_text,category,latitude,longitude,media_file,language,author
